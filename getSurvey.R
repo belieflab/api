@@ -1,4 +1,8 @@
-source("qualtrics/conf.R")
+if(!require(config)) {install.packages("config")}; library(config);
+
+config <- config::get()
+
+source(config$surveyIds)
 
 getSurvey <- function(qualtrics) {
   
