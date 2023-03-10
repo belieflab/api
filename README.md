@@ -1,26 +1,81 @@
-# CAPR Data Wizardry
 
-This repository contains analysis-related materials for the CAPR study.
+# R API submodule
 
-### Purpose
-> API data pipeline to get, clean, analyze, and export data output to .csv
+## Purpose
 
-## Data APIs
-### Secrets
-To access the APIs you **must** add `secrets.R` and `rds-combined-ca-bundle.pem` to the root of this repository.
+A structured data API pipeline to get, clean, analyze, and export data and figures in a collaborative enviroment.
+
+## About
+
+This repository contains Getter and Helper functions which leverage the REDCapR, qualtRics, and mongolite R libraries to create data frames *directly* from REDCap, Qualtrics, and MongoDB using their respective APIs' HTTP GET request methods.
+
+It is intended to be used as a **submodule** in the root of a parent repository, which could be a research study, project, or analysis; anything that needs data. Using a simple configuration file, this submodule can facilitate collaboration on a variety of analyses resulting from the same study or collection of data.
+
+This submodule obviates the need to generate extracts manually -- ensuring all data cleaning and analysis efforts begin with a common, shared starting point. Collaborators will quickly discover that their individual cleaning scripts become interoperable and can be shared easily, without the need to continually modify the code. 
+
+Additionally, data quality issues that are discovered can more easily corrected upstream, at the data source. This iterative model ensures that data will become eventually consistent as cleaning and analyses progresses.
+
+## Directory Structure
+
+Here is an example of how this `api/` submodule should be added to a  new or existing repository using `git submodule add git@github.com:belieflab/singAPI.git`
 ```
 ├── .gitignore
-├── caprDataWizardry.Rproj
-...
+├── api/                           <- this submodule
+├── config.yml
+├── export/
+├── mongo/
+│   └── clean/
+├── qualtrics/
+│   └── clean/
+│   └── surveyIds.R
+├── redcap/
+│   └── clean/
 ├── rds-combined-ca-bundle.pem
 ├── secrets.R
-...
+├── parentRepository.Rproj         <- parent repository R project
+```
+### Secrets
+
+To access the APIs you **must** configure and add `secrets.R` to the root of the parent repository:
+```
+# REDCap
+uri   <- ""
+token <- ""
+
+# Qualtrics
+apiKey  <- ""
+baseUrl <- ""
+
+# MongoDB
+connectionString <- "mongodb://"
 ```
 ***DO NOT ADD ANY ADDITIONAL SECRETS TO THE REPO OR MODIFY .GITIGNORE***
 
-### Getter Functions
+### SSL PEM file
+ Additionally, if you are connecting to a Mongo instance with SSL, you must also add the `rds-combined-ca-bundle.pem` to the root of the parent repository as well.
+ 
+### Configuration File
+The `config.yml` file should also be placed at the root of the parent directory. It contains two default values, `siteAlias` and `surveyIds` where the default values are defined below: 
+ ```
+ default:
+	studyAlias: shortnameofstudy (all lowercase)
+	surveyIds: "qualtrics/surveyIds.R"
+```
+ Without this file you will run into errors with the getters.
+ 
+### Survey Ids
+If using Qualtrics, you will need to add the key-value pairs or `survey_alias` and `surveyIds`:
+ ```
+surveyIds <- list()
+surveyIds[[ "survey_alias" ]]  <- "SV_"
+```
+ Without this file you will run into errors with the getters.
+ 
+## Functions
 
-`getSurvey.R`
+### Getters
+
+`getQualtrics.R`
 
 uses the `qualtRics` API library to create data frames directly from Qualtrics
 
@@ -28,36 +83,44 @@ uses the `qualtRics` API library to create data frames directly from Qualtrics
 
 uses the `REDCapR` API library to generate data frames directly from REDCap
 
->*Must be connected to NU GlobalProtect VPN*
->*Contact: erica-karp@northwestern.edu*
+`getMongo.R`
 
-`getTask.R`
+uses the `mongolite` API library to generate data frames for each MongoDB collection
 
-uses the `mongolite` API library to generate data frames for each task
+### Helpers
 
->*Must be connected to Yale Cisco VPN*
->*Contact: joshua.kenney@yale.edu*
+`fn/checkDuplicates.R`
 
+uses the `REDCapR` API library to generate data frames directly from REDCap
+
+`fn/createCsv.R`
+
+uses the `mongolite` API library to generate data frames for each MongoDB collection
 
 ## Data Cleaning
 
 ### Directory Structure
 
-All data cleaning scripts are to be labeled with the standard measure alias and stored in this directory structure at the root of the repository:
+All data cleaning scripts are to be labeled with the standard measure alias and stored in the `clean/` directory of their respective platforms:
 ```
 ├── qualtrics
-│   └── rgpts.R
+│   └── clean/
+│	   └── rgpts.R
+│   └── surveyIds.R/
 ├── redcap
-│   └── wtar.R
+│   └── clean/
+│	   └── wtar.R
 ├── tasks
-│   └── prl.R
+│   └── clean/
+│	   └── prl.R
+
 ```
-### Use Lower Case
+## Data Frames
 Assign variables using the lower case measure alias to keep things consistent:
 
 ```
-source("getSurvey.R")
-rgpts <- getSurvey("rgpts")
+source("getQualtrics.R")
+rgpts <- getQualtrics("rgpts")
 ...
 ```
 
@@ -88,13 +151,15 @@ wtar_clean
 ...
 prl_clean
 ```
-### Helper Functions
-Additional functions are located in `fn/` directory and should be called when needed in your cleaning scripts by first sourcing the appropriate script and then calling the function, for example:
+## Data Export
+Helper functions are located in `fn/` directory and should be called when needed in your cleaning scripts by first sourcing the appropriate script and then calling the function, for example:
 ```
 source("fn/createCsv.R")
 createCsv(rgpts_clean)
 ```
-
+# Best Practices
+## NDA Required Variables
+NDA variables are required by the NIH and should be included in each of your datasets.
 ### Keep NDA Required Variables
 The following variables should be kept when cleaning all measures:
 > `src_subject_id`
@@ -120,13 +185,13 @@ The following variables should be kept when cleaning all measures:
 ### Keep all raw item level responses
 > in addition to computing composite, mean, total scores, etc.
 
+### Rename the attention check variable
+e.g., `rgpts_attention_check`
+
 ### Always check for duplicate entries
 By invoking the appropriate helper function in `fn/`
 ```
 source("fn/checkDuplicates.R")
 checkQualitricsDuplicates(rgpts)
 ```
-Report any duplicates to  joshua.kenney@yale.edu so that he can fix them in the Qualtrics database
-
-### Rename the attention check variable
-e.g., `rgpts_attention_check`
+Report any duplicates to  your data manager so they can fix them in the database.
