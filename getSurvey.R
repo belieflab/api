@@ -38,9 +38,9 @@ getSurvey <- function(qualtrics) {
   
 }
 
-getResponseId <- function(qualtrics) {
+getResponseId <- function(qualtrics,GUID) {
   
-  foo <- qualtrics %>% filter_all(any_vars(. %in% "NDARFC859JFD"))
+  foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","visit")])
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
@@ -54,7 +54,28 @@ getResponseId <- function(qualtrics) {
   print(surveyIds[name])
   surveyId <- surveyIds[name]
   write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
-        file = "postman.txt",
+        file = paste0(GUID,".txt"),
+        append = TRUE)
+  
+}
+
+
+getResponseIdNoVisit <- function(qualtrics,GUID) {
+  
+  foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
+  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
+  responseId <- foo$ResponseId
+  src_subject_id <- foo$src_subject_id
+  interview_age <- foo$interview_age
+  phenotype <- foo$phenotype
+  sex <- foo$sex
+  site <- foo$site
+  subjectkey <- foo$subjectkey
+  name <- deparse(substitute(qualtrics))
+  print(surveyIds[name])
+  surveyId <- surveyIds[name]
+  write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
+        file = paste0(GUID,".txt"),
         append = TRUE)
   
 }
