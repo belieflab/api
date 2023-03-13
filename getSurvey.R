@@ -54,7 +54,7 @@ getResponseId <- function(qualtrics) {
   print(surveyIds[name])
   surveyId <- surveyIds[name]
   write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
-        file = "my file.txt",
+        file = "postman.txt",
         append = TRUE)
   
 }
