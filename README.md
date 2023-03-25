@@ -15,6 +15,8 @@ This submodule obviates the need to generate extracts manually -- ensuring all d
 
 Additionally, data quality issues that are discovered can more easily corrected upstream, at the data source. This iterative model ensures that data will become eventually consistent as cleaning and analyses progresses.
 
+# Getting Started
+
 ## Directory Structure
 
 Here is an example of how this `api/` submodule should be added to a  new or existing repository using `git submodule add git@github.com:belieflab/api.git`
