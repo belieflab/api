@@ -23,17 +23,17 @@ Here is an example of how this `api/` submodule should be added to a  new or exi
 ```
 ├── .gitignore
 ├── api/                           <- this submodule
-├── config.yml
+├── config.yml                     <- study-specific configuration file
 ├── export/
 ├── mongo/
 │   └── clean/
 ├── qualtrics/
 │   └── clean/
-│   └── surveyIds.R
 ├── redcap/
 │   └── clean/
 ├── rds-combined-ca-bundle.pem
 ├── secrets.R
+├── surveyIds.R                    <- study-specific configuration file
 ├── parentRepository.Rproj         <- parent repository R project
 ```
 ### Secrets
@@ -61,7 +61,7 @@ The `config.yml` file should also be placed at the root of the parent directory.
  ```
  default:
 	studyAlias: shortnameofstudy (all lowercase)
-	surveyIds: "qualtrics/surveyIds.R"
+	surveyIds: "surveyIds.R"
 ```
  Without this file you will run into errors with the getters.
  
@@ -71,7 +71,7 @@ If using Qualtrics, you will need to add the key-value pairs or `survey_alias` a
 surveyIds <- list()
 surveyIds[[ "survey_alias" ]]  <- "SV_"
 ```
- Without this file you will run into errors with the getters.
+ Without this file you will run into errors with the survey getters.
  
 ## Functions
 
