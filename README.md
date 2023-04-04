@@ -23,17 +23,15 @@ Here is an example of how this `api/` submodule should be added to a  new or exi
 ```
 ├── .gitignore
 ├── api/                           <- this submodule
-├── config.yml                     <- study-specific configuration file
+├── clean/                         <- cleaning scripts submodule
+│   └── qualtrics/
+│   └── redcap/
+│   └── task/
+├── config.yml                     <- global configuration file
 ├── export/
-├── mongo/
-│   └── clean/
-├── qualtrics/
-│   └── clean/
-├── redcap/
-│   └── clean/
 ├── rds-combined-ca-bundle.pem
 ├── secrets.R
-├── surveyIds.R                    <- study-specific configuration file
+├── surveyIds.R                    <- qualtrics configuration file
 ├── parentRepository.Rproj         <- parent repository R project
 ```
 ### Secrets
