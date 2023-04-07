@@ -56,7 +56,21 @@ getSurvey <- function(qualtrics) {
 getResponseId <- function(qualtrics,GUID) {
   
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
-  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","visit")])
+  
+  if (all(!c("visit", "week") %in% colnames(df))) {
+    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
+  }
+  
+  if ("visit" %in% colnames(df)) {
+    visit <- foo$visit
+    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","visit")])
+  }
+    
+  if ("week" %in% colnames(df)) {
+    visit <- foo$week
+    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","week")])
+  }
+  
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -77,6 +91,7 @@ getResponseId <- function(qualtrics,GUID) {
 
 getResponseIdNoVisit <- function(qualtrics,GUID) {
   
+  
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
   responseId <- foo$ResponseId
@@ -96,9 +111,53 @@ getResponseIdNoVisit <- function(qualtrics,GUID) {
 }
 
 createPostmanRunner <- function(path) {
+  unlink("all.csv")
+  write("surveyId,ResponseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey", file = "all.csv", append = TRUE)
   for (i in list.files(path)) {
-    write(readLines(paste0(path,+"/"+i)),                                           # Write new line to file
+    write(readLines(paste0(path,i)),                                           # Write new line to file
     file = "all.csv",
             append = TRUE)
   }
+}
+
+checkQualtricsDuplicates <- function(df) {
+  
+  if (all(!c("visit", "week") %in% colnames(df)) ){
+    
+    df$duplicates  <- duplicated(df$src_subject_id,  first = TRUE)
+    
+    #separate the duplicates to their own df
+    df_dup_ids  <- subset(df, duplicates == TRUE)$src_subject_id
+    
+    #filter only the subject ids that are duplicated to include both iterations
+    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids)
+    View(df_duplicates)
+    return(df_duplicates)
+  }
+  
+  if ("visit" %in% colnames(df)) {
+    
+    df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
+    
+    #separate the duplicates to their own df
+    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
+    
+    #filter only the subject ids that are duplicated to include both iterations
+    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    View(df_duplicates)
+    return(df_duplicates)
+  }
+    
+    if ("week" %in% colnames(df)) {
+      
+      df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
+      
+      #separate the duplicates to their own df
+      df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
+      
+      #filter only the subject ids that are duplicated to include both iterations
+      df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+      View(df_duplicates)
+      return(df_duplicates)
+    } 
 }
