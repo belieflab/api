@@ -57,56 +57,36 @@ getResponseId <- function(qualtrics,GUID) {
   
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   
+  surveyId <- surveyIds[name]
+  
+  responseId <- foo$ResponseId
+  src_subject_id <- foo$src_subject_id
+  interview_age <- foo$interview_age
+  phenotype <- foo$phenotype
+  sex <- foo$sex
+  site <- foo$site
+  subjectkey <- foo$subjectkey
+  
+  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
+  
   if (all(!c("visit", "week") %in% colnames(df))) {
-    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
-  }
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
+          file = paste0("export/",GUID,".csv"),
+          append = TRUE)  }
   
   if ("visit" %in% colnames(df)) {
     visit <- foo$visit
-    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","visit")])
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
+          file = paste0("export/",GUID,".csv"),
+          append = TRUE)
   }
     
   if ("week" %in% colnames(df)) {
-    visit <- foo$week
-    print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress","week")])
+    week <- foo$week
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
+          file = paste0("export/",GUID,".csv"),
+          append = TRUE)
   }
-  
-  responseId <- foo$ResponseId
-  src_subject_id <- foo$src_subject_id
-  interview_age <- foo$interview_age
-  phenotype <- foo$phenotype
-  sex <- foo$sex
-  site <- foo$site
-  subjectkey <- foo$subjectkey
-  visit <- foo$visit
-  name <- deparse(substitute(qualtrics))
-  print(surveyIds[name])
-  surveyId <- surveyIds[name]
-  write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
-        file = paste0("export/",GUID,".csv"),
-        append = TRUE)
-  
-}
-
-
-getResponseIdNoVisit <- function(qualtrics,GUID) {
-  
-  
-  foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
-  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
-  responseId <- foo$ResponseId
-  src_subject_id <- foo$src_subject_id
-  interview_age <- foo$interview_age
-  phenotype <- foo$phenotype
-  sex <- foo$sex
-  site <- foo$site
-  subjectkey <- foo$subjectkey
-  name <- deparse(substitute(qualtrics))
-  print(surveyIds[name])
-  surveyId <- surveyIds[name]
-  write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
-        file = paste0("export/",GUID,".csv"),
-        append = TRUE)
   
 }
 
@@ -121,6 +101,8 @@ createPostmanRunner <- function(path) {
 }
 
 checkQualtricsDuplicates <- function(df) {
+  
+  if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
   
   if (all(!c("visit", "week") %in% colnames(df)) ){
     
