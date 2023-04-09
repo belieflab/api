@@ -58,11 +58,9 @@ getResponseId <- function(qualtrics,GUID) {
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   
   name <- deparse(substitute(lshs_r))
-  print(name)
   
-  surveyId <- surveyIds[name]
-  print(surveyId)
-  
+  surveyId <- toString(surveyIds[name])
+
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -74,20 +72,20 @@ getResponseId <- function(qualtrics,GUID) {
   print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
   
   if (all(!c("visit", "week") %in% colnames(df))) {
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
+    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)  }
   
   if ("visit" %in% colnames(df)) {
     visit <- foo$visit
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
+    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)
   }
     
   if ("week" %in% colnames(df)) {
     week <- foo$week
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
+    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)
   }
