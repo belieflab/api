@@ -57,9 +57,11 @@ getResponseId <- function(qualtrics,GUID) {
   
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   
-  name <- deparse(substitute(qualtrics))
+  name <- deparse(substitute(lshs_r))
+  print(name)
   
   surveyId <- surveyIds[name]
+  print(surveyId)
   
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
