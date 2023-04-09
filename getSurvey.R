@@ -53,14 +53,21 @@ getSurvey <- function(qualtrics) {
   
 }
 
-getResponseId <- function(qualtrics,GUID) {
+getResponseId <- function(qualtrics,name,GUID) {
   
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
   
-  name <- deparse(substitute(lshs_r))
+  # for some reason this just returns the value "qualtrics"
+  # name <- deparse(substitute(qualtrics))
+  # print(name)
+  # surveyId <- toString(surveyIds[qualtrics]
+  # print(surveyId)
   
+  # the workaround was to create a new parameter and pass in deparse over the parameter, name
+  # R is crazy...
   surveyId <- toString(surveyIds[name])
-
+  print(surveyId)
+  
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -71,21 +78,21 @@ getResponseId <- function(qualtrics,GUID) {
   
   print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
   
-  if (all(!c("visit", "week") %in% colnames(df))) {
-    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
+  if (all(!c("visit", "week") %in% colnames(foo))) {
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)  }
   
-  if ("visit" %in% colnames(df)) {
+  if ("visit" %in% colnames(foo)) {
     visit <- foo$visit
-    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)
   }
     
-  if ("week" %in% colnames(df)) {
+  if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste(surveyId[1], responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
           file = paste0("export/",GUID,".csv"),
           append = TRUE)
   }
