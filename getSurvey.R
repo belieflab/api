@@ -1,3 +1,5 @@
+base::source("api/fn/checkDuplicates.R")
+
 if(!require(config)) {install.packages("config")}; library(config);
 
 config <- config::get()
@@ -17,6 +19,7 @@ getSurvey <- function(qualtrics) {
   source("secrets.R"); # sensitive info for api key
   
   # store qualtrics API credentials
+  
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
   # To use now, restart R or run `readRenviron("~/.Renviron")`
@@ -36,7 +39,7 @@ getSurvey <- function(qualtrics) {
                                          overwrite = TRUE)
     
   }
-
+  
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
   # To use now, restart R or run `readRenviron("~/.Renviron")`
@@ -88,7 +91,7 @@ getResponseId <- function(qualtrics,name,GUID) {
           file = paste0("export/",GUID,".csv"),
           append = TRUE)
   }
-    
+  
   if ("week" %in% colnames(foo)) {
     week <- foo$week
     write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
@@ -175,22 +178,23 @@ createSql <- function(qualtrics) {
   
   if (all(!c("visit", "week") %in% colnames(foo))) {
     
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'HIC2000026376' AND lab_id='",src_subject_id,"' AND anonymous_link like'%",surveyId,"'",";",sep=''),                                           
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=' '),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)  }
   
   if ("visit" %in% colnames(foo)) {
+    print("YOOOOO")
     visit <- foo$visit
     #update qualtrics set response_id = '' where study_HIC= and visist = and consortid= and link like
     
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'HIC2000026376' AND visit = ",visit," AND lab_id='",src_subject_id,"' AND anonymous_link like'%",surveyId,"'",";",sep=''),                                           
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'HIC2000026376' AND visit = ",visit," AND lab_id='",src_subject_id,"' AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)
   }
   
   if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'HIC2000026376' AND week = ",week," AND lab_id='",src_subject_id,"' AND anonymous_link like'%",surveyId,"'",";",sep=''),                                           
+    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)
   }
@@ -204,8 +208,8 @@ createPostmanRunner <- function(path) {
   write("surveyId,ResponseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey", file = "all.csv", append = TRUE)
   for (i in list.files(path)) {
     write(readLines(paste0(path,i)),                                           # Write new line to file
-    file = "all.csv",
-            append = TRUE)
+          file = "all.csv",
+          append = TRUE)
   }
 }
 
@@ -222,8 +226,12 @@ checkQualtricsDuplicates <- function(df) {
     
     #filter only the subject ids that are duplicated to include both iterations
     df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids)
-    View(df_duplicates)
-    return(df_duplicates)
+    if (nrow(df_duplicates) > 0) {
+      View(df_duplicates)
+      removeDuplicates(df)
+      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
+      return(df_duplicates)
+    }
   }
   
   if ("visit" %in% colnames(df)) {
@@ -235,22 +243,30 @@ checkQualtricsDuplicates <- function(df) {
     
     #filter only the subject ids that are duplicated to include both iterations
     df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
-    View(df_duplicates)
-    return(df_duplicates)
-  }
-    
-    if ("week" %in% colnames(df)) {
-      
-      df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
-      
-      #separate the duplicates to their own df
-      df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
-      
-      #filter only the subject ids that are duplicated to include both iterations
-      df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
+      removeDuplicates(df)
+      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
       return(df_duplicates)
-    } 
+    }
+  }
+  
+  if ("week" %in% colnames(df)) {
+    
+    df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
+    
+    #separate the duplicates to their own df
+    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
+    
+    #filter only the subject ids that are duplicated to include both iterations
+    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    if (nrow(df_duplicates) > 0) {
+      View(df_duplicates)
+      removeDuplicates(df)
+      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
+      return(df_duplicates)
+    }
+  } 
 }
 
 updateResponseIds <- function(qualtrics) {
@@ -278,5 +294,5 @@ cleaningRoutine <- function(qualtrics) {
   }
   
   createPostmanRunner("export/")
-
+  
 }
