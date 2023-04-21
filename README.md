@@ -15,23 +15,23 @@ This submodule obviates the need to generate extracts manually -- ensuring all d
 
 Additionally, data quality issues that are discovered can more easily corrected upstream, at the data source. This iterative model ensures that data will become eventually consistent as cleaning and analyses progresses.
 
+# Getting Started!
+
 ## Directory Structure
 
-Here is an example of how this `api/` submodule should be added to a  new or existing repository using `git submodule add git@github.com:belieflab/singAPI.git`
+Here is an example of how this `api/` submodule should be added to a  new or existing repository using `git submodule add git@github.com:belieflab/api.git`
 ```
 ├── .gitignore
 ├── api/                           <- this submodule
-├── config.yml
+├── clean/                         <- cleaning scripts submodule
+│   └── qualtrics/
+│   └── redcap/
+│   └── task/
+├── config.yml                     <- global configuration file
 ├── export/
-├── mongo/
-│   └── clean/
-├── qualtrics/
-│   └── clean/
-│   └── surveyIds.R
-├── redcap/
-│   └── clean/
 ├── rds-combined-ca-bundle.pem
 ├── secrets.R
+├── surveyIds.R                    <- qualtrics configuration file
 ├── parentRepository.Rproj         <- parent repository R project
 ```
 ### Secrets
@@ -59,7 +59,7 @@ The `config.yml` file should also be placed at the root of the parent directory.
  ```
  default:
 	studyAlias: shortnameofstudy (all lowercase)
-	surveyIds: "qualtrics/surveyIds.R"
+	surveyIds: "surveyIds.R"
 ```
  Without this file you will run into errors with the getters.
  
@@ -69,33 +69,34 @@ If using Qualtrics, you will need to add the key-value pairs or `survey_alias` a
 surveyIds <- list()
 surveyIds[[ "survey_alias" ]]  <- "SV_"
 ```
- Without this file you will run into errors with the getters.
- 
+
+ Without this file you will run into errors with the survey getters.
+
 ## Functions
 
 ### Getters
 
 `getQualtrics.R`
 
-uses the `qualtRics` API library to create data frames directly from Qualtrics
+uses the **qualtRics** API library to create data frames directly from Qualtrics
 
 `getRedcap.R`
 
-uses the `REDCapR` API library to generate data frames directly from REDCap
+uses the **REDCapR** API library to generate data frames directly from REDCap
 
 `getMongo.R`
 
-uses the `mongolite` API library to generate data frames for each MongoDB collection
+uses the **mongolite** API library to generate data frames for each MongoDB collection
 
 ### Helpers
 
 `fn/checkDuplicates.R`
 
-uses the `REDCapR` API library to generate data frames directly from REDCap
+uses the **REDCapR** API library to generate data frames directly from REDCap
 
 `fn/createCsv.R`
 
-uses the `mongolite` API library to generate data frames for each MongoDB collection
+uses the **mongolite** API library to generate data frames for each MongoDB collection
 
 ## Data Cleaning
 
@@ -120,8 +121,8 @@ All data cleaning scripts are to be labeled with the standard measure alias and 
 Assign variables using the lower case measure alias to keep things consistent:
 
 ```
-source("getQualtrics.R")
-rgpts <- getQualtrics("rgpts")
+source("api/getSurvey.R")
+rgpts <- getSurvey("rgpts")
 ...
 ```
 
@@ -155,7 +156,8 @@ prl_clean
 ## Data Export
 Helper functions are located in `fn/` directory and should be called when needed in your cleaning scripts by first sourcing the appropriate script and then calling the function, for example:
 ```
-source("fn/createCsv.R")
+
+source("api/fn/createCsv.R")
 createCsv(rgpts_clean)
 ```
 # Best Practices
@@ -176,7 +178,7 @@ The following variables should be kept when cleaning all measures:
 > use the `as.numeric()` function in R
 
 ### Convert US-centric interview_date to ISO format so they sort correctly
-> `as.Date(dsc2$interview_date, "%m/%d/%Y")`
+> `as.Date(rgpts_clean$interview_date, "%m/%d/%Y")`
 
 ## ...For Qualtrics Surveys
 
@@ -192,7 +194,8 @@ e.g., `rgpts_attention_check`
 ### Always check for duplicate entries
 By invoking the appropriate helper function in `fn/`
 ```
-source("fn/checkDuplicates.R")
+
+source("api/fn/checkDuplicates.R")
 checkQualitricsDuplicates(rgpts)
 ```
 Report any duplicates to  your data manager so they can fix them in the database.
