@@ -313,7 +313,7 @@ removeQualtricsDuplicates <- function(df) {
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
-      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected!\nDuplicate rows have been removed for this analysis.\nPlease contact your data admin to reconcile and remove duplicates from Qualtrics.")
       return(no_dups)
     }
   }
@@ -330,7 +330,7 @@ removeQualtricsDuplicates <- function(df) {
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
-      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected!\nDuplicate rows have been removed for this analysis.\nPlease contact your data admin to reconcile and remove duplicates from Qualtrics.")
       return(no_dups)
     }
   }
@@ -347,7 +347,7 @@ removeQualtricsDuplicates <- function(df) {
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
-      print("Duplicates detected. Duplicate values have been removed for this analysis. Please contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected!\nDuplicate rows have been removed for this analysis.\nPlease contact your data admin to reconcile and remove duplicates from Qualtrics.")
       return(no_dups)
     }
   } 
