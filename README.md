@@ -69,8 +69,9 @@ If using Qualtrics, you will need to add the key-value pairs or `survey_alias` a
 surveyIds <- list()
 surveyIds[[ "survey_alias" ]]  <- "SV_"
 ```
+
  Without this file you will run into errors with the survey getters.
- 
+
 ## Functions
 
 ### Getters
@@ -155,6 +156,7 @@ prl_clean
 ## Data Export
 Helper functions are located in `fn/` directory and should be called when needed in your cleaning scripts by first sourcing the appropriate script and then calling the function, for example:
 ```
+
 source("api/fn/createCsv.R")
 createCsv(rgpts_clean)
 ```
@@ -192,6 +194,7 @@ e.g., `rgpts_attention_check`
 ### Always check for duplicate entries
 By invoking the appropriate helper function in `fn/`
 ```
+
 source("api/fn/checkDuplicates.R")
 checkQualitricsDuplicates(rgpts)
 ```

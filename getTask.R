@@ -30,9 +30,10 @@ getTask <- function(task) {
   )
   
   # return task dataframe
+
   return(df$find(query = '{"subjectkey":{"$exists": true}}'))
   # return(df$find(query = '{}'))
-  
+
   # close db connection
   df$disconnect(gc = TRUE)
   
