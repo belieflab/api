@@ -1,3 +1,5 @@
+base::source("api/fn/createCsv.R")
+
 if(!require(config)) {install.packages("config")}; library(config);
 
 config <- config::get()
@@ -279,5 +281,7 @@ cleaningRoutine <- function(qualtrics) {
   }
   
   createPostmanRunner("export/")
+  
+  createCsv(dups)
   
 }
