@@ -97,9 +97,11 @@ getForms <- function() {
   
 }
 
-getDictionary <- function() {
+getDictionary <- function(instrumentName) {
   
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
-  return(View(metadata))
+  dictionary <- dictionary[dictionary$form_name == instrumentName,]
+  View(dictionary)
+
   
 }
