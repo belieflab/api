@@ -78,7 +78,7 @@ getRedcap <- function(instrumentName) {
                              forms = c("nda_study_intake",instrumentName),
                              batch_size = 1000,
                              verbose = TRUE)$data
-  df <- filter(df, between(df$src_subject_id, 9999, 80000))
+  df <- filter(df, between(df$src_subject_id, 10000, 71110))
   
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrumentName == "scid_scoresheet") {
@@ -101,7 +101,7 @@ getDictionary <- function(instrumentName) {
   
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
   dictionary <- metadata[metadata$form_name == instrumentName,]
-  View(dictionary)
+  # View(dictionary)
   return(dictionary)
 
   
