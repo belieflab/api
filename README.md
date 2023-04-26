@@ -23,17 +23,15 @@ Here is an example of how this `api/` submodule should be added to a  new or exi
 ```
 ├── .gitignore
 ├── api/                           <- this submodule
-├── config.yml
+├── clean/                         <- cleaning scripts submodule
+│   └── qualtrics/
+│   └── redcap/
+│   └── task/
+├── config.yml                     <- global configuration file
 ├── export/
-├── mongo/
-│   └── clean/
-├── qualtrics/
-│   └── clean/
-│   └── surveyIds.R
-├── redcap/
-│   └── clean/
 ├── rds-combined-ca-bundle.pem
 ├── secrets.R
+├── surveyIds.R                    <- qualtrics configuration file
 ├── parentRepository.Rproj         <- parent repository R project
 ```
 ### Secrets
@@ -61,7 +59,7 @@ The `config.yml` file should also be placed at the root of the parent directory.
  ```
  default:
 	studyAlias: shortnameofstudy (all lowercase)
-	surveyIds: "qualtrics/surveyIds.R"
+	surveyIds: "surveyIds.R"
 ```
  Without this file you will run into errors with the getters.
  
@@ -71,8 +69,9 @@ If using Qualtrics, you will need to add the key-value pairs or `survey_alias` a
 surveyIds <- list()
 surveyIds[[ "survey_alias" ]]  <- "SV_"
 ```
- Without this file you will run into errors with the getters.
- 
+
+ Without this file you will run into errors with the survey getters.
+
 ## Functions
 
 ### Getters
@@ -157,6 +156,7 @@ prl_clean
 ## Data Export
 Helper functions are located in `fn/` directory and should be called when needed in your cleaning scripts by first sourcing the appropriate script and then calling the function, for example:
 ```
+
 source("api/fn/createCsv.R")
 createCsv(rgpts_clean)
 ```
@@ -194,6 +194,7 @@ e.g., `rgpts_attention_check`
 ### Always check for duplicate entries
 By invoking the appropriate helper function in `fn/`
 ```
+
 source("api/fn/checkDuplicates.R")
 checkQualitricsDuplicates(rgpts)
 ```
