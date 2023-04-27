@@ -3,6 +3,12 @@
 # input: instrumentName from table below
 #
 
+# Get full file paths of all R files in the api directory
+file_paths <- list.files("api/src", pattern = "\\.R$", full.names = TRUE)
+
+# Source all files using lapply()
+lapply(file_paths, base::source)
+
 # instrument_name                            instrument_label
 
 # nda_study_intake                           NDA Study Intake

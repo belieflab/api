@@ -3,6 +3,12 @@
 ### parameter: capr task dataframe
 ###
 
+# Get full file paths of all R files in the api directory
+file_paths <- list.files("api/src", pattern = "\\.R$", full.names = TRUE)
+
+# Source all files using lapply()
+lapply(file_paths, base::source)
+
 if(!require(config)) {install.packages("config")}; library(config);
 
 config <- config::get()
