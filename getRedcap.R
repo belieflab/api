@@ -4,10 +4,8 @@
 #
 
 # Get full file paths of all R files in the api directory
-file_paths <- list.files("api/src", pattern = "\\.R$", full.names = TRUE)
-
-# Source all files using lapply()
-lapply(file_paths, base::source)
+# base::source all files using lapply()
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 # instrument_name                            instrument_label
 
@@ -61,6 +59,10 @@ lapply(file_paths, base::source)
 
 getRedcap <- function(instrument_name) {
   
+  if(!require(config)) {install.packages("config")}; library(config);
+  
+  config <- config::get()
+  
   # documentation
   # https://www.richardshanna.com/tutorial/redcapapi/
   
@@ -74,16 +76,28 @@ getRedcap <- function(instrument_name) {
     return(print("secrets.R file created. please add uri, token"));
   }
   
-  source("secrets.R"); # sensitive info for api key
+  base::source("secrets.R"); # sensitive info for api key
   
   # batch_size not technically necessary, but may help with extraction given size of dataset
   # can add a "field" argument to request more specific data, default is "all"
+  
+  # Get all variable names
+  vars <- REDCapR::redcap_variables(redcap_uri = uri, token = token)$data
+  # print(config$redcap$exclude_fields)
+  # Exclude variables
+  fields <- vars %>% filter(!original_field_name %in% config$redcap$exclude_fields) %>% pull()
+  lol <- as.data.frame(fields)
+  View(fields)
 
   df <- REDCapR::redcap_read(redcap_uri = uri,
                              token = token, 
-                             forms = c("nda_study_intake",instrument_name),
+                             forms = config$redcap$combine_forms,
+                             fields = fields,
+                             #filter_logic = config$redcap$filter_logic,
                              batch_size = 1000,
                              verbose = TRUE)$data
+  # apply filtering for test subjects
+  # deprecated by filterLogic
   df <- filter(df, dplyr::between(df$src_subject_id, 10000, 71110))
   
   # include guard clauses for mesaures that require aditional filtering beyond form name
@@ -98,8 +112,9 @@ getRedcap <- function(instrument_name) {
 getForms <- function() {
   
   forms <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
-  createCsv(forms)
-  return(View(forms))
+  # createCsv(forms)
+  View(forms)
+  return(forms)
   
 }
 

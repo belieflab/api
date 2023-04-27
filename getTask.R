@@ -4,16 +4,14 @@
 ###
 
 # Get full file paths of all R files in the api directory
-file_paths <- list.files("api/src", pattern = "\\.R$", full.names = TRUE)
-
-# Source all files using lapply()
-lapply(file_paths, base::source)
-
-if(!require(config)) {install.packages("config")}; library(config);
-
-config <- config::get()
+# base::source all files using lapply()
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::base::source)
 
 getTask <- function(task) {
+  
+  if(!require(config)) {install.packages("config")}; library(config);
+  
+  config <- config::get()
   
   # installs mongolite if not already installed; load mongolite
   if(!require(mongolite)) {install.packages("mongolite")}; library(mongolite);
@@ -24,12 +22,12 @@ getTask <- function(task) {
     return(print("secrets.R file created, please add connectionString"));
   }
   
-  source("secrets.R"); # sensitive info for api key
+  base::source("secrets.R"); # sensitive info for api key
 
   # store mongoDB connection credentials
   df <- mongolite::mongo(
     collection = task,
-    db  = config$studyAlias,
+    db  = config$study_alias,
     url = connectionString,
     verbose = TRUE,
     options = ssl_options(weak_cert_validation = T, key = "rds-combined-ca-bundle.pem")

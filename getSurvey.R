@@ -1,48 +1,37 @@
 # Get full file paths of all R files in the api directory
-file_paths <- list.files("api/src", pattern = "\\.R$", full.names = TRUE)
+# base::source all files using lapply()
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::base::source)
 
-# Source all files using lapply()
-lapply(file_paths, base::source)
+if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
 
-if(!require(config)) {install.packages("config")}; library(config);
-
-config <- config::get()
-
-source(config$surveyIds)
+if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
 
 getSurvey <- function(qualtrics) {
   
-  if(!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics)
+  config <- config::get()
   
   # check to see if secrets.R exists; if it does not, create it
-  if (!file.exists("secrets.R")) {
-    file.create("secrets.R");
-    return(print("secrets.R file created, please add apiKey and baseUrl"));
-  }
-  
-  source("secrets.R"); # sensitive info for api key
+  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
   
   # store qualtrics API credentials
+  base::source("secrets.R"); # sensitive info for api key
   
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   readRenviron("~/.Renviron")
   
-  if (surveyIds[qualtrics] != config$survey1 || surveyIds[qualtrics] != config$survey2) {
-    readRenviron("~/.Renviron")
-    qualtRics::qualtrics_api_credentials(api_key = apiKey, 
-                                         base_url = baseUrl,
-                                         install = TRUE,
-                                         overwrite = TRUE)
-  } else {
-    readRenviron("~/.Renviron")
-    qualtRics::qualtrics_api_credentials(api_key = apiKey2, 
-                                         base_url = baseUrl2,
-                                         install = TRUE,
-                                         overwrite = TRUE)
-    
-  }
+  !(surveyIds[qualtrics] %in% config$qualtrics$nu_surveys)
+  
+  qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
+  
+  qualtrics_base_url <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
+  
+  
+  qualtRics::qualtrics_api_credentials(api_key = qualtrics_api_key,
+                                       base_url = qualtrics_base_url,
+                                       install = TRUE,
+                                       overwrite = TRUE)
   
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
@@ -364,3 +353,6 @@ removeQualtricsDuplicates <- function(df) {
     }
   } 
 }
+
+# create alias
+getQualtrics <- getSurvey
