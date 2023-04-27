@@ -1,6 +1,6 @@
 #
-# function: getRedcap(instrumentName)
-# input: instrumentName from table below
+# function: getRedcap(instrument_name)
+# input: instrument_name from table below
 #
 
 # Get full file paths of all R files in the api directory
@@ -59,7 +59,7 @@ lapply(file_paths, base::source)
 # audit_checklist <- getRedcap("audit_checklist")
 # figs <- getRedcap("figs")
 
-getRedcap <- function(instrumentName) {
+getRedcap <- function(instrument_name) {
   
   # documentation
   # https://www.richardshanna.com/tutorial/redcapapi/
@@ -81,13 +81,13 @@ getRedcap <- function(instrumentName) {
 
   df <- REDCapR::redcap_read(redcap_uri = uri,
                              token = token, 
-                             forms = c("nda_study_intake",instrumentName),
+                             forms = c("nda_study_intake",instrument_name),
                              batch_size = 1000,
                              verbose = TRUE)$data
-  df <- filter(df, between(df$src_subject_id, 10000, 71110))
+  df <- filter(df, dplyr::between(df$src_subject_id, 10000, 71110))
   
   # include guard clauses for mesaures that require aditional filtering beyond form name
-  if (instrumentName == "scid_scoresheet") {
+  if (instrument_name == "scid_scoresheet") {
    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) #scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :) 
   }
   # return task dataframe
@@ -103,10 +103,10 @@ getForms <- function() {
   
 }
 
-getDictionary <- function(instrumentName) {
+getDictionary <- function(instrument_name) {
   
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
-  dictionary <- metadata[metadata$form_name == instrumentName,]
+  dictionary <- metadata[metadata$form_name == instrument_name,]
   # View(dictionary)
   return(dictionary)
 
