@@ -5,7 +5,7 @@
 
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
-lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::base::source)
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 getTask <- function(task) {
   

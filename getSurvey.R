@@ -1,6 +1,6 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
-lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::base::source)
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
 
@@ -9,6 +9,8 @@ if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics
 getSurvey <- function(qualtrics) {
   
   config <- config::get()
+  
+  source(config$qualtrics$survey_ids)
   
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
@@ -21,7 +23,7 @@ getSurvey <- function(qualtrics) {
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   readRenviron("~/.Renviron")
   
-  !(surveyIds[qualtrics] %in% config$qualtrics$nu_surveys)
+  !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
   
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
   
