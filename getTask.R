@@ -42,3 +42,6 @@ getTask <- function(task) {
   df$disconnect(gc = TRUE)
   
 }
+
+# alias
+getMongo <- getTask
