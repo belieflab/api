@@ -29,7 +29,7 @@ getSurvey <- function(qualtrics) {
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   readRenviron("~/.Renviron")
   
-  !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
+  !(surveyIds[qualtrics] %in% surveyIds)
   
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
   
