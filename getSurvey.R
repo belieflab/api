@@ -2,13 +2,19 @@
 # base::source all files using lapply()
 lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
-if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
+#if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
+#if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
 
-if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
+
+
 
 getSurvey <- function(qualtrics) {
   
+  if(!require(config)) {install.packages("config")}; library(config);
+  
   config <- config::get()
+  
+  if(!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics);
   
   source(config$qualtrics$survey_ids)
   
