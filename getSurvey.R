@@ -16,7 +16,7 @@ getSurvey <- function(qualtrics) {
   
   if(!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics);
   
-  source(config$qualtrics$survey_ids)
+  #source(config$qualtrics$survey_ids)
   
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
@@ -29,7 +29,7 @@ getSurvey <- function(qualtrics) {
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   readRenviron("~/.Renviron")
   
-  !(surveyIds[qualtrics] %in% surveyIds)
+  !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
   
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
   
