@@ -68,7 +68,7 @@ getRedcap <- function(instrument_name) {
   
   # installs REDCapR if not already installed; load REDCapR
   if(!require(REDCapR)) {install.packages("REDCapR")}; library(REDCapR)
-  if(!require(dplyr)) {install.packages("dplyr")};library(dplyr)
+  if(!require(tidyverse)) {install.packages("tidyverse")};library(tidyverse)
   
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) {
@@ -81,26 +81,12 @@ getRedcap <- function(instrument_name) {
   # batch_size not technically necessary, but may help with extraction given size of dataset
   # can add a "field" argument to request more specific data, default is "all"
   
-  # Get all variable names
-  vars <- REDCapR::redcap_variables(redcap_uri = uri, token = token)$data
-  message("The following variables will be removed from the dataset:")
-  print(config$redcap$exclude_fields)
-  # Exclude variables
-  vars <- vars %>% filter(!original_field_name %in% c(config$redcap$exclude_fields)) %>% pull()
-  
   df <- REDCapR::redcap_read(redcap_uri = uri,
                              token = token, 
-                             forms = config$redcap$combine_forms,
-                             #fields =  vars,
-                             filter_logic = config$redcap_filter_logic,
+                             forms = c("nda_study_intake",instrument_name),
                              batch_size = 1000,
                              verbose = TRUE)$data
-  # apply filtering for test subjects
-  # deprecated by filterLogic
-  df <- filter(df, dplyr::between(df$src_subject_id, 10000, 71110))
-  
-  # remove unnecessary vars
-  df <- select(df, vars)
+  df <- filter(df, between(df$src_subject_id, 10000, 71110))
   
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrument_name == "scid_scoresheet") {
