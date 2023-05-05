@@ -16,7 +16,7 @@ getSurvey <- function(qualtrics) {
   
   if(!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics);
   
-  #source(config$qualtrics$survey_ids)
+  source(config$qualtrics$survey_ids)
   
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
