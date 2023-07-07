@@ -86,8 +86,10 @@ getRedcap <- function(instrument_name) {
                              forms = c("nda_study_intake",instrument_name),
                              batch_size = 1000,
                              verbose = TRUE)$data
-  df <- filter(df, between(df$src_subject_id, 10000, 71110))
-  
+ # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
+                                                              # might be less flexible character to numeric
+                                                              # src_subject_id may download as character sometimes
+  df <- filter(df, src_subject_id > 10000, src_subject_id < 71110)
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrument_name == "scid_scoresheet") {
    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) #scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :) 
