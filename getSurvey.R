@@ -5,8 +5,26 @@ lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source
 #if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
 #if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
 
+# Define the loading animation function
+show_loading_animation <- function() {
+  cat("Loading ")
+  pb <- txtProgressBar(min = 0, max = 20, style = 3)
+  
+  for (i in 1:20) {
+    Sys.sleep(0.1)  # Simulate some computation time
+    setTxtProgressBar(pb, i)
+  }
+  
+  close(pb)
+}
 
+# Define the progress callback function
+progress_callback <- function(count, total) {
+  setTxtProgressBar(pb, count)  # Update the loading animation
+}
 
+# Call the loading animation function before fetch_survey
+# show_loading_animation()
 
 getSurvey <- function(qualtrics) {
   
@@ -24,17 +42,11 @@ getSurvey <- function(qualtrics) {
   # store qualtrics API credentials
   base::source("secrets.R"); # sensitive info for api key
   
-  # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
-  # Your Qualtrics key and base URL have been stored in your .Renviron.  
-  # To use now, restart R or run `readRenviron("~/.Renviron")`
-  readRenviron("~/.Renviron")
-  
   !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
   
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
   
   qualtrics_base_url <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
-  
   
   qualtRics::qualtrics_api_credentials(api_key = qualtrics_api_key,
                                        base_url = qualtrics_base_url,
@@ -44,13 +56,19 @@ getSurvey <- function(qualtrics) {
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
   # To use now, restart R or run `readRenviron("~/.Renviron")`
+  # this MUST remain to handle switches between api keys
   readRenviron("~/.Renviron")
   
+  pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+  
   df <- qualtRics::fetch_survey(surveyID = toString(surveyIds[qualtrics]),
-                                verbose = FALSE,
+                                verbose = TRUE,
                                 label = FALSE, # both of these must be set to false to import numeric
                                 convert = FALSE, # both of these must be set to false to import numeric
                                 force_request = TRUE)
+  
+  # Close the progress bar
+  close(pb)
   
   return(df)
   
