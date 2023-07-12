@@ -5,8 +5,26 @@ lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source
 #if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
 #if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
 
+# Define the loading animation function
+show_loading_animation <- function() {
+  cat("Loading ")
+  pb <- txtProgressBar(min = 0, max = 20, style = 3)
+  
+  for (i in 1:20) {
+    Sys.sleep(0.1)  # Simulate some computation time
+    setTxtProgressBar(pb, i)
+  }
+  
+  close(pb)
+}
 
+# Define the progress callback function
+progress_callback <- function(count, total) {
+  setTxtProgressBar(pb, count)  # Update the loading animation
+}
 
+# Call the loading animation function before fetch_survey
+# show_loading_animation()
 
 getSurvey <- function(qualtrics) {
   
@@ -24,17 +42,11 @@ getSurvey <- function(qualtrics) {
   # store qualtrics API credentials
   base::source("secrets.R"); # sensitive info for api key
   
-  # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
-  # Your Qualtrics key and base URL have been stored in your .Renviron.  
-  # To use now, restart R or run `readRenviron("~/.Renviron")`
-  readRenviron("~/.Renviron")
-  
   !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
   
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
   
   qualtrics_base_url <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
-  
   
   qualtRics::qualtrics_api_credentials(api_key = qualtrics_api_key,
                                        base_url = qualtrics_base_url,
@@ -44,13 +56,19 @@ getSurvey <- function(qualtrics) {
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.  
   # To use now, restart R or run `readRenviron("~/.Renviron")`
+  # this MUST remain to handle switches between api keys
   readRenviron("~/.Renviron")
   
+  pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+  
   df <- qualtRics::fetch_survey(surveyID = toString(surveyIds[qualtrics]),
-                                verbose = FALSE,
+                                verbose = TRUE,
                                 label = FALSE, # both of these must be set to false to import numeric
                                 convert = FALSE, # both of these must be set to false to import numeric
                                 force_request = TRUE)
+  
+  # Close the progress bar
+  close(pb)
   
   return(df)
   
@@ -363,36 +381,31 @@ removeQualtricsDuplicates <- function(df) {
   } 
 }
 
-raceSummary <- function(demo_no_dups) {
+raceSummary <- function(demographics) {
+  # preserve original df
+  demo <- demographics
   # select columns of interest
-  demo_dat_cleaned <- tibble::tibble(demo_no_dups[, grepl("dem", names(demo_no_dups ))],
-                                     ethnicity = demo_no_dups$dem_hispanic,
-                                     interview_age = demo_no_dups$interview_age,
-                                     interview_date = demo_no_dups$interview_date,
-                                     src_subject_id = demo_no_dups$src_subject_id,
-                                     subjectkey = demo_no_dups$subjectkey,
-                                     sex = demo_no_dups$sex,
-                                     phenotype = demo_no_dups$phenotype,
-                                     site = demo_no_dups$site
+  demo_clean <- tibble::tibble(demographics[, grepl("dem", names(demographics ))],
+                               ethnicity = demographics$dem_hispanic
   )
   
   
-  colnames(demo_dat_cleaned) <- c("dem_race_asian",
-                                  "dem_race_alaskanative",
-                                  "dem_race_americanindian",
-                                  "dem_race_africanamerican",
-                                  "dem_race_caucasian",
-                                  "dem_race_hawaiian",
-                                  "dem_other",
-                                  "dem_ethnicity"
+  colnames(demo_clean) <- c("dem_race_asian",
+                            "dem_race_alaskanative",
+                            "dem_race_americanindian",
+                            "dem_race_africanamerican",
+                            "dem_race_caucasian",
+                            "dem_race_hawaiian",
+                            "dem_other",
+                            "dem_ethnicity"
   )
   
   # recode hispanic
-  demo_dat_cleaned$dem_ethnicity <- ifelse(demo_dat_cleaned$dem_ethnicity == 0,"not_hispanic_or_latino",
-                                           ifelse(demo_dat_cleaned$dem_ethnicity == 1, "of_hispanic_or_latino",""))
+  demo_clean$dem_ethnicity <- ifelse(demo_clean$dem_ethnicity == 0,"not_hispanic_or_latino",
+                                     ifelse(demo_clean$dem_ethnicity == 1, "of_hispanic_or_latino",""))
   
   
-  demo_dat_cleaned$count <- rowSums(as.data.frame(sapply(demo_dat_cleaned[, grepl("race_", names(demo_dat_cleaned))], as.numeric)), na.rm = TRUE)
+  demo_clean$count <- rowSums(as.data.frame(sapply(demo_clean[, grepl("race_", names(demo_clean))], as.numeric)), na.rm = TRUE)
   
   # if count = 1, then grab single race column
   # else if count > 1, then label as "More Than One Race"
@@ -400,14 +413,24 @@ raceSummary <- function(demo_no_dups) {
   
   race_vector <- c()
   
-  for (i in 1:nrow(demo_dat_cleaned)){
-    race_vector[i] <- ifelse(demo_dat_cleaned[i,]$count == 1,colnames(demo_dat_cleaned)[1:6][which.max(demo_dat_cleaned[i,1:6])],
-                             ifelse(demo_dat_cleaned[i,]$count > 1, "more_than_one_race","unknwon_or_not_reported"))
+  for (i in 1:nrow(demo_clean)){
+    race_vector[i] <- ifelse(demo_clean[i,]$count == 1,colnames(demo_clean)[1:6][which.max(demo_clean[i,1:6])],
+                             ifelse(demo_clean[i,]$count > 1, "more_than_one_race","unknwon_or_not_reported"))
   }
   
-  demo_dat_cleaned$dem_race <- race_vector
+  demo_clean$dem_race <- race_vector
   
-  return(demo_dat_cleaned)
+  # add back in NDA required variables
+  demo_clean$src_subject_id <- demo$src_subject_id
+  demo_clean$subjectkey <- demo$subjectkey
+  demo_clean$interview_age <- demo$interview_age
+  demo_clean$interview_date <- demo$interview_date
+  demo_clean$ResponseId <- demo$ResponseId
+  demo_clean$phenotype <- demo$phenotype
+  demo_clean$sex <- demo$sex
+  demo_clean$site <- demo$site
+  
+  return(demo_clean)
   
 }
 

@@ -57,6 +57,24 @@ lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source
 # audit_checklist <- getRedcap("audit_checklist")
 # figs <- getRedcap("figs")
 
+# Define the loading animation function
+show_loading_animation <- function() {
+  cat("Loading ")
+  pb <- txtProgressBar(min = 0, max = 20, style = 3)
+  
+  for (i in 1:20) {
+    Sys.sleep(0.1)  # Simulate some computation time
+    setTxtProgressBar(pb, i)
+  }
+  
+  close(pb)
+}
+
+# Define the progress callback function
+progress_callback <- function(count, total) {
+  setTxtProgressBar(pb, count)  # Update the loading animation
+}
+
 getRedcap <- function(instrument_name) {
   
   if(!require(config)) {install.packages("config")}; library(config)
@@ -81,6 +99,9 @@ getRedcap <- function(instrument_name) {
   # batch_size not technically necessary, but may help with extraction given size of dataset
   # can add a "field" argument to request more specific data, default is "all"
   
+  pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+  
+  # establish redcap connection
   df <- REDCapR::redcap_read(redcap_uri = uri,
                              token = token, 
                              forms = c("nda_study_intake",instrument_name),
@@ -94,6 +115,10 @@ getRedcap <- function(instrument_name) {
   if (instrument_name == "scid_scoresheet") {
    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) #scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :) 
   }
+  
+  # Close the progress bar
+  close(pb)
+  
   # return task dataframe
   return(df);
 
