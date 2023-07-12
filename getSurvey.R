@@ -401,23 +401,23 @@ raceSummary <- function(demographics) {
   demo <- demographics
   # select columns of interest
   demo_clean <- tibble::tibble(demographics[, grepl("dem", names(demographics ))],
-                                     ethnicity = demographics$dem_hispanic
+                               ethnicity = demographics$dem_hispanic
   )
   
   
   colnames(demo_clean) <- c("dem_race_asian",
-                                  "dem_race_alaskanative",
-                                  "dem_race_americanindian",
-                                  "dem_race_africanamerican",
-                                  "dem_race_caucasian",
-                                  "dem_race_hawaiian",
-                                  "dem_other",
-                                  "dem_ethnicity"
+                            "dem_race_alaskanative",
+                            "dem_race_americanindian",
+                            "dem_race_africanamerican",
+                            "dem_race_caucasian",
+                            "dem_race_hawaiian",
+                            "dem_other",
+                            "dem_ethnicity"
   )
   
   # recode hispanic
   demo_clean$dem_ethnicity <- ifelse(demo_clean$dem_ethnicity == 0,"not_hispanic_or_latino",
-                                           ifelse(demo_clean$dem_ethnicity == 1, "of_hispanic_or_latino",""))
+                                     ifelse(demo_clean$dem_ethnicity == 1, "of_hispanic_or_latino",""))
   
   
   demo_clean$count <- rowSums(as.data.frame(sapply(demo_clean[, grepl("race_", names(demo_clean))], as.numeric)), na.rm = TRUE)
