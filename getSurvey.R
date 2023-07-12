@@ -363,5 +363,53 @@ removeQualtricsDuplicates <- function(df) {
   } 
 }
 
+raceSummary <- function(demo_no_dups) {
+  # select columns of interest
+  demo_dat_cleaned <- tibble::tibble(demo_no_dups[, grepl("dem", names(demo_no_dups ))],
+                                     ethnicity = demo_no_dups$dem_hispanic,
+                                     interview_age = demo_no_dups$interview_age,
+                                     interview_date = demo_no_dups$interview_date,
+                                     src_subject_id = demo_no_dups$src_subject_id,
+                                     subjectkey = demo_no_dups$subjectkey,
+                                     sex = demo_no_dups$sex,
+                                     phenotype = demo_no_dups$phenotype,
+                                     site = demo_no_dups$site
+  )
+  
+  
+  colnames(demo_dat_cleaned) <- c("dem_race_asian",
+                                  "dem_race_alaskanative",
+                                  "dem_race_americanindian",
+                                  "dem_race_africanamerican",
+                                  "dem_race_caucasian",
+                                  "dem_race_hawaiian",
+                                  "dem_other",
+                                  "dem_ethnicity"
+  )
+  
+  # recode hispanic
+  demo_dat_cleaned$dem_ethnicity <- ifelse(demo_dat_cleaned$dem_ethnicity == 0,"not_hispanic_or_latino",
+                                           ifelse(demo_dat_cleaned$dem_ethnicity == 1, "of_hispanic_or_latino",""))
+  
+  
+  demo_dat_cleaned$count <- rowSums(as.data.frame(sapply(demo_dat_cleaned[, grepl("race_", names(demo_dat_cleaned))], as.numeric)), na.rm = TRUE)
+  
+  # if count = 1, then grab single race column
+  # else if count > 1, then label as "More Than One Race"
+  # else label as "Unknown or Not Reported"
+  
+  race_vector <- c()
+  
+  for (i in 1:nrow(demo_dat_cleaned)){
+    race_vector[i] <- ifelse(demo_dat_cleaned[i,]$count == 1,colnames(demo_dat_cleaned)[1:6][which.max(demo_dat_cleaned[i,1:6])],
+                             ifelse(demo_dat_cleaned[i,]$count > 1, "more_than_one_race","unknwon_or_not_reported"))
+  }
+  
+  demo_dat_cleaned$dem_race <- race_vector
+  
+  return(demo_dat_cleaned)
+  
+}
+
 # create alias
 getQualtrics <- getSurvey
