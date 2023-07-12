@@ -197,7 +197,7 @@ createSql <- function(qualtrics) {
   
   if (all(!c("visit", "week") %in% colnames(foo))) {
     
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'PROJECT00001522' AND consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)
   }
@@ -207,14 +207,14 @@ createSql <- function(qualtrics) {
     visit <- foo$visit
     #update qualtrics set response_id = '' where study_HIC= and visist = and consortid= and link like
     
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE qualtrics.study_HIC = 'HIC2000026376' AND visit = ",visit," AND lab_id='",src_subject_id,"' AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE visit = ",visit," AND consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)
   }
   
   if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE week = ",week," AND consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
           file = paste0("export/",name,".csv"),
           append = TRUE)
   }
@@ -246,6 +246,9 @@ checkQualtricsDuplicates <- function(df) {
     
     #filter only the subject ids that are duplicated to include both iterations
     df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids)
+    if (nrow(df_duplicates) == 0) {
+      return(cat("no duplicates"))
+    }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
@@ -262,6 +265,9 @@ checkQualtricsDuplicates <- function(df) {
     
     #filter only the subject ids that are duplicated to include both iterations
     df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    if (nrow(df_duplicates) == 0) {
+      return(cat("no duplicates"))
+    }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
@@ -278,6 +284,9 @@ checkQualtricsDuplicates <- function(df) {
     
     #filter only the subject ids that are duplicated to include both iterations
     df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    if (nrow(df_duplicates) == 0) {
+      return(cat("no duplicates"))
+    }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
@@ -306,11 +315,17 @@ cleaningRoutine <- function(qualtrics) {
   
   guid_list <- as.list(dups$subjectkey)
   
+  if (length(guid_list) == 0) {
+    return()
+  }
+  
   for (guid in guid_list) {
     getResponseId(qualtrics,deparse(substitute(qualtrics)),guid)
   }
   
   createPostmanRunner("export/")
+  
+  cat(paste0("extract generated at export/",dups))
   
   createCsv(dups)
   
