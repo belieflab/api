@@ -9,9 +9,8 @@ multiMerge <- function(..., by = c("src_subject_id","phenotype"), all = FALSE) {
   # source("clean/qualtrics/complete/pss.R")
   
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all), data_list)
-  View(dfs)
-  unlink("extracts/dfs.csv")
-  createCsv(dfs)
+
+  return(dfs)
 }
 
 
