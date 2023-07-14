@@ -65,7 +65,8 @@ getSurvey <- function(qualtrics) {
                                 verbose = TRUE,
                                 label = FALSE, # both of these must be set to false to import numeric
                                 convert = FALSE, # both of these must be set to false to import numeric
-                                force_request = TRUE)
+                                force_request = TRUE,
+                                add_column_map = TRUE)
   
   # Close the progress bar
   close(pb)
@@ -446,6 +447,14 @@ raceSummary <- function(demographics) {
   demo_clean$site <- demo$site
   
   return(demo_clean)
+  
+}
+
+# trying to get dataDictionary for Qualtrics
+getColMap <- function(qualtricsAlias) {
+  respData <- getSurvey(qualtricsAlias)
+  
+  return(extract_colmap(respdata = respData))
   
 }
 
