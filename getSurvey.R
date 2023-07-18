@@ -239,58 +239,61 @@ checkQualtricsDuplicates <- function(df) {
   if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
   
   if (all(!c("visit", "week") %in% colnames(df)) ){
-    
+
     df$duplicates  <- duplicated(df$src_subject_id,  first = TRUE)
     
     #separate the duplicates to their own df
     df_dup_ids  <- subset(df, duplicates == TRUE)$src_subject_id
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids)
+    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      return(cat("no duplicates"))
+      cat("no duplicates")
+      return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
       return(df_duplicates)
     }
   }
   
   if ("visit" %in% colnames(df)) {
-    
+
     df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
     
     #separate the duplicates to their own df
     df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      return(cat("no duplicates"))
+      cat("no duplicates")
+      return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
       return(df_duplicates)
     }
   }
   
   if ("week" %in% colnames(df)) {
-    
+
     df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
     
     #separate the duplicates to their own df
     df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      return(cat("no duplicates"))
+      cat("no duplicates")
+      return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      print("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
       return(df_duplicates)
     }
   } 
@@ -344,7 +347,7 @@ removeQualtricsDuplicates <- function(df) {
     df_dup_ids  <- subset(df, duplicates == TRUE)$src_subject_id
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids)
+    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids)
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
