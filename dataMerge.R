@@ -1,6 +1,6 @@
 
 
-multiMerge <- function(..., by = c("src_subject_id","phenotype"), all = FALSE) {
+dataMerge <- function(..., by = c("src_subject_id","phenotype"), all = FALSE) {
   data_list <- list(...)
   
   # if in data_list:
