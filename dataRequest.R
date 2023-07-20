@@ -84,7 +84,9 @@ dataRequest <- function(...) {
     
     if(data_list[i] %in% qualtrics_list){
       # creates file paths with name to source
+     
       qualtrics_file <- paste0("clean/qualtrics/complete/",data_list[i],".R")
+      print(qualtrics_file)
       cat("\n")
       cat(paste("fetching and cleaning",data_list[i],"..."))
       cat("\n")
