@@ -36,7 +36,7 @@ dataRequest <- function(...) {
   
   data_list <- list(...)
   redcap_list <- c("scid","sips_p","sips_d","les")
-  qualtrics_list <- c("demo","lshsr", "rgpts","lec")
+  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40")
   task_list <- c("kamin","prl","ch","mooney")
   
   `%!in%` = Negate(`%in%`)
