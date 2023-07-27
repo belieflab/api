@@ -70,6 +70,18 @@ getSurvey <- function(qualtrics) {
   
   # Close the progress bar
   close(pb)
+  `%!in%` = Negate(`%in%`)
+  if("visit" %in% colnames(df)) {
+     if(visit=="bl"){
+     df %>% mutate(redcap_event_name="baseline_arm_1") -> df
+     }
+    if(visit=="12m"){
+     df %>% mutate(redcap_event_name="12m_arm_1") -> df }
+    if(visit=="24m"){
+      df %>% mutate(redcap_event_name="24m_arm_1") -> df }
+  } else if("visit" %!in% colnames(df)) {
+    df %>% mutate(redcap_event_name="baseline_arm_1") -> df
+  }
   
   return(df)
   
@@ -387,7 +399,7 @@ removeQualtricsDuplicates <- function(df) {
     df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)

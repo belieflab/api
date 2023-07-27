@@ -119,6 +119,16 @@ getRedcap <- function(instrument_name) {
   # Close the progress bar
   close(pb)
   
+  # remove withdrawn and ineligible participants
+  df %>% filter(phenotype < 4) -> df
+  
+  # recode phenotype
+  df %>% dplyr::mutate(phenotype=ifelse(phenotype==1, "hc", 
+                                        ifelse(phenotype==2,"chr",
+                                               ifelse(phenotype==3,"hsc",
+                                                      ifelse(phenotype==4,"ineligible",
+                                                             ifelse(phenotype==5,"withdrew",NA)))))) -> df
+  
   # return task dataframe
   return(df);
 
