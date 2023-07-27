@@ -56,17 +56,18 @@ getTask <- function(task) {
     options = ssl_options(weak_cert_validation = T, key = "rds-combined-ca-bundle.pem")
   )
   
+  
   show_loading_animation()
   
- 
   
   # return task dataframe
-
   return(df$find(query = '{"subjectkey":{"$exists": true}}'))
   # return(df$find(query = '{}'))
   
   # close db connection
   df$disconnect(gc = TRUE)
+  
+  
   
 }
 

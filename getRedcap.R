@@ -127,7 +127,11 @@ getRedcap <- function(instrument_name) {
                                         ifelse(phenotype==2,"chr",
                                                ifelse(phenotype==3,"hsc",
                                                       ifelse(phenotype==4,"ineligible",
-                                                             ifelse(phenotype==5,"withdrew",NA)))))) -> df
+                                 ifelse(phenotype==5,"withdrew",NA)))))) -> df
+  
+  # create a visit variable based on redcap_event_name
+  ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
+  df %>% mutate(visit=redcap_event_name) -> df
   
   # return task dataframe
   return(df);

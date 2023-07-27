@@ -73,14 +73,14 @@ getSurvey <- function(qualtrics) {
   `%!in%` = Negate(`%in%`)
   if("visit" %in% colnames(df)) {
      if(visit=="bl"){
-     df %>% mutate(redcap_event_name="baseline_arm_1") -> df
+     df %>% mutate(visit="baseline_arm_1") -> df
      }
     if(visit=="12m"){
-     df %>% mutate(redcap_event_name="12m_arm_1") -> df }
+     df %>% mutate(visit="12m_arm_1") -> df }
     if(visit=="24m"){
-      df %>% mutate(redcap_event_name="24m_arm_1") -> df }
+      df %>% mutate(visit="24m_arm_1") -> df }
   } else if("visit" %!in% colnames(df)) {
-    df %>% mutate(redcap_event_name="baseline_arm_1") -> df
+    df %>% mutate(visit="baseline_arm_1") -> df
   }
   
   return(df)
