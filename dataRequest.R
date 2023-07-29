@@ -29,17 +29,18 @@
 
 #https://erdavenport.github.io/R-ecology-lesson/03-loops-and-functions.html
 
+# Get full file paths of all R files in the api directory
+# base::source all files using lapply()
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+
 dataRequest <- function(...) {
-  
   
   if(!require(tidyverse)) {install.packages("tidyverse")}; library(tidyverse)
   
   data_list <- list(...)
   redcap_list <- c("scid","sips_p","sips_d","les")
-  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40")
+  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc")
   task_list <- c("kamin","prl","ch","mooney", "social_prl")
-  
-  `%!in%` = Negate(`%in%`)
   
   # first, check that eeach measure is valid
   
@@ -86,7 +87,7 @@ dataRequest <- function(...) {
       # creates file paths with name to source
      
       qualtrics_file <- paste0("clean/qualtrics/complete/",data_list[i],".R")
-      print(qualtrics_file)
+      # cat(qualtrics_file)
       cat("\n")
       cat(paste("fetching and cleaning",data_list[i],"..."))
       cat("\n")

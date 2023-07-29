@@ -1,4 +1,6 @@
-
+# Get full file paths of all R files in the api directory
+# base::source all files using lapply()
+lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 dataMerge <- function(..., by = c("src_subject_id","phenotype"), all = TRUE) {
   data_list <- list(...)
