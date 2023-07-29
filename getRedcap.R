@@ -122,16 +122,25 @@ getRedcap <- function(instrument_name) {
   # remove withdrawn and ineligible participants
   df %>% filter(phenotype < 4) -> df
   
-  # recode phenotype
+  # recode phenotype (only need to recode phenotypes as 4 (ineligible) and 5 (withdrawn) have been removed in previous line)
   df %>% dplyr::mutate(phenotype=ifelse(phenotype==1, "hc", 
                                         ifelse(phenotype==2,"chr",
-                                               ifelse(phenotype==3,"hsc",
-                                                      ifelse(phenotype==4,"ineligible",
-                                 ifelse(phenotype==5,"withdrew",NA)))))) -> df
+                                               ifelse(phenotype==3,"hsc",NA)))) -> df
   
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
-  df %>% mutate(visit=redcap_event_name) -> df
+  df %>% dplyr::mutate(visit=redcap_event_name) -> df
+  
+  # align redcap_event_name-ing convention with natural language
+  if(visit=="baseline_arm_1"){
+    df %>% dplyr::mutate(visit="bl") -> df
+  }
+  if(visit=="12m_arm_1"){
+    df %>% dplyr::mutate(visit="12m") -> df
+  }
+  if(visit=="24m_arm_1"){
+    df %>% dplyr::mutate(visit="24m") -> df
+  }
   
   # return task dataframe
   return(df);
