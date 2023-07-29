@@ -59,6 +59,13 @@ getTask <- function(task) {
   
   show_loading_animation()
   
+  # check for visit variable, if not add baseline
+  if("visit" %!in% colnames(df)) {
+    
+    df$visit <- "bl"
+    
+  }
+  
   
   # return task dataframe
   return(df$find(query = '{"subjectkey":{"$exists": true}}'))
