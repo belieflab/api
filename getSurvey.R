@@ -416,10 +416,9 @@ removeQualtricsDuplicates <- function(df) {
 
 
 # trying to get dataDictionary for Qualtrics
-getColMap <- function(qualtricsAlias) {
-  respData <- getSurvey(qualtricsAlias)
-  
-  return(extract_colmap(respdata = respData))
+getDictionary <- function(qualtrics_df) {
+
+  return(extract_colmap(respdata = qualtrics_df))
   
 }
 
