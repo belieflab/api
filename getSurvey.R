@@ -70,17 +70,19 @@ getSurvey <- function(qualtrics) {
   
   # Close the progress bar
   close(pb)
-  `%!in%` = Negate(`%in%`)
-  if("visit" %in% colnames(df)) {
-     if(visit=="bl"){
-     df %>% mutate(visit="baseline_arm_1") -> df
-     }
-    if(visit=="12m"){
-     df %>% mutate(visit="12m_arm_1") -> df }
-    if(visit=="24m"){
-      df %>% mutate(visit="24m_arm_1") -> df }
-  } else if("visit" %!in% colnames(df)) {
-    df %>% mutate(visit="baseline_arm_1") -> df
+  
+  # check for visit variable, if not add baseline
+  if("visit" %!in% colnames(df)) {
+    
+    df$visit <- "bl"
+    
+  }
+  
+  # if visit variable exists, make sure they are named according to convention
+  if ("visit" %in% colnames(df)) {
+    
+    df$visit <- ifelse(is.na(df$visit), "bl", ifelse(df$visit == "0", "bl", ifelse(df$visit == "12", "12m", ifelse(df$visit == "24", "24m", df$visit))))
+    
   }
   
   return(df)
