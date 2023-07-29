@@ -1,8 +1,10 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
-lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 dataMerge <- function(..., by = c("src_subject_id","phenotype"), all = TRUE) {
+  
+  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  
   data_list <- list(...)
   
   # if in data_list:
@@ -11,6 +13,9 @@ dataMerge <- function(..., by = c("src_subject_id","phenotype"), all = TRUE) {
   # source("clean/qualtrics/complete/pss.R")
   
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all), data_list)
+  
+  # Clean Up
+  suppressWarnings(source("api/env/cleanup.R"))
 
   return(dfs)
 }
