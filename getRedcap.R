@@ -87,19 +87,19 @@ getRedcap <- function(instrument_name) {
   # installs REDCapR if not already installed; load REDCapR
   if(!require(REDCapR)) {install.packages("REDCapR")}; library(REDCapR)
   if(!require(tidyverse)) {install.packages("tidyverse")};library(tidyverse)
-  
+
   # check to see if secrets.R exists; if it does not, create it
-  if (!file.exists("secrets.R")) {
-    file.create("secrets.R");
-    return(print("secrets.R file created. please add uri, token"));
-  }
+  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
   
   base::source("secrets.R"); # sensitive info for api key
   
   # batch_size not technically necessary, but may help with extraction given size of dataset
   # can add a "field" argument to request more specific data, default is "all"
   
-  pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+  #pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+  
+  show_loading_animation()
+  
   
   # establish redcap connection
   df <- REDCapR::redcap_read(redcap_uri = uri,
@@ -107,40 +107,44 @@ getRedcap <- function(instrument_name) {
                              forms = c("nda_study_intake",instrument_name),
                              batch_size = 1000,
                              verbose = TRUE)$data
+  
+  
  # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
                                                               # might be less flexible character to numeric
                                                               # src_subject_id may download as character sometimes
-  df <- filter(df, src_subject_id > 10000, src_subject_id < 71110)
+  df <- filter(df, src_subject_id > 10000, src_subject_id < 79110)
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrument_name == "scid_scoresheet") {
    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) #scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :) 
   }
   
   # Close the progress bar
-  close(pb)
+  #close(pb)
   
   # remove withdrawn and ineligible participants
   df %>% filter(phenotype < 4) -> df
-  
+
   # recode phenotype (only need to recode phenotypes as 4 (ineligible) and 5 (withdrawn) have been removed in previous line)
-  df %>% dplyr::mutate(phenotype=ifelse(phenotype==1, "hc", 
+  df %>% dplyr::mutate(phenotype=ifelse(phenotype==1, "hc",
                                         ifelse(phenotype==2,"chr",
                                                ifelse(phenotype==3,"hsc",NA)))) -> df
-  
+
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
   df %>% dplyr::mutate(visit=redcap_event_name) -> df
+  # get rid of deprecated variable names is good practice
+  df <- subset(df, select = -redcap_event_name)
   
-  # align redcap_event_name-ing convention with natural language
-  if(visit=="baseline_arm_1"){
-    df %>% dplyr::mutate(visit="bl") -> df
-  }
-  if(visit=="12m_arm_1"){
-    df %>% dplyr::mutate(visit="12m") -> df
-  }
-  if(visit=="24m_arm_1"){
-    df %>% dplyr::mutate(visit="24m") -> df
-  }
+  # align redcap_event_name-ing convention with more natural language
+  df %>% dplyr::mutate(visit=ifelse(visit=="baseline_arm_1", "bl",
+                                        ifelse(visit=="12m_arm_1","12m",
+                                               ifelse(visit=="24m_arm_1","24m",NA)))) -> df
+  
+  # create a site variable based on src_institution_name
+  ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
+  df %>% dplyr::mutate(site=src_institution_id) -> df
+  # get rid of deprecated variable names is good practice
+  df <- subset(df, select = -src_institution_id)
   
   # return task dataframe
   return(df);
