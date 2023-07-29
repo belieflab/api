@@ -52,20 +52,26 @@ dataRequest <- function(...) {
     }
   }
   
-  for (i in 1:length(invalid_list)) {
-    cat(paste("ERROR:",invalid_list[i],"is not a valid measure name!\n"))
-  }
-  
-  cat("Please check to make sure it is spelled correctly and exists in these lists:\n")
-  cat("REDCap: ")
-  cat(paste0(redcap_list),"\n")
-  cat("Qualtrics: ")
-  cat(paste0(qualtrics_list),"\n")
-  cat("Tasks: ")
-  cat(paste0(task_list),"\n")
-  
   if (length(invalid_list) > 0) {
-    return() # abort routine if any measure names are invalid
+    
+    # output on how to remedy
+    message("Check that each measure is spelled correctly and exists in these lists:\n")
+    
+    message("REDCap: ")
+    cat(paste(redcap_list), "\n")
+    
+    message("Qualtrics: ")
+    cat(paste(qualtrics_list), "\n")
+    
+    message("Tasks: ")
+    cat(paste(task_list), "\n\n")
+    
+    
+    # abort routine if any measure names are invalid
+    for (i in 1:length(invalid_list)) {
+      stop(invalid_list[i]," is not a valid measure name!\n")
+    }
+    
   }
   
   # source redcap cleaning scripts to obtain data frames
