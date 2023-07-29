@@ -47,34 +47,35 @@ getTask <- function(task) {
   # Close the progress bar
   #close(pb)
   
+  query <- '{"subjectkey": {"$exists": true}}'
+  # query <- '{}' # empty query
+  
   # store mongoDB connection credentials
   df <- mongolite::mongo(
     collection = task,
     db  = config$study_alias,
     url = connectionString,
     verbose = TRUE,
-    options = ssl_options(weak_cert_validation = T, key = "rds-combined-ca-bundle.pem")
+    options = ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
   )
-  
   
   show_loading_animation()
   
+  # find is necessary to create an unlocked enviornment
+  df_filtered<- df$find(query = query)
+  
+  # close db connection disabled due to endSessions error
+  #cdf$disconnect(gc = TRUE)
+  
   # check for visit variable, if not add baseline
-  if("visit" %!in% colnames(df)) {
-    
-    df$visit <- "bl"
-    
+  if ("visit" %!in% colnames(df_filtered)) {
+
+    df_filtered$visit <- "bl"
+
   }
   
-  
-  # return task dataframe
-  return(df$find(query = '{"subjectkey":{"$exists": true}}'))
-  # return(df$find(query = '{}'))
-  
-  # close db connection
-  df$disconnect(gc = TRUE)
-  
-  
+  # return filtered task dataframe
+  return(df_filtered)
   
 }
 
