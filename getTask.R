@@ -65,7 +65,7 @@ getTask <- function(task) {
   df_filtered<- df$find(query = query)
   
   # close db connection disabled due to endSessions error
-  #cdf$disconnect(gc = TRUE)
+  # df$disconnect(gc = TRUE)
   
   # check for visit variable, if not add baseline
   if ("visit" %!in% colnames(df_filtered)) {
@@ -74,8 +74,11 @@ getTask <- function(task) {
 
   }
   
+  # convert dates
+  as.Date(df_filtered$interview_date, "%m/%d/%Y")
+  
   # return filtered task dataframe
-  return(df_filtered)
+  suppressWarnings(return(df_filtered))
   
 }
 

@@ -85,7 +85,7 @@ getSurvey <- function(qualtrics) {
     
   }
   
-  return(df)
+  suppressWarnings(return(df))
   
 }
 

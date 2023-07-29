@@ -31,9 +31,10 @@
 
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
-lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
 dataRequest <- function(...) {
+  
+  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
   if(!require(tidyverse)) {install.packages("tidyverse")}; library(tidyverse)
   
@@ -125,6 +126,12 @@ dataRequest <- function(...) {
     }
   } 
   
+  # Clean Up
+  suppressWarnings(source("api/env/cleanup.R"))
 }
+
+
+
+
 
 #requestData("rgpts", "kamin")
