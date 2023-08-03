@@ -132,8 +132,8 @@ getRedcap <- function(instrument_name) {
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
   df %>% dplyr::mutate(visit=redcap_event_name) -> df
-  # get rid of deprecated variable names is good practice
-  df <- subset(df, select = -redcap_event_name)
+  # we can't get rid of redcap_event_name because it is necessary for the event argument in getScidFiles.R
+  # df <- subset(df, select = -redcap_event_name)
   
   # align redcap_event_name-ing convention with more natural language
   df %>% dplyr::mutate(visit=ifelse(visit=="baseline_arm_1", "bl",
