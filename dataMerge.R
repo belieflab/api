@@ -1,7 +1,7 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
 
-dataMerge <- function(..., by = c("src_subject_id","phenotype"), all = TRUE) {
+dataMerge <- function(..., by = c("src_subject_id","subjectkey","phenotype","visit","sex","site"), all = TRUE) {
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
