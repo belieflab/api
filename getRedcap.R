@@ -146,6 +146,9 @@ getRedcap <- function(instrument_name) {
   # get rid of deprecated variable names is good practice
   df <- subset(df, select = -src_institution_id)
   
+  # convert dates
+  as.Date(df$interview_date, "%m/%d/%Y")
+  
   # return task dataframe
   return(df);
 

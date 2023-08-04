@@ -130,6 +130,8 @@ dataRequest <- function(...) {
   suppressWarnings(source("api/env/cleanup.R"))
 }
 
+nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
+
 
 
 

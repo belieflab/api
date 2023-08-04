@@ -85,6 +85,9 @@ getSurvey <- function(qualtrics) {
     
   }
   
+  # convert dates
+  as.Date(df$interview_date, "%m/%d/%Y")
+  
   suppressWarnings(return(df))
   
 }
