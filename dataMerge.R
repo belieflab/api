@@ -10,7 +10,7 @@ dataMerge <- function(..., by = c("src_subject_id","subjectkey","phenotype","vis
   
   data_list <- list(...)
   
-  dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = FALSE), data_list)
+  dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = TRUE), data_list)
   
   # Clean Up
   suppressWarnings(source("api/env/cleanup.R"))
