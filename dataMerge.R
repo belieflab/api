@@ -26,13 +26,16 @@ checkMergeDuplicates <- function(df) {
   
   if ("visit" %in% colnames(df)) {
     
-    df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
+    df$duplicates  <- duplicated(df[c("src_subject_id")])
+    
+    df$measure <- duplicated(df)
     
     #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
+    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id")]
     
     #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    df_duplicates <-   df %>% filter(src_subject_id %in% df_dup_ids$src_subject_id) %>% select(nda_required_variables,measure.x,measure.y,measure)
+    
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
     }

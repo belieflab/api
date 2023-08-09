@@ -77,6 +77,9 @@ getTask <- function(task) {
   # convert dates
   as.Date(df_filtered$interview_date, "%m/%d/%Y")
   
+  # add measure column
+  df_filtered$measure <- task
+  
   # return filtered task dataframe
   suppressWarnings(return(df_filtered))
   
