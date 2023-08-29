@@ -1,11 +1,11 @@
 checkRedcapDuplicates <- function(df) {
-  df$duplicates  <- duplicated(df[c("src_subject_id", "redcap_event_name")],  first = TRUE)
+  df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
   
   #separate the duplicates to their own df
-  df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "redcap_event_name")]
+  df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
   
   #filter only the subject ids that are duplicated to include both iterations
-  df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & redcap_event_name %in% df_dup_ids)
+  df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
 }
 
 checkTaskDuplicates <- function(df) {
