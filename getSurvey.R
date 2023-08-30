@@ -273,7 +273,8 @@ checkQualtricsDuplicates <- function(df) {
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      createCsv(df_duplicates)
       return(df_duplicates)
     }
   }
@@ -293,7 +294,8 @@ checkQualtricsDuplicates <- function(df) {
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      createCsv(df_duplicates)
       return(df_duplicates)
     }
   }
@@ -313,7 +315,8 @@ checkQualtricsDuplicates <- function(df) {
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
-      cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
+      cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      createCsv(df_duplicates)
       return(df_duplicates)
     }
   } 
