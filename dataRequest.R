@@ -39,8 +39,8 @@ dataRequest <- function(...) {
   if(!require(tidyverse)) {install.packages("tidyverse")}; library(tidyverse)
   
   data_list <- list(...)
-  redcap_list <- c("scid","sips_p","sips_d","les")
-  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc")
+  redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
+  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim")
   task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
   
   # first, check that eeach measure is valid
