@@ -147,7 +147,7 @@ getRedcap <- function(instrument_name) {
   df <- subset(df, select = -src_institution_id)
   
   # convert dates
-  as.Date(df$interview_date, "%m/%d/%Y")
+  df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   
   # add measure column
   df$measure <- instrument_name

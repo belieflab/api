@@ -26,7 +26,7 @@ progress_callback <- function(count, total) {
 # Call the loading animation function before fetch_survey
 # show_loading_animation()
 
-getSurvey <- function(qualtrics) {
+getSurvey <- function(qualtrics,visit) {
   
   if(!require(config)) {install.packages("config")}; library(config);
   
@@ -86,10 +86,13 @@ getSurvey <- function(qualtrics) {
   }
   
   # convert dates
-  as.Date(df$interview_date, "%m/%d/%Y")
+  df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   
   # add measure column
   df$measure <- qualtrics
+  
+  # select visit
+  df <- df[df$visit==visit,]
   
   suppressWarnings(return(df))
   

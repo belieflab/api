@@ -75,7 +75,7 @@ getTask <- function(task) {
   }
   
   # convert dates
-  as.Date(df_filtered$interview_date, "%m/%d/%Y")
+  df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
   
   # add measure column
   df_filtered$measure <- task
