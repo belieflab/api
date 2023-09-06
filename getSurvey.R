@@ -92,7 +92,7 @@ getSurvey <- function(qualtrics,visit) {
   df$measure <- qualtrics
   
   # select visit
-  df <- df[df$visit==visit,]
+  # df <- df[df$visit==visit,]
   
   suppressWarnings(return(df))
   
