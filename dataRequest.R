@@ -39,10 +39,21 @@ dataRequest <- function(...) {
   if(!require(tidyverse)) {install.packages("tidyverse")}; library(tidyverse)
   
   data_list <- list(...)
-  redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
-  qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim")
-  task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
+  # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
+  # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim")
+  # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
   
+  # List all files in the directory
+  redcap_list <- list.files("clean/redcap/complete/")
+  qualtrics_list <- list.files("clean/qualtrics/complete/")
+  task_list <- list.files("clean/task/complete/")
+  
+  # Remove file extensions
+  redcap_list <- tools::file_path_sans_ext(redcap_list)
+  qualtrics_list <- tools::file_path_sans_ext(qualtrics_list)
+  task_list <- tools::file_path_sans_ext(task_list)
+  
+
   # first, check that eeach measure is valid
   
   invalid_list <-list()
