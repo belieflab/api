@@ -152,6 +152,9 @@ getRedcap <- function(instrument_name) {
   # add measure column
   df$measure <- instrument_name
   
+  # remove dob
+  df <- subset(df, select = -subject_dob)
+  
   # return task dataframe
   return(df);
 
