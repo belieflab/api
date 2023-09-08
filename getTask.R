@@ -74,6 +74,8 @@ getTask <- function(task) {
 
   }
   
+  df_filtered$src_subject_id <- as.numeric(df_filtered$src_subject_id)
+  
   # convert dates
   df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
   

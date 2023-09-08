@@ -108,7 +108,7 @@ getRedcap <- function(instrument_name) {
                              batch_size = 1000,
                              verbose = TRUE)$data
   
-  
+  df$src_subject_id <- as.numeric(df$src_subject_id)
  # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
                                                               # might be less flexible character to numeric
                                                               # src_subject_id may download as character sometimes

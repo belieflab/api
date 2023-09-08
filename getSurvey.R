@@ -85,6 +85,8 @@ getSurvey <- function(qualtrics,visit) {
     
   }
   
+  df$src_subject_id <- as.numeric(df$src_subject_id)
+  
   # convert dates
   df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   
