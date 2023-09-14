@@ -61,120 +61,128 @@ lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source
 show_loading_animation <- function() {
   cat("Loading ")
   pb <- txtProgressBar(min = 0, max = 20, style = 3)
-  
+
   for (i in 1:20) {
-    Sys.sleep(0.1)  # Simulate some computation time
+    Sys.sleep(0.1) # Simulate some computation time
     setTxtProgressBar(pb, i)
   }
-  
+
   close(pb)
 }
 
 # Define the progress callback function
 progress_callback <- function(count, total) {
-  setTxtProgressBar(pb, count)  # Update the loading animation
+  setTxtProgressBar(pb, count) # Update the loading animation
 }
 
 getRedcap <- function(instrument_name) {
-  
-  if(!require(config)) {install.packages("config")}; library(config)
-  
+  if (!require(config)) {
+    install.packages("config")
+  }
+  library(config)
+
   config <- config::get()
-  
+
   # documentation
   # https://www.richardshanna.com/tutorial/redcapapi/
-  
+
   # installs REDCapR if not already installed; load REDCapR
-  if(!require(REDCapR)) {install.packages("REDCapR")}; library(REDCapR)
-  if(!require(tidyverse)) {install.packages("tidyverse")};library(tidyverse)
+  if (!require(REDCapR)) {
+    install.packages("REDCapR")
+  }
+  library(REDCapR)
+  if (!require(tidyverse)) {
+    install.packages("tidyverse")
+  }
+  library(tidyverse)
 
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
-  
-  base::source("secrets.R"); # sensitive info for api key
-  
+
+  base::source("secrets.R") # sensitive info for api key
+
   # batch_size not technically necessary, but may help with extraction given size of dataset
   # can add a "field" argument to request more specific data, default is "all"
-  
-  #pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
-  
+
+  # pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
+
   show_loading_animation()
-  
-  
+
+
   # establish redcap connection
-  df <- REDCapR::redcap_read(redcap_uri = uri,
-                             token = token, 
-                             forms = c("nda_study_intake",instrument_name),
-                             batch_size = 1000,
-                             verbose = TRUE)$data
-  
+  df <- REDCapR::redcap_read(
+    redcap_uri = uri,
+    token = token,
+    forms = c("nda_study_intake", instrument_name),
+    batch_size = 1000,
+    verbose = TRUE
+  )$data
+
   df$src_subject_id <- as.numeric(df$src_subject_id)
- # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
-                                                              # might be less flexible character to numeric
-                                                              # src_subject_id may download as character sometimes
+  # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
+  # might be less flexible character to numeric
+  # src_subject_id may download as character sometimes
   df <- filter(df, src_subject_id > 10000, src_subject_id < 79110)
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrument_name == "scid_scoresheet") {
-   df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) #scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :) 
+    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) # scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :)
   }
-  
+
   # Close the progress bar
-  #close(pb)
-  
+  # close(pb)
+
   # remove withdrawn and ineligible participants
   df %>% filter(phenotype < 4) -> df
 
   # recode phenotype (only need to recode phenotypes as 4 (ineligible) and 5 (withdrawn) have been removed in previous line)
-  df %>% dplyr::mutate(phenotype=ifelse(phenotype==1, "hc",
-                                        ifelse(phenotype==2,"chr",
-                                               ifelse(phenotype==3,"hsc",NA)))) -> df
+  df %>% dplyr::mutate(phenotype = ifelse(phenotype == 1, "hc",
+    ifelse(phenotype == 2, "chr",
+      ifelse(phenotype == 3, "hsc", NA)
+    )
+  )) -> df
 
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
-  df %>% dplyr::mutate(visit=redcap_event_name) -> df
+  df %>% dplyr::mutate(visit = redcap_event_name) -> df
   # we can't get rid of redcap_event_name because it is necessary for the event argument in getScidFiles.R
   # df <- subset(df, select = -redcap_event_name)
-  
+
   # align redcap_event_name-ing convention with more natural language
-  df %>% dplyr::mutate(visit=ifelse(visit=="baseline_arm_1", "bl",
-                                        ifelse(visit=="12m_arm_1","12m",
-                                               ifelse(visit=="24m_arm_1","24m",NA)))) -> df
-  
+  df %>% dplyr::mutate(visit = ifelse(visit == "baseline_arm_1", "bl",
+    ifelse(visit == "12m_arm_1", "12m",
+      ifelse(visit == "24m_arm_1", "24m", NA)
+    )
+  )) -> df
+
   # create a site variable based on src_institution_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
-  df %>% dplyr::mutate(site=src_institution_id) -> df
+  df %>% dplyr::mutate(site = src_institution_id) -> df
   # get rid of deprecated variable names is good practice
   df <- subset(df, select = -src_institution_id)
-  
+
   # convert dates
-  df$int_diff <- as.numeric(df$int_end-df$int_start)
-  
+  df$int_diff <- as.numeric(df$int_end - df$int_start)
+
   # add measure column
   df$measure <- instrument_name
-  
+
   # remove dob
   df <- subset(df, select = -subject_dob)
-  
-  # return task dataframe
-  return(df);
 
+  # return task dataframe
+  return(df)
 }
 
 getForms <- function() {
-  
   forms <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
   # createCsv(forms)
   View(forms)
   return(forms)
-  
 }
 
 getDictionary <- function(instrument_name) {
-  
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
-  dictionary <- metadata[metadata$form_name == instrument_name,]
+  dictionary <- metadata[metadata$form_name == instrument_name, ]
   # View(dictionary)
   return(dictionary)
-
-  
 }

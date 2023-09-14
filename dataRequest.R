@@ -6,7 +6,7 @@
 # therefore should be easy to obtain data for:
 
 
-## redcap (interviewer-rated data): sips_p.R, sips_n.R, sips_d.R, sips_g.R, scid.R, 
+## redcap (interviewer-rated data): sips_p.R, sips_n.R, sips_d.R, sips_g.R, scid.R,
 ##                                  medlog.R, gfs.R, gfr.R, gaf_spd_criteria.R
 ## qualtrics (self-report data): lshsr.R, rgpts.R... [incomplete]
 ##
@@ -27,72 +27,72 @@
 # something with date will allow us generic option of all data before last NDA upload
 # OR will allow us to specify (e.g., most recent data)
 
-#https://erdavenport.github.io/R-ecology-lesson/03-loops-and-functions.html
+# https://erdavenport.github.io/R-ecology-lesson/03-loops-and-functions.html
 
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
 
 dataRequest <- function(...) {
-  
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-  
-  if(!require(tidyverse)) {install.packages("tidyverse")}; library(tidyverse)
-  
+
+  if (!require(tidyverse)) {
+    install.packages("tidyverse")
+  }
+  library(tidyverse)
+
   data_list <- list(...)
   # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
   # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim")
   # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
-  
+
   # List all files in the directory
   redcap_list <- list.files("clean/redcap/complete/")
   qualtrics_list <- list.files("clean/qualtrics/complete/")
   task_list <- list.files("clean/task/complete/")
-  
+
   # Remove file extensions
   redcap_list <- tools::file_path_sans_ext(redcap_list)
   qualtrics_list <- tools::file_path_sans_ext(qualtrics_list)
   task_list <- tools::file_path_sans_ext(task_list)
-  
+
 
   # first, check that eeach measure is valid
-  
-  invalid_list <-list()
-  
+
+  invalid_list <- list()
+
   for (i in 1:length(data_list)) {
-    if(data_list[i] %!in% redcap_list && data_list[i] %!in% qualtrics_list && data_list[i] %!in% task_list){
+    if (data_list[i] %!in% redcap_list && data_list[i] %!in% qualtrics_list && data_list[i] %!in% task_list) {
       invalid_list <- c(invalid_list, data_list[i])
     }
   }
-  
+
   if (length(invalid_list) > 0) {
-    
     # output on how to remedy
     message("Check that each measure is spelled correctly and exists in these lists:\n")
-    
+
     message("REDCap: ")
     cat(paste(redcap_list), "\n")
-    
+
     message("Qualtrics: ")
     cat(paste(qualtrics_list), "\n")
-    
+
     message("Tasks: ")
     cat(paste(task_list), "\n\n")
-    
-    
+
+
     # abort routine if any measure names are invalid
     for (i in 1:length(invalid_list)) {
-      stop(invalid_list[i]," is not a valid measure name!\n")
+      stop(invalid_list[i], " is not a valid measure name!\n")
     }
-    
   }
-  
+
   # source redcap cleaning scripts to obtain data frames
   for (i in 1:length(data_list)) {
-    if(data_list[i] %in% redcap_list){
+    if (data_list[i] %in% redcap_list) {
       # creates file paths with name to source
-      redcap_file <- paste0("clean/redcap/complete/",data_list[i],".R")
+      redcap_file <- paste0("clean/redcap/complete/", data_list[i], ".R")
       cat("\n")
-      cat(paste("fetching and cleaning",data_list[i],"..."))
+      cat(paste("fetching and cleaning", data_list[i], "..."))
       cat("\n")
       # sources each script
       redcap_data <- source(redcap_file)
@@ -100,14 +100,13 @@ dataRequest <- function(...) {
   }
   # source qualtrics cleaning scripts to obtain data frames
   for (i in 1:length(data_list)) {
-    
-    if(data_list[i] %in% qualtrics_list){
+    if (data_list[i] %in% qualtrics_list) {
       # creates file paths with name to source
-     
-      qualtrics_file <- paste0("clean/qualtrics/complete/",data_list[i],".R")
+
+      qualtrics_file <- paste0("clean/qualtrics/complete/", data_list[i], ".R")
       # cat(qualtrics_file)
       cat("\n")
-      cat(paste("fetching and cleaning",data_list[i],"..."))
+      cat(paste("fetching and cleaning", data_list[i], "..."))
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
@@ -115,17 +114,16 @@ dataRequest <- function(...) {
   }
   # source task cleaning scripts to obtain data frames
   for (i in 1:length(data_list)) {
-    
-    if(data_list[i] %in% task_list){
+    if (data_list[i] %in% task_list) {
       # creates file paths with name to source
-      task_file <- paste0("clean/task/complete/",data_list[i],".R")
+      task_file <- paste0("clean/task/complete/", data_list[i], ".R")
       cat("\n")
-      cat(paste("fetching and cleaning",data_list[i],"..."))
+      cat(paste("fetching and cleaning", data_list[i], "..."))
       cat("\n")
       # sources each script
       task_data <- source(task_file)
-      
-      
+
+
       # task_data <- tryCatch({
       #   exists(task_data)
       # }, warning = function() {
@@ -135,8 +133,8 @@ dataRequest <- function(...) {
       # }
       # )
     }
-  } 
-  
+  }
+
   # Clean Up
   suppressWarnings(source("api/env/cleanup.R"))
 }
@@ -147,4 +145,4 @@ nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "sub
 
 
 
-#requestData("rgpts", "kamin")
+# requestData("rgpts", "kamin")

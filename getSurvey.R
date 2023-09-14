@@ -2,119 +2,122 @@
 # base::source all files using lapply()
 lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
-#if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
-#if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
+# if(!requireNamespace("config", quietly = FALSE)) {install.packages("config")}; library(config)
+# if(!requireNamespace("qualtRics", quietly = FALSE)) {install.packages("qualtRics")}; library(qualtRics)
 
 # Define the loading animation function
 show_loading_animation <- function() {
   cat("Loading ")
   pb <- txtProgressBar(min = 0, max = 20, style = 3)
-  
+
   for (i in 1:20) {
-    Sys.sleep(0.1)  # Simulate some computation time
+    Sys.sleep(0.1) # Simulate some computation time
     setTxtProgressBar(pb, i)
   }
-  
+
   close(pb)
 }
 
 # Define the progress callback function
 progress_callback <- function(count, total) {
-  setTxtProgressBar(pb, count)  # Update the loading animation
+  setTxtProgressBar(pb, count) # Update the loading animation
 }
 
 # Call the loading animation function before fetch_survey
 # show_loading_animation()
 
-getSurvey <- function(qualtrics,visit) {
-  
-  if(!require(config)) {install.packages("config")}; library(config);
-  
+getSurvey <- function(qualtrics, visit) {
+  if (!require(config)) {
+    install.packages("config")
+  }
+  library(config)
+
   config <- config::get()
-  
-  if(!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics);
-  
+
+  if (!require(qualtRics)) {
+    install.packages("qualtRics")
+  }
+  library(qualtRics)
+
   source(config$qualtrics$survey_ids)
-  
+
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
-  
+
   # store qualtrics API credentials
-  base::source("secrets.R"); # sensitive info for api key
-  
+  base::source("secrets.R") # sensitive info for api key
+
   !(surveyIds[qualtrics] %in% config$qualtrics$survey_ids)
-  
+
   qualtrics_api_key <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
-  
+
   qualtrics_base_url <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
-  
-  qualtRics::qualtrics_api_credentials(api_key = qualtrics_api_key,
-                                       base_url = qualtrics_base_url,
-                                       install = TRUE,
-                                       overwrite = TRUE)
-  
+
+  qualtRics::qualtrics_api_credentials(
+    api_key = qualtrics_api_key,
+    base_url = qualtrics_base_url,
+    install = TRUE,
+    overwrite = TRUE
+  )
+
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
-  # Your Qualtrics key and base URL have been stored in your .Renviron.  
+  # Your Qualtrics key and base URL have been stored in your .Renviron.
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   # this MUST remain to handle switches between api keys
   readRenviron("~/.Renviron")
-  
-  pb <- txtProgressBar(min = 0, max = 100, style = 3)  # Create progress bar
-  
-  df <- qualtRics::fetch_survey(surveyID = toString(surveyIds[qualtrics]),
-                                verbose = TRUE,
-                                label = FALSE, # both of these must be set to false to import numeric
-                                convert = FALSE, # both of these must be set to false to import numeric
-                                force_request = TRUE,
-                                add_column_map = TRUE)
-  
+
+  pb <- txtProgressBar(min = 0, max = 100, style = 3) # Create progress bar
+
+  df <- qualtRics::fetch_survey(
+    surveyID = toString(surveyIds[qualtrics]),
+    verbose = TRUE,
+    label = FALSE, # both of these must be set to false to import numeric
+    convert = FALSE, # both of these must be set to false to import numeric
+    force_request = TRUE,
+    add_column_map = TRUE
+  )
+
   # Close the progress bar
   close(pb)
-  
+
   # check for visit variable, if not add baseline
-  if("visit" %!in% colnames(df)) {
-    
+  if ("visit" %!in% colnames(df)) {
     df$visit <- "bl"
-    
   }
-  
+
   # if visit variable exists, make sure they are named according to convention
   if ("visit" %in% colnames(df)) {
-    
     df$visit <- ifelse(is.na(df$visit), "bl", ifelse(df$visit == "0", "bl", ifelse(df$visit == "12", "12m", ifelse(df$visit == "24", "24m", df$visit))))
-    
   }
-  
+
   df$src_subject_id <- as.numeric(df$src_subject_id)
-  
+
   # convert dates
   df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
-  
+
   # add measure column
   df$measure <- qualtrics
-  
+
   # select visit
   # df <- df[df$visit==visit,]
-  
+
   suppressWarnings(return(df))
-  
 }
 
-getResponseId <- function(qualtrics,name,GUID) {
-  
+getResponseId <- function(qualtrics, name, GUID) {
   foo <- qualtrics %>% filter_all(any_vars(. %in% GUID))
-  
+
   # for some reason this just returns the value "qualtrics"
   # name <- deparse(substitute(qualtrics))
   # print(name)
   # surveyId <- toString(surveyIds[qualtrics]
   # print(surveyId)
-  
+
   # the workaround was to create a new parameter and pass in deparse over the parameter, name
   # R is crazy...
   surveyId <- toString(surveyIds[name])
   print(surveyId)
-  
+
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -122,45 +125,47 @@ getResponseId <- function(qualtrics,name,GUID) {
   sex <- foo$sex
   site <- foo$site
   subjectkey <- foo$subjectkey
-  
-  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
-  
+
+  print(foo[c("ResponseId", "src_subject_id", "interview_age", "phenotype", "sex", "site", "subjectkey", "Finished", "Progress")])
+
   if (all(!c("visit", "week") %in% colnames(foo))) {
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
-          file = paste0("export/",GUID,".csv"),
-          append = TRUE)  }
-  
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, sep = ","), # Write new line to file
+      file = paste0("export/", GUID, ".csv"),
+      append = TRUE
+    )
+  }
+
   if ("visit" %in% colnames(foo)) {
     visit <- foo$visit
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
-          file = paste0("export/",GUID,".csv"),
-          append = TRUE)
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, visit, sep = ","), # Write new line to file
+      file = paste0("export/", GUID, ".csv"),
+      append = TRUE
+    )
   }
-  
+
   if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
-          file = paste0("export/",GUID,".csv"),
-          append = TRUE)
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, week, sep = ","), # Write new line to file
+      file = paste0("export/", GUID, ".csv"),
+      append = TRUE
+    )
   }
-  
 }
 
-setResponseId <- function(qualtrics,name) {
-  
+setResponseId <- function(qualtrics, name) {
   foo <- qualtrics
-  
+
   # for some reason this just returns the value "qualtrics"
   # name <- deparse(substitute(qualtrics))
   # print(name)
   # surveyId <- toString(surveyIds[qualtrics]
   # print(surveyId)
-  
+
   # the workaround was to create a new parameter and pass in deparse over the parameter, name
   # R is crazy...
   surveyId <- toString(surveyIds[name])
   print(surveyId)
-  
+
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -168,49 +173,50 @@ setResponseId <- function(qualtrics,name) {
   sex <- foo$sex
   site <- foo$site
   subjectkey <- foo$subjectkey
-  
-  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
-  
+
+  print(foo[c("ResponseId", "src_subject_id", "interview_age", "phenotype", "sex", "site", "subjectkey", "Finished", "Progress")])
+
   if (all(!c("visit", "week") %in% colnames(foo))) {
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,sep=','),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)  }
-  
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, sep = ","), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
+  }
+
   if ("visit" %in% colnames(foo)) {
     visit <- foo$visit
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,visit,sep=','),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, visit, sep = ","), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
   }
-  
+
   if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste(surveyId, responseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey,week,sep=','),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)
+    write(paste(surveyId, responseId, src_subject_id, interview_age, phenotype, sex, site, subjectkey, week, sep = ","), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
   }
-  
 }
 
 createSql <- function(qualtrics) {
-  
-  
   foo <- qualtrics
   name <- deparse(substitute(qualtrics))
-  unlink(paste0("export/",name,".csv"))
-  
-  
+  unlink(paste0("export/", name, ".csv"))
+
+
   # for some reason this just returns the value "qualtrics"
   # name <- deparse(substitute(qualtrics))
   # print(name)
   # surveyId <- toString(surveyIds[qualtrics]
   # print(surveyId)
-  
+
   # the workaround was to create a new parameter and pass in deparse over the parameter, name
   # R is crazy...
   surveyId <- toString(surveyIds[name])
   print(surveyId)
-  
+
   responseId <- foo$ResponseId
   src_subject_id <- foo$src_subject_id
   interview_age <- foo$interview_age
@@ -218,33 +224,34 @@ createSql <- function(qualtrics) {
   sex <- foo$sex
   site <- foo$site
   subjectkey <- foo$subjectkey
-  
-  print(foo[c("ResponseId","src_subject_id","interview_age","phenotype","sex","site","subjectkey","Finished","Progress")])
-  
+
+  print(foo[c("ResponseId", "src_subject_id", "interview_age", "phenotype", "sex", "site", "subjectkey", "Finished", "Progress")])
+
   if (all(!c("visit", "week") %in% colnames(foo))) {
-    
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId, "' WHERE consort_id=", src_subject_id, " AND anonymous_link like'%", surveyId, "'", ";", sep = ""), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
   }
-  
+
   if ("visit" %in% colnames(foo)) {
     print("YOOOOO")
     visit <- foo$visit
-    #update qualtrics set response_id = '' where study_HIC= and visist = and consortid= and link like
-    
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE visit = ",visit," AND consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)
+    # update qualtrics set response_id = '' where study_HIC= and visist = and consortid= and link like
+
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId, "' WHERE visit = ", visit, " AND consort_id=", src_subject_id, " AND anonymous_link like'%", surveyId, "'", ";", sep = ""), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
   }
-  
+
   if ("week" %in% colnames(foo)) {
     week <- foo$week
-    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId,"' WHERE week = ",week," AND consort_id=",src_subject_id," AND anonymous_link like'%",surveyId,"'",";",sep=''),                                            # Write new line to file
-          file = paste0("export/",name,".csv"),
-          append = TRUE)
+    write(paste("UPDATE qualtrics INNER JOIN consent ON qualtrics.consent_id=consent.consent_id SET qualtrics.response_id ='", responseId, "' WHERE week = ", week, " AND consort_id=", src_subject_id, " AND anonymous_link like'%", surveyId, "'", ";", sep = ""), # Write new line to file
+      file = paste0("export/", name, ".csv"),
+      append = TRUE
+    )
   }
-  
 }
 
 
@@ -253,25 +260,27 @@ createPostmanRunner <- function(path) {
   unlink("all.csv")
   write("surveyId,ResponseId,src_subject_id,interview_age,phenotype,sex,site,subjectkey", file = "all.csv", append = TRUE)
   for (i in list.files(path)) {
-    write(readLines(paste0(path,i)),                                           # Write new line to file
-          file = "all.csv",
-          append = TRUE)
+    write(readLines(paste0(path, i)), # Write new line to file
+      file = "all.csv",
+      append = TRUE
+    )
   }
 }
 
 checkQualtricsDuplicates <- function(df) {
-  
-  if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
-  
-  if (all(!c("visit", "week") %in% colnames(df)) ){
+  if (!require(dplyr)) {
+    install.packages("dplyr")
+  }
+  library(dplyr)
 
-    df$duplicates  <- duplicated(df$src_subject_id,  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)$src_subject_id
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids)
+  if (all(!c("visit", "week") %in% colnames(df))) {
+    df$duplicates <- duplicated(df$src_subject_id, first = TRUE)
+
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)$src_subject_id
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
       return(df)
@@ -283,16 +292,15 @@ checkQualtricsDuplicates <- function(df) {
       return(df_duplicates)
     }
   }
-  
+
   if ("visit" %in% colnames(df)) {
+    df$duplicates <- duplicated(df[c("src_subject_id", "visit")], first = TRUE)
 
-    df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
       return(df)
@@ -304,16 +312,15 @@ checkQualtricsDuplicates <- function(df) {
       return(df_duplicates)
     }
   }
-  
-  if ("week" %in% colnames(df)) {
 
-    df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+  if ("week" %in% colnames(df)) {
+    df$duplicates <- duplicated(df[c("src_subject_id", "week")], first = TRUE)
+
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
       return(df)
@@ -324,58 +331,55 @@ checkQualtricsDuplicates <- function(df) {
       createCsv(df_duplicates)
       return(df_duplicates)
     }
-  } 
+  }
 }
 
 updateResponseIds <- function(qualtrics) {
-  
   unlink("export/*")
-  
+
   dups <- checkQualtricsDuplicates(qualtrics)
-  
-  setResponseId(qualtrics,deparse(substitute(qualtrics)))
-  
+
+  setResponseId(qualtrics, deparse(substitute(qualtrics)))
+
   createPostmanRunner("export/")
-  
 }
 
 cleaningRoutine <- function(qualtrics) {
-  
   unlink("export/*")
-  
+
   dups <- checkQualtricsDuplicates(qualtrics)
-  
+
   guid_list <- as.list(dups$subjectkey)
-  
+
   if (length(guid_list) == 0) {
     return()
   }
-  
+
   for (guid in guid_list) {
-    getResponseId(qualtrics,deparse(substitute(qualtrics)),guid)
+    getResponseId(qualtrics, deparse(substitute(qualtrics)), guid)
   }
-  
+
   createPostmanRunner("export/")
-  
-  cat(paste0("extract generated at export/",dups))
-  
+
+  cat(paste0("extract generated at export/", dups))
+
   createCsv(dups)
-  
 }
 
 removeQualtricsDuplicates <- function(df) {
-  
-  if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
-  
-  if (all(!c("visit", "week") %in% colnames(df)) ){
-    
-    df$duplicates  <- duplicated(df$src_subject_id,  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)$src_subject_id
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids)
+  if (!require(dplyr)) {
+    install.packages("dplyr")
+  }
+  library(dplyr)
+
+  if (all(!c("visit", "week") %in% colnames(df))) {
+    df$duplicates <- duplicated(df$src_subject_id, first = TRUE)
+
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)$src_subject_id
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids)
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
@@ -386,16 +390,15 @@ removeQualtricsDuplicates <- function(df) {
       return(df)
     }
   }
-  
+
   if ("visit" %in% colnames(df)) {
-    
-    df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <<-  df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    df$duplicates <- duplicated(df[c("src_subject_id", "visit")], first = TRUE)
+
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <<- df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
@@ -406,16 +409,15 @@ removeQualtricsDuplicates <- function(df) {
       return(df)
     }
   }
-  
+
   if ("week" %in% colnames(df)) {
-    
-    df$duplicates  <- duplicated(df[c("src_subject_id", "week")],  first = TRUE)
-    
-    #separate the duplicates to their own df
-    df_dup_ids  <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
-    
-    #filter only the subject ids that are duplicated to include both iterations
-    df_duplicates  <-  df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    df$duplicates <- duplicated(df[c("src_subject_id", "week")], first = TRUE)
+
+    # separate the duplicates to their own df
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
+
+    # filter only the subject ids that are duplicated to include both iterations
+    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       no_dups <- removeDuplicates(df)
@@ -425,15 +427,13 @@ removeQualtricsDuplicates <- function(df) {
       cat("No duplicates flagged for removal.")
       return(df)
     }
-  } 
+  }
 }
 
 
 # trying to get dataDictionary for Qualtrics
 getDictionary <- function(qualtrics_df) {
-
   return(extract_colmap(respdata = qualtrics_df))
-  
 }
 
 # create alias
