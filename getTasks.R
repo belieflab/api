@@ -25,7 +25,7 @@ progress_callback <- function(count, total) {
   setTxtProgressBar(pb, count) # Update the loading animation
 }
 
-getTask <- function(task) {
+getTasks <- function(task, studyAlias) {
   if (!require(config)) {
     install.packages("config")
   }
@@ -54,11 +54,11 @@ getTask <- function(task) {
 
   query <- '{"src_subject_id": {"$exists": true}}'
   # query <- '{}' # empty query
-
+  
   # store mongoDB connection credentials
   df <- mongolite::mongo(
     collection = task,
-    db = config$study_alias,
+    db = studyAlias,
     url = connectionString,
     verbose = TRUE,
     options = ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
