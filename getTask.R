@@ -52,7 +52,7 @@ getTask <- function(task) {
   # Close the progress bar
   # close(pb)
 
-  query <- '{"subjectkey": {"$exists": true}}'
+  query <- '{"src_subject_id": {"$exists": true}}'
   # query <- '{}' # empty query
 
   # store mongoDB connection credentials
