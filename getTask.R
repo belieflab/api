@@ -25,7 +25,7 @@ progress_callback <- function(count, total) {
   setTxtProgressBar(pb, count) # Update the loading animation
 }
 
-getTask <- function(task) {
+getTask <- function(task, identifier = "src_subject_id") {
   if (!require(config)) {
     install.packages("config")
   }
@@ -51,10 +51,31 @@ getTask <- function(task) {
 
   # Close the progress bar
   # close(pb)
-
-  query <- '{"src_subject_id": {"$exists": true}}'
-  # query <- '{}' # empty query
-
+  if (tolower(identifier) == "src_subject_id") {
+    query <- '{"src_subject_id": {"$exists": true}}'
+    # query <- '{}' # empty query
+  
+  }
+  
+  if (tolower(identifier) == "rat_id") {
+    query <- '{"rat_id": {"$exists": true}}'
+    # query <- '{}' # empty query
+    
+  }
+  
+  if (identifier == "workerId") {
+    query <- '{"workerId": {"$exists": true}}'
+    # query <- '{}' # empty query
+    
+  }
+  
+  if (toupper(identifier) == "PROLIFIC_PID") {
+    query <- '{"PROLIFIC_PID": {"$exists": true}}'
+    # query <- '{}' # empty query
+    
+  }
+  
+  
   # store mongoDB connection credentials
   df <- mongolite::mongo(
     collection = task,
