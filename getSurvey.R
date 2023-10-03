@@ -90,7 +90,7 @@ getSurvey <- function(qualtrics, visit) {
     df$visit <- ifelse(is.na(df$visit), "bl", ifelse(df$visit == "0", "bl", ifelse(df$visit == "12", "12m", ifelse(df$visit == "24", "24m", df$visit))))
   }
 
-  df$src_subject_id <- as.numeric(df$src_subject_id)
+  # df$src_subject_id <- as.numeric(df$src_subject_id)
 
   # convert dates
   df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")

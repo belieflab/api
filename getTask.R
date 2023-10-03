@@ -26,6 +26,9 @@ progress_callback <- function(count, total) {
 }
 
 getTask <- function(task, identifier = "src_subject_id") {
+  
+  message(paste0("default identifier is ",identifier))
+  
   if (!require(config)) {
     install.packages("config")
   }
