@@ -127,6 +127,7 @@ getRedcap <- function(instrument_name) {
   if (instrument_name == "scid_scoresheet") {
     df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) # scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :)
   }
+  df$src_subject_id <- as.character(df$src_subject_id)
 
   # Close the progress bar
   # close(pb)

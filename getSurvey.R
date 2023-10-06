@@ -26,7 +26,17 @@ progress_callback <- function(count, total) {
 # Call the loading animation function before fetch_survey
 # show_loading_animation()
 
-getSurvey <- function(qualtrics, visit) {
+getSurvey <- function(qualtrics, label = FALSE) {
+  
+  if (label == FALSE) {
+    message(paste0("extracting mumeric values"))
+  }
+  
+  if (label == TRUE) {
+    message(paste0("extracting choice text"))
+  }
+  
+  
   if (!require(config)) {
     install.packages("config")
   }
@@ -71,8 +81,8 @@ getSurvey <- function(qualtrics, visit) {
   df <- qualtRics::fetch_survey(
     surveyID = toString(surveyIds[qualtrics]),
     verbose = TRUE,
-    label = FALSE, # both of these must be set to false to import numeric
-    convert = FALSE, # both of these must be set to false to import numeric
+    label = label, # both of these must be set to false to import numeric
+    convert = label, # both of these must be set to false to import numeric
     force_request = TRUE,
     add_column_map = TRUE
   )
