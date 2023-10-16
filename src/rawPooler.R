@@ -1,3 +1,4 @@
+# combine multiple files in the same location (file must have the same columns) 
 rawPooler <- function (data_location = NULL) {
   # get all files names from location
   data_files <- list.files(data_location)

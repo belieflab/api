@@ -277,67 +277,82 @@ createPostmanRunner <- function(path) {
   }
 }
 
-checkQualtricsDuplicates <- function(df) {
+checkQualtricsDuplicates <- function(df,identifier="src_subject_id") {
+  
+  message(paste("identifier is:", identifier)) 
+  
+  # create a general identifier
+  if (sum(colnames(df) == identifier)==1) {
+    df$identifier <- df[,identifier]
+  } else {message("please provide a valid identifier: src_subject_id, workerId, PROLIFIC_PID")}
+  
+  
   if (!require(dplyr)) {
     install.packages("dplyr")
   }
   library(dplyr)
 
   if (all(!c("visit", "week") %in% colnames(df))) {
-    df$duplicates <- duplicated(df$src_subject_id, first = TRUE)
+    df$duplicates <- duplicated(df$identifier, first = TRUE)
 
     # separate the duplicates to their own df
-    df_dup_ids <- subset(df, duplicates == TRUE)$src_subject_id
+    df_dup_ids <- subset(df, duplicates == TRUE)$identifier
 
     # filter only the subject ids that are duplicated to include both iterations
-    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids)
+    df_duplicates <- df %>% filter(identifier %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
+      df$identifier <- NULL
       return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      df_duplicates$identifier <- NULL
       createCsv(df_duplicates)
       return(df_duplicates)
     }
   }
 
   if ("visit" %in% colnames(df)) {
-    df$duplicates <- duplicated(df[c("src_subject_id", "visit")], first = TRUE)
+    df$duplicates <- duplicated(df[c("identifier", "visit")], first = TRUE)
 
     # separate the duplicates to their own df
-    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "visit")]
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("identifier", "visit")]
 
     # filter only the subject ids that are duplicated to include both iterations
-    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids & visit %in% df_dup_ids)
+    df_duplicates <- df %>% filter(identifier %in% df_dup_ids & visit %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
+      df$identifier <- NULL
       return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      df_duplicates$identifier <- NULL
       createCsv(df_duplicates)
       return(df_duplicates)
     }
   }
 
   if ("week" %in% colnames(df)) {
-    df$duplicates <- duplicated(df[c("src_subject_id", "week")], first = TRUE)
+    df$duplicates <- duplicated(df[c("identifier", "week")], first = TRUE)
 
     # separate the duplicates to their own df
-    df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id", "week")]
+    df_dup_ids <- subset(df, duplicates == TRUE)[c("identifier", "week")]
 
     # filter only the subject ids that are duplicated to include both iterations
-    df_duplicates <- df %>% filter(src_subject_id %in% df_dup_ids & week %in% df_dup_ids)
+    df_duplicates <- df %>% filter(identifier %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
       cat("no duplicates")
+      df$identifier <- NULL
       return(df)
     }
     if (nrow(df_duplicates) > 0) {
       View(df_duplicates)
       cat("Duplicates detected, clean df was not generated. \nPlease check df_duplicates then contact the site data admin to remove duplicates from Qualtrics.")
+      df_duplicates$identifier <- NULL
       createCsv(df_duplicates)
       return(df_duplicates)
     }
