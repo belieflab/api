@@ -132,15 +132,19 @@ getRedcap <- function(instrument_name) {
   # Close the progress bar
   # close(pb)
 
-  # remove withdrawn and ineligible participants
-  df %>% filter(phenotype < 4) -> df
-
   # recode phenotype (only need to recode phenotypes as 4 (ineligible) and 5 (withdrawn) have been removed in previous line)
-  df %>% dplyr::mutate(phenotype = ifelse(phenotype == 1, "hc",
-    ifelse(phenotype == 2, "chr",
-      ifelse(phenotype == 3, "hsc", NA)
-    )
-  )) -> df
+  df %>% dplyr::mutate(phenotype = ifelse(is.na(phenotype),NA,
+        ifelse(phenotype == 1, "hc",
+        ifelse(phenotype == 2, "chr",
+        ifelse(phenotype == 3, "hsc", 
+        ifelse(phenotype == 4, "ineligible",
+        ifelse(phenotype == 5, "withdrawn",NA))))))) -> df
+  
+  # remove withdrawn and ineligible participants
+  ### edited to ensure only invalid data being removed... not just missing
+  df %>% mutate(remove=ifelse(is.na(phenotype),0,
+                       ifelse(phenotype=="ineligible" | phenotype=="withdrawn",1,0))) %>% 
+    filter(remove==0) %>% select(-remove) -> df
 
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
