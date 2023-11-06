@@ -46,9 +46,9 @@ dataRequest <- function(...) {
   # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
 
   # List all files in the directory
-  redcap_list <- list.files("clean/redcap/complete/")
-  qualtrics_list <- list.files("clean/qualtrics/complete/")
-  task_list <- list.files("clean/task/complete/")
+  redcap_list <- list.files("clean/redcap/")
+  qualtrics_list <- list.files("clean/qualtrics/")
+  task_list <- list.files("clean/task/")
 
   # Remove file extensions
   redcap_list <- tools::file_path_sans_ext(redcap_list)
