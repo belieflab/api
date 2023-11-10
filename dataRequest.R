@@ -42,7 +42,7 @@ dataRequest <- function(...) {
 
   data_list <- list(...)
   # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
-  # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim")
+  # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim", "pss", "rchat")
   # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
 
   # List all files in the directory
@@ -103,7 +103,7 @@ dataRequest <- function(...) {
     if (data_list[i] %in% qualtrics_list) {
       # creates file paths with name to source
 
-      qualtrics_file <- paste0("clean/qualtrics/complete/", data_list[i], ".R")
+      qualtrics_file <- paste0("clean/qualtrics/", data_list[i], ".R")
       # cat(qualtrics_file)
       cat("\n")
       cat(paste("fetching and cleaning", data_list[i], "..."))
