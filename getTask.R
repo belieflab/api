@@ -97,15 +97,19 @@ getTask <- function(task, identifier = "src_subject_id") {
   # df$disconnect(gc = TRUE)
 
   # check for visit variable, if not add baseline
-  if ("visit" %!in% colnames(df_filtered)) {
-    df_filtered$visit <- "bl"
+  if (tolower(identifier) != "rat_id") {
+    if ("visit" %!in% colnames(df_filtered)) {
+      df_filtered$visit <- "bl"
+    }
   }
 
   # df_filtered$src_subject_id <- as.numeric(df_filtered$src_subject_id)
 
   # convert dates (from string ("m/d/Y") to date format)
-  df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
-
+  if (tolower(identifier) != "rat_id") {
+    df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
+  }
+  
   # add measure column
   df_filtered$measure <- task
 
