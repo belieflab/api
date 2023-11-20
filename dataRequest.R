@@ -90,7 +90,7 @@ dataRequest <- function(...) {
   for (i in 1:length(data_list)) {
     if (data_list[i] %in% redcap_list) {
       # creates file paths with name to source
-      redcap_file <- paste0("clean/redcap/complete/", data_list[i], ".R")
+      redcap_file <- paste0("clean/redcap/", data_list[i], ".R")
       cat("\n")
       cat(paste("fetching and cleaning", data_list[i], "..."))
       cat("\n")
@@ -116,7 +116,7 @@ dataRequest <- function(...) {
   for (i in 1:length(data_list)) {
     if (data_list[i] %in% task_list) {
       # creates file paths with name to source
-      task_file <- paste0("clean/task/complete/", data_list[i], ".R")
+      task_file <- paste0("clean/task/", data_list[i], ".R")
       cat("\n")
       cat(paste("fetching and cleaning", data_list[i], "..."))
       cat("\n")
