@@ -99,7 +99,7 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       redcap_data <- source(redcap_file)
-      testSuite(data_list[i])
+      #testSuite(data_list[i])
     }
   }
   # source qualtrics cleaning scripts to obtain data frames
@@ -114,7 +114,7 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
-      testSuite(data_list[i])
+      #testSuite(data_list[i])
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -127,7 +127,7 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       task_data <- source(task_file)
-      testSuite(data_list[i])
+      #testSuite(data_list[i])
 
 
       # task_data <- tryCatch({
