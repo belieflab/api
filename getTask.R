@@ -56,6 +56,9 @@ getTask <- function(task, identifier = "src_subject_id") {
   # close(pb)
   if (tolower(identifier) == "src_subject_id") {
     query <- '{"src_subject_id": {"$exists": true}}'
+    #query <- '{"src_subject_id": {"$ne": ""}}'
+    # query <- '{"$or": [{"src_subject_id": {"$exists": true}}, {"src_subject_id": {"$ne": ""}}]}'
+    
     # query <- '{}' # empty query
   
   }
@@ -112,6 +115,11 @@ getTask <- function(task, identifier = "src_subject_id") {
   
   # add measure column
   df_filtered$measure <- task
+  
+  # in the case of delay discounting, for some reason, src_subject_id are empty strings and we need to do this
+  if (tolower(identifier) == "src_subject_id") {
+    df_filtered <- subset(df_filtered, src_subject_id != "")
+  }
 
   # return filtered task dataframe
   suppressWarnings(return(df_filtered))
