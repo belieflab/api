@@ -43,7 +43,7 @@ dataRequest <- function(...) {
   }
   library(tidyverse)
 
-  data_list <- list(...)
+  data_list <- list()
   # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
   # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim", "pss", "rchat")
   # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
@@ -149,6 +149,8 @@ nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "sub
 
 
 
-
+# example:
+dataRequest("prl")
 
 # requestData("rgpts", "kamin")
+# 
