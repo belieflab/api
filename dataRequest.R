@@ -36,6 +36,9 @@ source("testSuite.R")
 
 
 dataRequest <- function(...) {
+  # DATA RETRIEVAL
+  # get list of all files in api/src that end in .R (get list of all R scripts);
+  # source al of those files
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
   if (!require(tidyverse)) {
@@ -43,7 +46,9 @@ dataRequest <- function(...) {
   }
   library(tidyverse)
 
+  # init an empty list called data_list
   data_list <- list()
+  # # get measures from readcap, qualtrics, task
   # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
   # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim", "pss", "rchat")
   # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
@@ -59,10 +64,12 @@ dataRequest <- function(...) {
   task_list <- tools::file_path_sans_ext(task_list)
 
 
-  # first, check that eeach measure is valid
-
+  # init empty list called invalid_list to store invalid measures
   invalid_list <- list()
 
+  # check if measures in data_list are not found in the list of valid measures;
+  # if they are not found in the lists of valid measures (from redcap, qualtrics, and task),
+  # add those to invalid_list
   for (i in 1:length(data_list)) {
     if (data_list[i] %!in% redcap_list && data_list[i] %!in% qualtrics_list && data_list[i] %!in% task_list) {
       invalid_list <- c(invalid_list, data_list[i])
