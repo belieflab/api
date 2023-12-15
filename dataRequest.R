@@ -32,7 +32,6 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
 
-source("testSuite.R")
 
 
 dataRequest <- function(...) {
@@ -47,7 +46,7 @@ dataRequest <- function(...) {
   library(tidyverse)
 
   # init an empty list called data_list
-  data_list <- list()
+  data_list <- list(...)
   # # get measures from readcap, qualtrics, task
   # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
   # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim", "pss", "rchat")
@@ -106,7 +105,8 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       redcap_data <- source(redcap_file)
-      #testSuite(data_list[i])
+      source("testSuite.R")
+      testSuite(data_list[i], "redcap")
     }
   }
   # source qualtrics cleaning scripts to obtain data frames
@@ -121,7 +121,8 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
-      #testSuite(data_list[i])
+      #source("testSuite.R")
+      #testSuite(data_list[i], "qualtrics")
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -134,7 +135,7 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       task_data <- source(task_file)
-      #testSuite(data_list[i])
+      testSuite(data_list[i], "qualtrics")
 
 
       # task_data <- tryCatch({
@@ -157,7 +158,7 @@ nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "sub
 
 
 # example:
-dataRequest("prl")
+#dataRequest("prl")
 
 # requestData("rgpts", "kamin")
 # 
