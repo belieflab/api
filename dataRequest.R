@@ -47,12 +47,8 @@ dataRequest <- function(...) {
 
   # init an empty list called data_list
   data_list <- list(...)
-  # # get measures from readcap, qualtrics, task
-  # redcap_list <- c("scid","sips_p","sips_d","les", "nsipr", "sips_n", "sips_g")
-  # qualtrics_list <- c("demo","lshsr", "rgpts","lec","pdi_40","iipsc", "meim", "pss", "rchat")
-  # task_list <- c("kamin","prl","ch","mooney", "social_prl","dsc","eefrt")
-
-  # List all files in the directory
+  
+  # List all files in the cleaning directories
   redcap_list <- list.files("clean/redcap/")
   qualtrics_list <- list.files("clean/qualtrics/")
   task_list <- list.files("clean/task/")
@@ -61,7 +57,6 @@ dataRequest <- function(...) {
   redcap_list <- tools::file_path_sans_ext(redcap_list)
   qualtrics_list <- tools::file_path_sans_ext(qualtrics_list)
   task_list <- tools::file_path_sans_ext(task_list)
-
 
   # init empty list called invalid_list to store invalid measures
   invalid_list <- list()
@@ -121,8 +116,8 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
-      #source("testSuite.R")
-      #testSuite(data_list[i], "qualtrics")
+      source("testSuite.R")
+      testSuite(data_list[i], "qualtrics")
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -135,7 +130,8 @@ dataRequest <- function(...) {
       cat("\n")
       # sources each script
       task_data <- source(task_file)
-      testSuite(data_list[i], "qualtrics")
+      source("testSuite.R")
+      testSuite(data_list[i], "task")
 
 
       # task_data <- tryCatch({
@@ -153,7 +149,7 @@ dataRequest <- function(...) {
   suppressWarnings(source("api/env/cleanup.R"))
 }
 
-nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
+#nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
 
 
 

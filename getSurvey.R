@@ -301,7 +301,7 @@ checkQualtricsDuplicates <- function(df,identifier="src_subject_id") {
     # filter only the subject ids that are duplicated to include both iterations
     df_duplicates <- df %>% filter(identifier %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      cat("no duplicates")
+      cat("no duplicates\n")
       df$identifier <- NULL
       return(df)
     }
@@ -323,7 +323,7 @@ checkQualtricsDuplicates <- function(df,identifier="src_subject_id") {
     # filter only the subject ids that are duplicated to include both iterations
     df_duplicates <- df %>% filter(identifier %in% df_dup_ids & visit %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      cat("no duplicates")
+      cat("no duplicates\n")
       df$identifier <- NULL
       return(df)
     }
@@ -345,7 +345,7 @@ checkQualtricsDuplicates <- function(df,identifier="src_subject_id") {
     # filter only the subject ids that are duplicated to include both iterations
     df_duplicates <- df %>% filter(identifier %in% df_dup_ids & week %in% df_dup_ids)
     if (nrow(df_duplicates) == 0) {
-      cat("no duplicates")
+      cat("no duplicates\n")
       df$identifier <- NULL
       return(df)
     }
