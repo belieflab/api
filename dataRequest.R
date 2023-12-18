@@ -36,7 +36,7 @@
 ### data frames, so that createCsv() can be removed from individual scripts
 
 
-dataRequest <- function(...) {
+dataRequest <- function(..., csv=FALSE) {
   # DATA RETRIEVAL
   # get list of all files in api/src that end in .R (get list of all R scripts);
   # source al of those files
@@ -104,6 +104,12 @@ dataRequest <- function(...) {
       redcap_data <- source(redcap_file)
       source("testSuite.R")
       testSuite(data_list[i], "redcap")
+      # export csv
+      if (csv==TRUE) {
+        dataset_name <-paste0(data_list[i], "_clean")
+        dataset_name <- redcap_data
+        createCsv(dataset_name)
+      }
     }
   }
   # source qualtrics cleaning scripts to obtain data frames
@@ -149,6 +155,9 @@ dataRequest <- function(...) {
 
   # Clean Up
   suppressWarnings(source("api/env/cleanup.R"))
+  
+
+  
 }
 
 #nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
