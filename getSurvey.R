@@ -80,7 +80,7 @@ getSurvey <- function(qualtrics, label = FALSE) {
 
   df <- qualtRics::fetch_survey(
     surveyID = toString(surveyIds[qualtrics]),
-    verbose = TRUE,
+    verbose = FALSE,
     label = label, # both of these must be set to false to import numeric
     convert = label, # both of these must be set to false to import numeric
     force_request = TRUE,
