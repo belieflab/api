@@ -32,6 +32,8 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
 
+# 12.18.2023, Trevor & Minerva: create csv argument that will produce a csv for _clean
+### data frames, so that createCsv() can be removed from individual scripts
 
 
 dataRequest <- function(...) {
