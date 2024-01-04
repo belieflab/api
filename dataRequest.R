@@ -103,7 +103,7 @@ dataRequest <- function(..., csv=FALSE) {
       # sources each script
       redcap_data <- source(redcap_file)
       source("testSuite.R")
-      testSuite(data_list[i], "redcap")
+      testSuite(data_list[i], "redcap", redcap_file)
       # export csv
       if (csv==TRUE) {
         dataset_name <-paste0(data_list[i], "_clean")
@@ -125,7 +125,7 @@ dataRequest <- function(..., csv=FALSE) {
       # sources each script
       qualtrics_data <- source(qualtrics_file)
       source("testSuite.R")
-      testSuite(data_list[i], "qualtrics")
+      testSuite(data_list[i], "qualtrics", qualtrics_file)
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -139,7 +139,7 @@ dataRequest <- function(..., csv=FALSE) {
       # sources each script
       task_data <- source(task_file)
       source("testSuite.R")
-      testSuite(data_list[i], "task")
+      testSuite(data_list[i], "task", task_file)
 
 
       # task_data <- tryCatch({
