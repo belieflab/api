@@ -126,6 +126,10 @@ dataRequest <- function(..., csv=FALSE) {
       qualtrics_data <- source(qualtrics_file)
       source("testSuite.R")
       testSuite(data_list[i], "qualtrics", qualtrics_file)
+      # perhaps some way to use summary(); tried to do:
+      #   quality_check_qualtrics <- testSuite(data_list[i], "qualtrics", qualtrics_file)
+      #   summary(quality_check_qualtrics)
+      # 
     }
   }
   # source task cleaning scripts to obtain data frames
