@@ -289,6 +289,7 @@ checkInterviewAge <- function(measure_alias) {
 
 
 
+
 checkNA <- function(measure_alias) {
   output_df_name <- paste0(measure_alias, "_clean")
   df_clean <- base::get(output_df_name)
@@ -305,9 +306,11 @@ checkNA <- function(measure_alias) {
         column_name <- colnames(df_clean)[col_idx]
         message(paste("src_subject_id:", subject_id, "- Column:", column_name))
       }
+      expect_false(TRUE, 
+                   info = paste("NA values found. src_subject_id:", df_clean$src_subject_id[any_na[,1]], "- Column:", colnames(df_clean)[any_na[,2]]))
+    } else {
+      expect_true(TRUE, info = "No NA values should be present in the dataframe")
     }
-    expect_true(sum(is.na(df_clean)) == 0, 
-                info = paste("No NA values should be present in the dataframe. src_subject_id:", subject_id, "- Column:", column_name))
   })
 }
 
