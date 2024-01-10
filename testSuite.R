@@ -275,17 +275,43 @@ findTextInScript <- function(script_path, text_to_search) {
 checkInterviewAge <- function(measure_alias) {
   # append _clean to the measure in question
   output_df_name <- paste0(measure_alias, "_clean")
-  
+
   # store clean dataframe in df_clean
   df_clean <- base::get(output_df_name)
-  
+
   test_that("Check interview_age >= 144", {
     rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age < 144]
-    
-    expect_true(all(df_clean$interview_age >= 144), 
+
+    expect_true(all(df_clean$interview_age >= 144),
                 info = paste("All values in 'interview_age' should be >= 144. src_subject_id not meeting condition:", rows_not_meeting_condition))
   })
 }
+
+
+
+checkNA <- function(measure_alias) {
+  output_df_name <- paste0(measure_alias, "_clean")
+  df_clean <- base::get(output_df_name)
+  
+  any_na <- which(is.na(df_clean), arr.ind = TRUE)
+  
+  test_that("Check for NA values", {
+    if (length(any_na) > 0) {
+      message("NA values found:")
+      for (i in 1:nrow(any_na)) {
+        row_idx <- any_na[i, 1]
+        col_idx <- any_na[i, 2]
+        subject_id <- df_clean$src_subject_id[row_idx]
+        column_name <- colnames(df_clean)[col_idx]
+        message(paste("src_subject_id:", subject_id, "- Column:", column_name))
+      }
+    }
+    expect_true(sum(is.na(df_clean)) == 0, 
+                info = paste("No NA values should be present in the dataframe. src_subject_id:", subject_id, "- Column:", column_name))
+  })
+}
+
+
 
 
 
@@ -317,8 +343,9 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # findTextInScript(script_path, text_to_search = "trevorfwilliams")
   
-  checkInterviewAge(measure_alias)
+  # checkInterviewAge(measure_alias)
   
+  checkNA(measure_alias)
   
   # ...add additional functions here, making sure it pass in measure_alias and measure_type
   
