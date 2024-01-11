@@ -14,6 +14,17 @@
 # modify message displayed not just "test passed"
 # documentation for output scores for measures (what does _clean df give us for scores
 
+# findTextInScript
+# search for:
+#   "Collaborators" (indicates githook was used; can then contact person/author)
+#   "describe(" or "table(" or "ggplot(" (suggests someone looked at descriptive stats or data distribution)
+#   "rm("
+#   "getDictionary("
+#   "checkRedcapDuplicates"
+#   "sum("
+#   "mean(" or "rowMeans(" or "summarize" or "summarise" (indicates that scales, indices, or summary variables have been computed)
+#   "
+
 
 # measure dependent test:
 # use testthat to write unit tests specific to measure criteria (for example, range of acceptable values)
@@ -251,27 +262,12 @@ findTextInScript <- function(script_path, text_to_search) {
   print(matches_grep)
   test_that(paste0(text_to_search, "is present"), {
     expect_true(matches_grep, 
-                info = "Please ensure the text you want is in your script of interest")
+                info = "Please ensure the text you want is in your script of interest.")
   })
   
   
 }
 
-
-# checkInterviewAge <- function(measure_alias) {
-#   # append _clean to the measure in question
-#   output_df_name <- paste0(measure_alias, "_clean")
-#   
-#   # store clean dataframe in df_clean
-#   df_clean <- base::get(output_df_name)
-# 
-#   test_that("Check interview_age >= 144", {
-#     expect_true(all(df_clean$interview_age >= 144), 
-#                 info = "All values in 'interview_age' should be >= 144")
-#   })
-#   
-#   
-# }
 checkInterviewAge <- function(measure_alias) {
   # append _clean to the measure in question
   output_df_name <- paste0(measure_alias, "_clean")
@@ -302,14 +298,14 @@ checkNA <- function(measure_alias) {
       for (i in 1:nrow(any_na)) {
         row_idx <- any_na[i, 1]
         col_idx <- any_na[i, 2]
-        subject_id <- df_clean$src_subject_id[row_idx]
+        src_subject_id <- df_clean$src_subject_id[row_idx]
         column_name <- colnames(df_clean)[col_idx]
-        message(paste("src_subject_id:", subject_id, "- Column:", column_name))
+        message(paste("src_subject_id:", src_subject_id, "- Column:", column_name))
       }
       expect_false(TRUE, 
                    info = paste("NA values found. src_subject_id:", df_clean$src_subject_id[any_na[,1]], "- Column:", colnames(df_clean)[any_na[,2]]))
     } else {
-      expect_true(TRUE, info = "No NA values should be present in the dataframe")
+      expect_true(TRUE, info = "No NA values should be present in the dataframe.")
     }
   })
 }
