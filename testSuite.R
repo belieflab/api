@@ -262,7 +262,7 @@ findTextInScript <- function(script_path, text_to_search) {
   print(matches_grep)
   test_that(paste0(text_to_search, "is present"), {
     expect_true(matches_grep, 
-                info = "Please ensure the text you want is in your script of interest.")
+                info = paste(text_to_search, " doesn't appear in your script."))
   })
   
   
@@ -341,6 +341,23 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # findTextInScript(script_path, text_to_search = "if(!require")
   
   # findTextInScript(script_path, text_to_search = "trevorfwilliams")
+  
+  findTextInScript(script_path, text_to_search = "Collaborators")
+  
+  findTextInScript(script_path, text_to_search = "describe(")
+  findTextInScript(script_path, text_to_search = "table(")
+  findTextInScript(script_path, text_to_search = "ggplot(")
+  
+  
+  #   "Collaborators" (indicates githook was used; can then contact person/author)
+  #   "describe(" or "table(" or "ggplot(" (suggests someone looked at descriptive stats or data distribution)
+  #   "rm("
+  #   "getDictionary("
+  #   "checkRedcapDuplicates"
+  #   "sum("
+  #   "mean(" or "rowMeans(" or "summarize" or "summarise" (indicates that scales, indices, or summary variables have been computed)
+  #   "
+  
   
   # checkInterviewAge(measure_alias)
   
