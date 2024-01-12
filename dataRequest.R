@@ -102,8 +102,8 @@ dataRequest <- function(..., csv=FALSE) {
       cat("\n")
       # sources each script
       redcap_data <- source(redcap_file)
-      # source("api/testSuite.R")
-      # testSuite(data_list[i], "redcap", redcap_file)
+      source("api/testSuite.R")
+      testSuite(data_list[i], "redcap", redcap_file)
       # export csv
       if (csv==TRUE) {
         dataset_name <-paste0(data_list[i], "_clean")
@@ -124,8 +124,8 @@ dataRequest <- function(..., csv=FALSE) {
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
-      # source("api/testSuite.R")
-      # testSuite(data_list[i], "qualtrics", qualtrics_file)
+      source("api/testSuite.R")
+      testSuite(data_list[i], "qualtrics", qualtrics_file)
       # perhaps some way to use summary(); tried to do:
       #   quality_check_qualtrics <- testSuite(data_list[i], "qualtrics", qualtrics_file)
       #   summary(quality_check_qualtrics)
@@ -142,8 +142,8 @@ dataRequest <- function(..., csv=FALSE) {
       cat("\n")
       # sources each script
       task_data <- source(task_file)
-      # source("api/testSuite.R")
-      # testSuite(data_list[i], "task", task_file)
+      source("api/testSuite.R")
+      testSuite(data_list[i], "task", task_file)
 
 
       # task_data <- tryCatch({

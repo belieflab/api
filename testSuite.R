@@ -41,13 +41,13 @@ cleanDataFrameExists <- function(measure_alias, measure_type) {
   
   # test case 1:
   df_clean_exists <- test_that("Clean df exists", {
-
+    
     # Check if the expected output_df_name is created
     df_clean_exists <- testthat::expect_true(exists(output_df_name), 
-                info = paste("The script did not create '", output_df_name, "' dataframe."))
+                                             info = paste("The script did not create '", output_df_name, "' dataframe."))
     
     tests = tests+1
-
+    
   })
   
   
@@ -60,18 +60,18 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type) {
   
   # List of NDA required variables
   nda_req_var <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
-    
+  
   # store clean dataframe in df_clean
   df_clean <- base::get(output_df_name)
   
   # Check if the output dataframe contains all NDA required variables
   missing_vars <- setdiff(nda_req_var, colnames(df_clean))
-
+  
   test_that("Check for missing NDA required variables", {
     expect_true(length(missing_vars) == 0, 
                 info = paste("All NDA required variables are present in '", measure_alias, "'."))
   })
-    
+  
 }
 
 
@@ -233,7 +233,7 @@ testSummary <- function() {
   totalTests <- 3
   test_that("Test that all tests are passed", {
     expect_equal(totalTests == 3, 
-                info = paste("All NDA required variables are present in '", measure_alias, "'."))
+                 info = paste("All NDA required variables are present in '", measure_alias, "'."))
   })
 }
 
@@ -249,63 +249,44 @@ testSummary <- function() {
 
 #### 5. test for capr standards for loading libraries example: if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
 # check if an if(!require exists?
-# findTextInScript <- function(script_path, text_to_search) {
-#   item_list <- list()
-#   items_found = 0
-#   script_contents <- base::readLines(script_path)
-#   print(script_contents)
-#   for (item in text_to_search) {
-#     print(item)
-#     matches_grep <- any(grepl(item, script_contents, fixed = TRUE))
-#     # print(matches_grep)
-#     items_found + 1
-#     item_list <- append(item_list, item)
-#   }
-#   
-#   test_that(paste0(item_list, " - these are found in your script."), {
-#     expect_true(items_found == 0, 
-#                 info = paste(item, " doesn't appear in your script."))
-#   }
-#   )
+
+findTextInScript <- function(script_path, text_to_search) {
   
+  script_contents <- base::readLines(script_path)
   
-  findTextInScript <- function(script_path, text_to_search) {
-    
-    script_contents <- base::readLines(script_path)
-    
-    # Check if any of the strings are present in the script
-    matches_grep <- any(sapply(text_to_search, function(text) any(grepl(text, script_contents, fixed = TRUE))))
-    
-    # Print the result
-    print(matches_grep)
-    
-    # Create a test that fails only if none of the strings are found
-    test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
-      expect_true(matches_grep, 
-                  info = paste(toString(text_to_search), " don't appear in your script."))
-    })
-  }
+  # Check if any of the strings are present in the script
+  matches_grep <- any(sapply(text_to_search, function(text) any(grepl(text, script_contents, fixed = TRUE))))
   
+  # Print the result
+  print(matches_grep)
   
-  # is the text that we want actually in the script of interest? true/false
-  # we have any() outside of the grepl, because readLines goes line by line, and doesn't put all script
-  #   contents into one vector element/string
-  # fixed = TRUE treats our text_to_search as a string rather than an expression to be interpreted
-  
-  
-  
+  # Create a test that fails only if none of the strings are found
+  test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
+    expect_true(matches_grep, 
+                info = paste(toString(text_to_search), " don't appear in your script."))
+  })
 }
+
+
+# is the text that we want actually in the script of interest? true/false
+# we have any() outside of the grepl, because readLines goes line by line, and doesn't put all script
+#   contents into one vector element/string
+# fixed = TRUE treats our text_to_search as a string rather than an expression to be interpreted
+
+
+
+
 
 checkInterviewAge <- function(measure_alias) {
   # append _clean to the measure in question
   output_df_name <- paste0(measure_alias, "_clean")
-
+  
   # store clean dataframe in df_clean
   df_clean <- base::get(output_df_name)
-
+  
   test_that("Check interview_age >= 144", {
     rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age < 144]
-
+    
     expect_true(all(df_clean$interview_age >= 144),
                 info = paste("All values in 'interview_age' should be >= 144. src_subject_id not meeting condition:", rows_not_meeting_condition))
   })
