@@ -1,13 +1,13 @@
 # sister script of dataRequest for NDA uploads
 
 
-ndaRequest <- function(..., csv=FALSE) {
+ndaRequest <- function(...) {
   
   # dependencies
   source("api/getRedcap.R")
   source("api/getSurvey.R")
   source("api/getTask.R")
-  source("api/ndaSuite")
+  source("api/ndaSuite.R")
   
   # DATA RETRIEVAL
   # get list of all files in api/src that end in .R (get list of all R scripts);
@@ -68,62 +68,68 @@ ndaRequest <- function(..., csv=FALSE) {
   for (i in 1:length(data_list)) {
     if (data_list[i] %in% redcap_list) {
       # use getter
-      getRedcap(data_list[[i]])
-      # cat("\n")
-      # cat(paste("fetching", data_list[i], "..."))
-      # cat("\n")
+      df <- getRedcap(data_list[[i]])
+      cat("\n")
+      cat(paste("fetching", data_list[i], "..."))
+      cat("\n")
       # unit testing
-      # source("api/testSuite.R")
-      # ndaSuite(data_list[i], "redcap", redcap_file)
-      # export csv
+      ndaSuite(data_list[i], "redcap", df)
+      # get NDA prefix
+      script_path <- paste0("clean/redcap/", data_list[i], ".R")
+      nda_prefix <- getNdaPrefix(script_path)
+      # create NDA extract
+      ndaTemplate(df,nda_prefix)
     }
   }
+  
   # source qualtrics cleaning scripts to obtain data frames
   for (i in 1:length(data_list)) {
     if (data_list[i] %in% qualtrics_list) {
-      # use getter and assign 
+      # use getter
      #assign(data_list[[i]], getSurvey(data_list[[i]])) # Create variable with the name from data_list[[i]]
       df <- getSurvey(data_list[[i]])
-      View(df)
-      # cat(qualtrics_file)
-      # cat("\n")
-      # cat(paste("fetching", data_list[i], "..."))
-      # cat("\n")
+      cat("\n")
+      cat(paste("fetching", data_list[i], "..."))
+      cat("\n")
+      # remove unwanted columns
+      df <- subset(df, select = -c(StartDate, EndDate, Status, Progress, `Duration (in seconds)`,Finished,RecordedDate,ResponseId,DistributionChannel,UserLanguage,candidateId,studyId,measure,ATTN,ATTN_1,SC0))
       # unit testing
-
       ndaSuite(data_list[i], "qualtrics", df)
-      # # perhaps some way to use summary(); tried to do:
-      # #   quality_check_qualtrics <- testSuite(data_list[i], "qualtrics", qualtrics_file)
-      # #   summary(quality_check_qualtrics)
-      # # 
+      # get NDA prefix
+      # script_path <- paste0("clean/qualtrics/", data_list[i], ".R")
+      # nda_prefix <- getNdaPrefix(script_path)
+      # Using switch to modify nda_prefix
+      nda_prefix <- switch(data_list[[i]],
+                           "cesd" = "ces_d,1",
+                           "demo" = "demographics,2",
+                           "duf" = "duf,1",
+                           "lec" = "lec,1",
+                           "pqb" = "pq,1",
+                           "pss" = "pss,1",
+                           data_list[[i]]  # default case to leave the value unchanged
+      )
+      # create NDA extract
+      ndaTemplate(df,nda_prefix)
     }
   }
+  
   # source task cleaning scripts to obtain data frames
   for (i in 1:length(data_list)) {
     if (data_list[i] %in% task_list) {
       # use getter
-      getTask(data_list[[i]])
-      # cat("\n")
-      # cat(paste("fetching", data_list[i], "..."))
-      # cat("\n")
+      df <- getTask(data_list[[i]])
+      cat("\n")
+      cat(paste("fetching", data_list[i], "..."))
+      cat("\n")
       # unit testing
-      # source("api/testSuite.R")
-      # ndaSuite(data_list[i], "task", task_file)
-
-
-      # task_data <- tryCatch({
-      #   exists(task_data)
-      # }, warning = function() {
-      #   print("does not exist")
-      # },finally = {
-      #   task_data <- source(task_file)
-      # }
-      # )
+      ndaSuite(data_list[i], "task", df)
+      # get NDA prefix
+      script_path <- paste0("clean/task/", data_list[i], ".R")
+      nda_prefix <- getNdaPrefix(script_path)
+      # create NDA extract
+      ndaTemplate(df,nda_prefix)
     }
   }
-
-
-  
 
   
 }

@@ -15,7 +15,7 @@ checkDuplicates <- function(measure_alias, measure_type, df) {
   
   if (measure_type == "qualtrics") {
     
-    if (!require(dplyr)) { install.packages("dplyr") } library(dplyr)
+    if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
     
     # Check if identifier column exists, if not, prompt for a valid identifier
     if (!(identifier %in% colnames(df))) {
