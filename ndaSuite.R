@@ -22,23 +22,49 @@ checkDuplicates <- function(measure_alias, measure_type, df) {
       stop("Please provide a valid identifier: src_subject_id, workerId, PROLIFIC_PID")
     }
     
-    # Define columns to exclude for duplicate checks
-    exclusion_cols <- c("visit", "week")
-    cols_to_check <- setdiff(colnames(df), c(identifier, exclusion_cols))
-    
-    # Check if any columns to compare for duplicates exist
-    if (length(cols_to_check) == 0) {
-      message("No columns found to check for duplicates apart from 'visit' and 'week'.")
-      return(invisible())
+    if (all(!c("visit", "week") %in% colnames(df))) {
+      df$duplicates <- duplicated(df$identifier, first = TRUE)
+      
+      # separate the duplicates to their own df
+      df_dup_ids <- subset(df, duplicates == TRUE)$identifier
+      
+      # filter only the subject ids that are duplicated to include both iterations
+      df_duplicates <- df %>% filter(identifier %in% df_dup_ids)
+      test_that("Check for Qualtrics duplicates", {
+        expect_true(nrow(df_duplicates) == 0, 
+                    info = paste("Duplicates detected in '", measure_alias, "'."))
+      })
     }
     
-    df$duplicates <- duplicated(df[, cols_to_check, drop = FALSE], fromLast = FALSE)
-    df_duplicates <- df[df$duplicates, ]
+    if ("visit" %in% colnames(df)) {
+      df$duplicates <- duplicated(df[c(identifier, "visit")], first = TRUE)
+      
+      # separate the duplicates to their own df
+      df_dup_ids <- subset(df, duplicates == TRUE)[c(identifier, "visit")]
+      
+      # filter only the subject ids that are duplicated to include both iterations
+      df_duplicates <- df %>% filter(identifier %in% df_dup_ids & visit %in% df_dup_ids)
+      test_that("Check for Qualtrics duplicates", {
+        expect_true(nrow(df_duplicates) == 0, 
+                    info = paste("Duplicates detected in '", measure_alias, "'."))
+      })
+    }
     
-    test_that("Check for Qualtrics duplicates", {
-      expect_true(nrow(df_duplicates) == 0, 
-                  info = paste("No duplicates detected in '", measure_alias, "'."))
-    })
+    if ("week" %in% colnames(df)) {
+      df$duplicates <- duplicated(df[c(identifier, "week")], first = TRUE)
+      
+      # separate the duplicates to their own df
+      df_dup_ids <- subset(df, duplicates == TRUE)[c(identifier, "week")]
+      
+      # filter only the subject ids that are duplicated to include both iterations
+      df_duplicates <- df %>% filter(identifier %in% df_dup_ids & week %in% df_dup_ids)
+      test_that("Check for Qualtrics duplicates", {
+        expect_true(nrow(df_duplicates) == 0, 
+                    info = paste("Duplicates detected in '", measure_alias, "'."))
+      })
+    }
+    
+    
   }
   
 }
