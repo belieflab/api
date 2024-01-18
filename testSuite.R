@@ -199,7 +199,7 @@ checkDuplicates <- function(measure_alias, measure_type) {
 ################## test 4 ##################
 library(testthat)
 
-checkColumnNamingConvention <- function(measure_alias) {
+checkColumnPrefix <- function(measure_alias) {
   
   
   # Construct dataframe name based on measure_alias
@@ -339,13 +339,13 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # source(paste0("clean/", measure_type, "/", measure_alias, ".R"))
   
   # test cases encapsulated in functions
-  # checkDuplicates(measure_alias, measure_type)
+  checkDuplicates(measure_alias, measure_type)
   
-  # cleanDataFrameExists(measure_alias, measure_type)
+  cleanDataFrameExists(measure_alias, measure_type)
   
-  # ndaRequiredVariablesExist(measure_alias, measure_type)
+  ndaRequiredVariablesExist(measure_alias, measure_type)
   
-  # checkColumnNamingConvention(measure_alias)
+  checkColumnPrefix(measure_alias)
   
   # findTextInScript(script_path, text_to_search = "if(!require")
   
@@ -353,7 +353,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # findTextInScript(script_path, text_to_search = "Collaborators")
   
-  findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+  # findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
   # findTextInScript(script_path, text_to_search = "table(")
   # findTextInScript(script_path, text_to_search = "ggplot(")
   
