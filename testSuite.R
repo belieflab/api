@@ -171,7 +171,8 @@ checkDuplicates <- function(measure_alias, measure_type) {
     
     # Check if identifier column exists, if not, prompt for a valid identifier
     if (!(identifier %in% colnames(df))) {
-      stop("Please provide a valid identifier: src_subject_id, workerId, PROLIFIC_PID")
+      stop(paste("Please provide a valid identifier: src_subject_id, workerId, PROLIFIC_PID",
+                 "\nDuplicates check skipped for '", measure_alias, "'."))
     }
     
     # Define columns to exclude for duplicate checks
@@ -180,7 +181,8 @@ checkDuplicates <- function(measure_alias, measure_type) {
     
     # Check if any columns to compare for duplicates exist
     if (length(cols_to_check) == 0) {
-      message("No columns found to check for duplicates apart from 'visit' and 'week'.")
+      message("No columns found to check for duplicates apart from 'visit' and 'week'.",
+              "\nDuplicates check skipped for '", measure_alias, "'.")
       return(invisible())
     }
     
