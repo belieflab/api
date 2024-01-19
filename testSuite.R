@@ -342,11 +342,11 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   checkDuplicates(measure_alias, measure_type)
   
   cleanDataFrameExists(measure_alias, measure_type)
-  
+
   ndaRequiredVariablesExist(measure_alias, measure_type)
-  
+
   checkColumnPrefix(measure_alias)
-  
+
   # findTextInScript(script_path, text_to_search = "if(!require")
   
   # findTextInScript(script_path, text_to_search = "trevorfwilliams")
