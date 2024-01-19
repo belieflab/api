@@ -364,6 +364,10 @@ testSuite <- function(measure_alias, measure_type, script_path) {
     checkInterviewAge(measure_alias)
   }
   
+  if ("checkNA" %in% tests_to_run) {
+    checkNA(measure_alias)
+  }
+  
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
 }
 
