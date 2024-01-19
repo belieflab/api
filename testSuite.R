@@ -349,14 +349,9 @@ testSuite <- function(measure_alias, measure_type, script_path) {
 
   # findTextInScript(script_path, text_to_search = "if(!require")
   
-  # findTextInScript(script_path, text_to_search = "trevorfwilliams")
-  
   # findTextInScript(script_path, text_to_search = "Collaborators")
   
   # findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
-  # findTextInScript(script_path, text_to_search = "table(")
-  # findTextInScript(script_path, text_to_search = "ggplot(")
-  
   
   #   "Collaborators" (indicates githook was used; can then contact person/author)
   #   "describe(" or "table(" or "ggplot(" (suggests someone looked at descriptive stats or data distribution)
@@ -370,7 +365,6 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # checkInterviewAge(measure_alias)
   
-  # checkNA(measure_alias)
   
   # ...add additional functions here, making sure it pass in measure_alias and measure_type
   
