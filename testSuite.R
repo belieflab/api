@@ -152,7 +152,6 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type) {
 #     
 #   }
 # }
-
 checkDuplicates <- function(measure_alias, measure_type) {
   
   # append _clean to the measure in question
@@ -194,6 +193,7 @@ checkDuplicates <- function(measure_alias, measure_type) {
     })
   }
 }
+
 
 
 ################## test 4 ##################
