@@ -342,32 +342,33 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   checkDuplicates(measure_alias, measure_type)
   
   cleanDataFrameExists(measure_alias, measure_type)
-
+  
   ndaRequiredVariablesExist(measure_alias, measure_type)
+  
+  # checkColumnPrefix(measure_alias)
+  
+  # User input to decide which tests to run
+  tests_to_run <- getUserInput("Enter extra tests to run (comma-separated) findTextInScript, checkInterviewAge")
+  tests_to_run <- strsplit(tests_to_run, ",")[[1]]
+  
+  # Check if each selected test is present in the list and run the corresponding function
+  if ("findTextInScript" %in% tests_to_run) {
+    findTextInScript(script_path, text_to_search = "if(!require")
+    findTextInScript(script_path, text_to_search = "Collaborators")
+    findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+  }
+  
+  if ("checkInterviewAge" %in% tests_to_run) {
+    checkInterviewAge(measure_alias)
+  }
+  
+  # ...add additional functions here, making sure they pass in measure_alias and measure_type
+}
 
-  checkColumnPrefix(measure_alias)
-
-  # findTextInScript(script_path, text_to_search = "if(!require")
-  
-  # findTextInScript(script_path, text_to_search = "Collaborators")
-  
-  # findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
-  
-  #   "Collaborators" (indicates githook was used; can then contact person/author)
-  #   "describe(" or "table(" or "ggplot(" (suggests someone looked at descriptive stats or data distribution)
-  #   "rm("
-  #   "getDictionary("
-  #   "checkRedcapDuplicates"
-  #   "sum("
-  #   "mean(" or "rowMeans(" or "summarize" or "summarise" (indicates that scales, indices, or summary variables have been computed)
-  #   "
-  
-  
-  # checkInterviewAge(measure_alias)
-  
-  
-  # ...add additional functions here, making sure it pass in measure_alias and measure_type
-  
+getUserInput <- function(prompt_text) {
+  cat(prompt_text)
+  user_input <- readline()
+  return(user_input)
 }
 
 
