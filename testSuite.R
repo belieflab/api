@@ -341,6 +341,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # source(paste0("clean/", measure_type, "/", measure_alias, ".R"))
   
   # test cases encapsulated in functions
+  # 3 required unit tests below will always run
   checkDuplicates(measure_alias, measure_type)
   
   cleanDataFrameExists(measure_alias, measure_type)
@@ -350,6 +351,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # checkColumnPrefix(measure_alias)
   
   # User input to decide which tests to run
+  # Optional unit tests to run; "Do you want to run these extra optional tests?"
   tests_to_run <- getUserInput("Enter extra tests to run (comma-separated) findTextInScript, checkInterviewAge")
   tests_to_run <- strsplit(tests_to_run, ",")[[1]]
   
