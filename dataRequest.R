@@ -88,7 +88,7 @@ dataRequest <- function(..., csv=FALSE) {
 
     # abort routine if any measure names are invalid
     for (i in 1:length(invalid_list)) {
-      stop(invalid_list[i], " is not a valid measure name!\n")
+      stop(invalid_list[i], " does not have a cleaning script, please create one!\n")
     }
   }
 
