@@ -1,5 +1,5 @@
 createCsv <- function(df) {
-  path = paste('extracts/',deparse(substitute(df)),'.csv',sep='')
+  path = paste0('extracts/',deparse(substitute(df)),'.csv')
   write.csv(df,path,row.names = FALSE)
-  cat(paste0("Extract created at ",path,"\n"))
+  message(paste0("Extract created at ",path,"\n"))
 }
