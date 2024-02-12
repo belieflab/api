@@ -210,9 +210,17 @@ checkColumnPrefix <- function(measure_alias) {
   # Fetch the dataframe
   df <- base::get(df_name)
   
+  # List of columns to remove
+  cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
+                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel",
+                      "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
+  
+  # Remove columns only if they exist in df
+  df <- df %>% select(-any_of(cols_to_remove))
+  
   # Define NDA required columns
   nda_required <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex",
-                    "interview_age", "interview_date", "ResponseId")
+                    "interview_age", "interview_date")
   
   # Extract non-NDA columns
   non_nda_cols <- setdiff(colnames(df), nda_required)
@@ -261,19 +269,26 @@ findTextInScript <- function(script_path, text_to_search) {
   
   # Print the result
   print(matches_grep)
+<<<<<<< HEAD
   tryCatch( { 
+=======
+  tryCatch({
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
     # Create a test that fails only if none of the strings are found
     test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
       expect_true(matches_grep, 
                   info = paste(toString(text_to_search), " don't appear in your script."))
     }, error = function(e) {
-      message("test failed", e$message)
+      message("FindTextInScript failed: ", e$message)
       
     }
     
     )
   })
+<<<<<<< HEAD
   
+=======
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
 }
 
 
@@ -355,10 +370,11 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   ndaRequiredVariablesExist(measure_alias, measure_type)
   
-  # checkColumnPrefix(measure_alias)
+  checkColumnPrefix(measure_alias)
   
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
+<<<<<<< HEAD
   run_extra_tests <- tolower(getUserInput("Would you like to run extra tests? Enter y/n."))
   
   if (run_extra_tests == "y") {
@@ -391,6 +407,30 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # if ("checkNA" %in% tests_to_run) {
   #   checkNA(measure_alias)
   # }
+=======
+
+  additional_tests <- getUserInput("Run additional tests? y/n")
+  
+  if (additional_tests == "y") {
+    data_integrity <- getUserInput("Run data integrity unit tests? y/n")
+    best_practices <- getUserInput("Run best practices unit tests? y/n")
+    
+    # Check if each selected test is present in the list and run the corresponding function
+    if (data_integrity == "y") {
+      findTextInScript(script_path, text_to_search = "if(!require")
+      findTextInScript(script_path, text_to_search = "Collaborators")
+      findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+    }
+    
+    if (best_practices == "y") {
+      checkInterviewAge(measure_alias)
+      checkNA(measure_alias)
+    }
+    
+  }
+
+
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
   
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
 }
