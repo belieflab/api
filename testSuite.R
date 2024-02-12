@@ -221,6 +221,14 @@ checkColumnPrefix <- function(measure_alias) {
   # Fetch the dataframe
   df <- base::get(df_name)
   
+  # List of columns to remove
+  cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
+                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel", "ResponseId",
+                      "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
+  
+  # Remove columns only if they exist in df
+  df <- df %>% select(-any_of(cols_to_remove))
+  
   # Define NDA required columns
   nda_required <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex",
                     "interview_age", "interview_date", "ResponseId")
@@ -369,7 +377,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   ndaRequiredVariablesExist(measure_alias, measure_type)
   
-  # checkColumnPrefix(measure_alias)
+  checkColumnPrefix(measure_alias)
   
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
