@@ -223,7 +223,7 @@ checkColumnPrefix <- function(measure_alias) {
   
   # List of columns to remove
   cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
-                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel", "ResponseId",
+                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel",
                       "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
   
   # Remove columns only if they exist in df
@@ -231,7 +231,7 @@ checkColumnPrefix <- function(measure_alias) {
   
   # Define NDA required columns
   nda_required <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex",
-                    "interview_age", "interview_date", "ResponseId")
+                    "interview_age", "interview_date")
   
   # Extract non-NDA columns
   non_nda_cols <- setdiff(colnames(df), nda_required)
