@@ -276,32 +276,18 @@ findTextInScript <- function(script_path, text_to_search) {
   
   # Print the result
   print(matches_grep)
-<<<<<<< HEAD
-  tryCatch( { 
-=======
   tryCatch({
->>>>>>> cf38376572d12b26cea253f192f156ded5e0c021
     # Create a test that fails only if none of the strings are found
     test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
       expect_true(matches_grep, 
                   info = paste(toString(text_to_search), " don't appear in your script."))
-<<<<<<< HEAD
     }, error = function(e) {
-      message("test failed", e$message)
+      message("FindTextInScript failed: ", e$message)
       
     }
     
     )
   })
-  
-=======
-    })
-  }, error = function(e) {
-    message("FindTextInScript failed: ", e$message)
-  })
-  
- 
->>>>>>> cf38376572d12b26cea253f192f156ded5e0c021
 }
 
 
@@ -387,40 +373,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
-<<<<<<< HEAD
-  run_extra_tests <- tolower(getUserInput("Would you like to run extra tests? Enter y/n."))
-  
-  if (run_extra_tests == "y") {
-    data_integrity <- tolower(getUserInput("Would you like to run data integrity tests?"))
-    
-    best_practices <- tolower(getUserInput("Would you like to run best practices tests?"))
-  }
-  
-  # tests_to_run <- strsplit(tests_to_run, ",")[[1]]
-  
-  # Check if each selected test is present in the list and run the corresponding function
-  if (best_practices == "y") {
-    print("bestpractices")
-    findTextInScript(script_path, text_to_search = "if(!require")
-    findTextInScript(script_path, text_to_search = "Collaborators")
-    findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
-  
-    }
-  
-  # if ("findTextInScript" %in% tests_to_run) {
-  #   findTextInScript(script_path, text_to_search = "if(!require")
-  #   findTextInScript(script_path, text_to_search = "Collaborators")
-  #   findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
-  # }
-  # 
-  # if ("checkInterviewAge" %in% tests_to_run) {
-  #   checkInterviewAge(measure_alias)
-  # }
-  # 
-  # if ("checkNA" %in% tests_to_run) {
-  #   checkNA(measure_alias)
-  # }
-=======
+
   additional_tests <- getUserInput("Run additional tests? y/n")
   
   if (additional_tests == "y") {
@@ -441,9 +394,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
     
   }
 
-  
 
->>>>>>> cf38376572d12b26cea253f192f156ded5e0c021
   
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
 }
