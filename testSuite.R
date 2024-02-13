@@ -40,18 +40,14 @@ cleanDataFrameExists <- function(measure_alias, measure_type) {
   output_df_name <- paste0(measure_alias, "_clean")
   
   # test case 1:
-  tryCatch({
-    df_clean_exists <- test_that("Clean df exists", {
-      
-      # Check if the expected output_df_name is created
-      df_clean_exists <- testthat::expect_true(exists(output_df_name), 
-                                               info = paste("The script did not create '", output_df_name, "' dataframe."))
-      
-      tests = tests+1
-      
-    })
-  }, error = function(e) {
-    message("The script did not create '", output_df_name, "' dataframe.", e$message)
+  df_clean_exists <- test_that("Clean df exists", {
+    
+    # Check if the expected output_df_name is created
+    df_clean_exists <- testthat::expect_true(exists(output_df_name), 
+                                             info = paste("The script did not create '", output_df_name, "' dataframe."))
+    
+    tests = tests+1
+    
   })
   
   
@@ -70,13 +66,10 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type) {
   
   # Check if the output dataframe contains all NDA required variables
   missing_vars <- setdiff(nda_req_var, colnames(df_clean))
-  tryCatch({
-    test_that("Check for missing NDA required variables", {
-      expect_true(length(missing_vars) == 0, 
-                  info = paste("All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, "."))
-    })
-  }, error = function(e) {
-    message("All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, ".", e$message)
+  
+  test_that("Check for missing NDA required variables", {
+    expect_true(length(missing_vars) == 0, 
+                info = paste("All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, "."))
   })
   
 }
@@ -196,13 +189,9 @@ checkDuplicates <- function(measure_alias, measure_type) {
     df$duplicates <- duplicated(df[, cols_to_check, drop = FALSE], fromLast = FALSE)
     df_duplicates <- df[df$duplicates, ]
     
-    tryCatch({
-      test_that("Check for Qualtrics duplicates", {
-        expect_true(nrow(df_duplicates) == 0, 
-                    info = paste("No duplicates detected in '", measure_alias, "'."))
-      })
-    }, error = function(e) {
-      message(paste("No duplicates detected in '", measure_alias, "'."), e$message)
+    test_that("Check for Qualtrics duplicates", {
+      expect_true(nrow(df_duplicates) == 0, 
+                  info = paste("No duplicates detected in '", measure_alias, "'."))
     })
   }
 }
@@ -237,16 +226,12 @@ checkColumnPrefix <- function(measure_alias) {
   non_nda_cols <- setdiff(colnames(df), nda_required)
   # print(non_nda_cols)
   
-  tryCatch({
-    # Check naming convention for non-NDA columns
-    test_that("Check column naming convention", {
-      expect_true(all(grepl(paste0("^", measure_alias, "_"), non_nda_cols)), 
-                  info = paste("Non-NDA columns in '", df_name, 
-                               "' follow the correct naming convention."))
-    })
-  }, error = function(e) {
-    message("Non-NDA columns in '", df_name, 
-            "' follow the correct naming convention.", e$message)
+  
+  # Check naming convention for non-NDA columns
+  test_that("Check column naming convention", {
+    expect_true(all(grepl(paste0("^", measure_alias, "_"), non_nda_cols)), 
+                info = paste("Non-NDA columns in '", df_name, 
+                             "' follow the correct naming convention."))
   })
 }
 
@@ -284,7 +269,11 @@ findTextInScript <- function(script_path, text_to_search) {
   
   # Print the result
   print(matches_grep)
+<<<<<<< HEAD
+  tryCatch( { 
+=======
   tryCatch({
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
     # Create a test that fails only if none of the strings are found
     test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
       expect_true(matches_grep, 
@@ -296,6 +285,10 @@ findTextInScript <- function(script_path, text_to_search) {
     
     )
   })
+<<<<<<< HEAD
+  
+=======
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
 }
 
 
@@ -381,6 +374,40 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
+<<<<<<< HEAD
+  run_extra_tests <- tolower(getUserInput("Would you like to run extra tests? Enter y/n."))
+  
+  if (run_extra_tests == "y") {
+    data_integrity <- tolower(getUserInput("Would you like to run data integrity tests?"))
+    
+    best_practices <- tolower(getUserInput("Would you like to run best practices tests?"))
+  }
+  
+  # tests_to_run <- strsplit(tests_to_run, ",")[[1]]
+  
+  # Check if each selected test is present in the list and run the corresponding function
+  if (best_practices == "y") {
+    print("bestpractices")
+    findTextInScript(script_path, text_to_search = "if(!require")
+    findTextInScript(script_path, text_to_search = "Collaborators")
+    findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+  
+    }
+  
+  # if ("findTextInScript" %in% tests_to_run) {
+  #   findTextInScript(script_path, text_to_search = "if(!require")
+  #   findTextInScript(script_path, text_to_search = "Collaborators")
+  #   findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+  # }
+  # 
+  # if ("checkInterviewAge" %in% tests_to_run) {
+  #   checkInterviewAge(measure_alias)
+  # }
+  # 
+  # if ("checkNA" %in% tests_to_run) {
+  #   checkNA(measure_alias)
+  # }
+=======
 
   additional_tests <- getUserInput("Run additional tests? y/n")
   
@@ -403,6 +430,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   }
 
 
+>>>>>>> f30ffd8d10cd9e4655f914943da8aab65c7b3a39
   
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
 }
@@ -455,6 +483,3 @@ getUserInput <- function(prompt_text) {
 # audit_script("clean/qualtrics/pclc.R")
 # 
 # 
-
-
-
