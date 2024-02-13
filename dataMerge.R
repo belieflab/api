@@ -1,7 +1,10 @@
 # Get full file paths of all R files in the api directory
 # base::source all files using lapply()
 
-dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site"), all = TRUE, no.dups = FALSE) {
+# nda variables required for merging
+nda_merging_variables <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
+
+dataMerge <- function(..., by = c(nda_merging_variables), all = TRUE, no.dups = FALSE) {
   # inner join = FALSE
   # outer join = TRUE
 
@@ -13,7 +16,7 @@ dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
 
   # Clean Up
-  suppressWarnings(source("api/env/cleanup.R"))
+  # suppressWarnings(source("api/env/cleanup.R"))
 
   return(dfs)
 }
