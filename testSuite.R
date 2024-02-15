@@ -301,11 +301,11 @@ checkInterviewAge <- function(measure_alias) {
   # store clean dataframe in df_clean
   df_clean <- base::get(output_df_name)
   
-  test_that("Check interview_age >= 144", {
-    rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age < 144]
+  test_that("Check interview_age >= 144 or interview_age >=600", {
+    rows_not_meeting_condition <- df_clean$src_subject_id[(df_clean$interview_age <= 144) | (df_clean$interview_age >= 600)]
     
     expect_true(all(df_clean$interview_age >= 144),
-                info = paste("All values in 'interview_age' should be >= 144. src_subject_id not meeting condition:", rows_not_meeting_condition))
+                info = paste("All values in 'interview_age' should be >= 144 and <=600. src_subject_id not meeting condition:", rows_not_meeting_condition))
   })
 }
 
@@ -365,6 +365,9 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   checkColumnPrefix(measure_alias)
   
+  checkInterviewAge(measure_alias)
+  
+  
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
 
@@ -382,7 +385,6 @@ testSuite <- function(measure_alias, measure_type, script_path) {
     }
     
     if (best_practices == "y") {
-      checkInterviewAge(measure_alias)
       checkNA(measure_alias)
     }
     
