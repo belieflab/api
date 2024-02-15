@@ -99,12 +99,20 @@ getTask <- function(task, identifier = "src_subject_id") {
   # close db connection disabled due to endSessions error
   # df$disconnect(gc = TRUE)
 
-  # check for visit variable, if not add baseline
-  if (tolower(identifier) != "rat_id") {
-    if ("visit" %!in% colnames(df_filtered)) {
-      df_filtered$visit <- "bl"
+  # Check if 'visit' column exists
+  if ("visit" %in% colnames(df_filtered)) {
+    # 'visit' exists, now check if it's only filled with empty strings, ignoring NAs
+    if (all(df_filtered$visit == "" | is.na(df_filtered$visit), na.rm = TRUE)) {
+      # If every non-NA entry is an empty string, replace all with "bl"
+      df_filtered$visit <- ifelse(is.na(df_filtered$visit) | df_filtered$visit == "", "bl", df_filtered$visit)
     }
+    # If there are non-empty non-NA strings, do nothing (pass)
+  } else {
+    # 'visit' does not exist, so add it and set all values to "bl"
+    df_filtered$visit <- "bl"
   }
+  
+  
 
   # df_filtered$src_subject_id <- as.numeric(df_filtered$src_subject_id)
 

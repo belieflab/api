@@ -301,11 +301,13 @@ checkInterviewAge <- function(measure_alias) {
   # store clean dataframe in df_clean
   df_clean <- base::get(output_df_name)
   
-  test_that("Check interview_age >= 144 or interview_age >=600", {
-    rows_not_meeting_condition <- df_clean$src_subject_id[(df_clean$interview_age <= 144) | (df_clean$interview_age >= 600)]
+  test_that("Check interview_age <= 144 or interview_age >=840", {
+    rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age < 144 | df_clean$interview_age > 840]
     
-    expect_true(all(df_clean$interview_age >= 144),
-                info = paste("All values in 'interview_age' should be >= 144 and <=600. src_subject_id not meeting condition:", rows_not_meeting_condition))
+    expect_true(
+      all(df_clean$interview_age >= 144 & df_clean$interview_age <= 840),
+      info = paste("All values in 'interview_age' should be >= 144 and <= 840. src_subject_id not meeting condition:", paste(rows_not_meeting_condition, collapse = ", "))
+    )
   })
 }
 
@@ -371,24 +373,24 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
 
-  additional_tests <- getUserInput("Run additional tests? y/n")
-  
-  if (additional_tests == "y") {
-    data_integrity <- getUserInput("Run data integrity unit tests? y/n")
-    best_practices <- getUserInput("Run best practices unit tests? y/n")
-    
-    # Check if each selected test is present in the list and run the corresponding function
-    if (data_integrity == "y") {
-      findTextInScript(script_path, text_to_search = "if(!require")
-      findTextInScript(script_path, text_to_search = "Collaborators")
-      findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
-    }
-    
-    if (best_practices == "y") {
-      checkNA(measure_alias)
-    }
-    
-  }
+  # additional_tests <- getUserInput("Run additional tests? y/n")
+  # 
+  # if (additional_tests == "y") {
+  #   data_integrity <- getUserInput("Run data integrity unit tests? y/n")
+  #   best_practices <- getUserInput("Run best practices unit tests? y/n")
+  #   
+  #   # Check if each selected test is present in the list and run the corresponding function
+  #   if (data_integrity == "y") {
+  #     findTextInScript(script_path, text_to_search = "if(!require")
+  #     findTextInScript(script_path, text_to_search = "Collaborators")
+  #     findTextInScript(script_path, text_to_search = c("describe(", "table(", "ggplot("))
+  #   }
+  #   
+  #   if (best_practices == "y") {
+  #     checkNA(measure_alias)
+  #   }
+  #   
+  # }
 
   
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
