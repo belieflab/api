@@ -14,7 +14,7 @@
 
 findTextInScript <- function(script_path, text_to_search) {
   
-  if(!require(tidyverse)) {install.packages("tidyverse")};library(tidyverse)
+  if (!require(testthat)) {install.packages("testthat")}; library(testthat)
   
   script_contents <- base::readLines(script_path)
   
@@ -27,7 +27,7 @@ findTextInScript <- function(script_path, text_to_search) {
   tryCatch({
     # Create a test that fails only if none of the strings are found
     test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
-      expect_true(matches_grep, 
+      testthat::expect_true(matches_grep, 
                   info = paste(toString(text_to_search), " don't appear in your script."))
     }, error = function(e) {
       message("FindTextInScript failed: ", e$message)

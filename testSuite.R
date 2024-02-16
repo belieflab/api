@@ -72,9 +72,10 @@ testSummary <- function() {
 
 
 testSuite <- function(measure_alias, measure_type, script_path) {
-  
+
   # source all scripts in ./api/test
   lapply(list.files("api/test", pattern = "\\.R$", full.names = TRUE), base::source)
+  
   
   # List of NDA required variables
   nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "week", 
@@ -86,9 +87,9 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   cleanDataFrameExists(measure_alias, measure_type)
   
-  ndaRequiredVariablesExist(measure_alias, measure_type)
+  ndaRequiredVariablesExist(measure_alias, measure_type, nda_required_variables)
   
-  checkColumnPrefix(measure_alias, measure_type)
+  checkColumnPrefix(measure_alias, measure_type, nda_required_variables)
   
   checkInterviewAge(measure_alias)
   

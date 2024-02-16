@@ -28,6 +28,10 @@ progress_callback <- function(count, total) {
 
 getSurvey <- function(qualtrics, label = FALSE) {
   
+  if (!require(config)) {install.packages("config")}; library(config)
+  if (!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics)
+  if (!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
+  
   if (label == FALSE) {
     message(paste0("extracting mumeric values"))
   }
@@ -36,19 +40,8 @@ getSurvey <- function(qualtrics, label = FALSE) {
     message(paste0("extracting choice text"))
   }
   
-  
-  if (!require(config)) {
-    install.packages("config")
-  }
-  library(config)
-
   config <- config::get()
-
-  if (!require(qualtRics)) {
-    install.packages("qualtRics")
-  }
-  library(qualtRics)
-
+  
   source(config$qualtrics$survey_ids)
 
   # check to see if secrets.R exists; if it does not, create it

@@ -3,35 +3,28 @@
 
 checkInterviewAge <- function(measure_alias) {
   
-  if(!require(tidyverse)) {install.packages("tidyverse")};library(tidyverse)
+  if (!require(testthat)) {install.packages("testthat")}; library(testthat)
   
   months_in_a_year <- 12
+  min_age <- 12 * months_in_a_year  # 144 months
+  max_age <- 70 * months_in_a_year  # 840 months
   
-  min_age <- 12 * months_in_a_year
-  max_age  <- 70 * months_in_a_year
-  
-  # append _clean to the measure in question
+  # Construct the expected dataframe name
   output_df_name <- paste0(measure_alias, "_clean")
   
-  # store clean dataframe in df_clean
-  df_clean <- base::get(output_df_name)
-  
-  test_that(paste0("Check interview_age is between ",min_age," and ",max_age,"."), {
-    
-    rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age <= min_age | df_clean$interview_age >= max_age]
-    
-    tryCatch({
+  # Retrieve the dataframe based on constructed name
+  df_clean <- base::get(output_df_name)  # specify the environment if needed
+  tryCatch({
+    # Perform tests
+    test_that(paste0("Check interview_age is between ", min_age, " and ", max_age), {
+      rows_not_meeting_condition <- df_clean$src_subject_id[df_clean$interview_age < min_age | df_clean$interview_age > max_age]
       
-      test_that::expect_true(
+      testthat::expect_true(
         all(df_clean$interview_age >= min_age & df_clean$interview_age <= max_age),
-        info = paste("All values in 'interview_age' should be greater than than", min_age, "and less than", max_age,". src_subject_id not meeting condition:", paste(rows_not_meeting_condition, collapse = ", "))
-        
-      )}, error = function(e) {
-        message("FindTextInScript failed: ", e$message)
-        
-      }
-      
-    )
+        info = paste("All values in 'interview_age' should be greater than ", min_age, " and less than ", max_age, ". src_subject_id not meeting condition:", paste(rows_not_meeting_condition, collapse = ", "))
+      )
+    })
+  }, error = function(e) {
+    message("The following subjects have out of range ages:",rows_not_meeting_condition, e$message)
   })
 }
-

@@ -1,3 +1,26 @@
+#' Data Request
+#'
+#' The code below is meant to simplify requests for data
+#' It makes a request to the appropriate API for the named measure or measures
+#' and runs the associated data cleaning routines. It then runs a series of
+#' unit tests to verify the data quality standards are met to merge the data.
+#' 
+#' @param ... String, a Mongo collection, REDCap instrument, or Qualtrics survey
+#' @param csv Optional; Boolean, create a .csv extract in ./tmp
+#' @param rds Optional; Boolean, create a .Rds extract in ./tmp
+#' @param spss Optional; Boolean create a .sav extract in ./tmp
+#' 
+#' @example
+#' 
+#' dataRequest("prl")
+#' dataRequest("rgpts,"kamin")
+#' dataRequest("eds", csv=TRUE)
+#' 
+#' @author Joshua Kenney <joshua.kenney@yale.edu>
+
+
+
+
 # The code below is meant to simplify requests for data
 # It will aims to merge data on all requested measures and check for duplicates
 # and other data quality issues.
@@ -36,7 +59,7 @@
 ### data frames, so that createCsv() can be removed from individual scripts
 
 
-dataRequest <- function(..., csv=FALSE) {
+dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
   # DATA RETRIEVAL
   # get list of all files in api/src that end in .R (get list of all R scripts);
   # source al of those files
@@ -98,17 +121,24 @@ dataRequest <- function(..., csv=FALSE) {
       # creates file paths with name to source
       redcap_file <- paste0("clean/redcap/", data_list[i], ".R")
       cat("\n")
-      cat(paste("fetching and cleaning", data_list[i], "..."))
+      cat(paste0("fetching and cleaning ", "redcap ",data_list[i], "..."))
       cat("\n")
       # sources each script
       redcap_data <- source(redcap_file)
       source("api/testSuite.R")
       testSuite(data_list[i], "redcap", redcap_file)
-      # export csv
-      if (csv==TRUE) {
-        dataset_name <-paste0(data_list[i], "_clean")
-        dataset_name <- redcap_data
-        createCsv(dataset_name)
+      # extract controller
+      df_name <- paste0(data_list[i], "_clean")
+      # Fetch the dataframe
+      df <- base::get(df_name)
+      if (csv) {
+        createCsv(df, df_name)
+      }
+      if (rds) {
+        createRds(df, df_name)
+      }
+      if (spss) {
+        createSpss(df, df_name)
       }
     }
   }
@@ -120,16 +150,25 @@ dataRequest <- function(..., csv=FALSE) {
       qualtrics_file <- paste0("clean/qualtrics/", data_list[i], ".R")
       # cat(qualtrics_file)
       cat("\n")
-      cat(paste("fetching and cleaning", data_list[i], "..."))
+      cat(paste0("fetching and cleaning ", "qualtrics ",data_list[i], "..."))
       cat("\n")
       # sources each script
       qualtrics_data <- source(qualtrics_file)
       source("api/testSuite.R")
       testSuite(data_list[i], "qualtrics", qualtrics_file)
-      # perhaps some way to use summary(); tried to do:
-      #   quality_check_qualtrics <- testSuite(data_list[i], "qualtrics", qualtrics_file)
-      #   summary(quality_check_qualtrics)
-      # 
+      # extract controller
+      df_name <- paste0(data_list[i], "_clean")
+      # Fetch the dataframe
+      df <- base::get(df_name)
+      if (csv) {
+        createCsv(df, df_name)
+      }
+      if (rds) {
+        createRds(df, df_name)
+      }
+      if (spss) {
+        createSpss(df, df_name)
+      }
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -138,38 +177,31 @@ dataRequest <- function(..., csv=FALSE) {
       # creates file paths with name to source
       task_file <- paste0("clean/task/", data_list[i], ".R")
       cat("\n")
-      cat(paste("fetching and cleaning", data_list[i], "..."))
+      cat(paste0("fetching and cleaning ", "task ",data_list[i], "..."))
       cat("\n")
       # sources each script
       task_data <- source(task_file)
       source("api/testSuite.R")
-      testSuite(data_list[i], "task", task_file)
-
-
-      # task_data <- tryCatch({
-      #   exists(task_data)
-      # }, warning = function() {
-      #   print("does not exist")
-      # },finally = {
-      #   task_data <- source(task_file)
-      # }
-      # )
+      # extract controller
+      df_name <- paste0(data_list[i], "_clean")
+      # Fetch the dataframe
+      df <- base::get(df_name)
+      if (csv) {
+        createCsv(df, df_name)
+      }
+      if (rds) {
+        createRds(df, df_name)
+      }
+      if (spss) {
+        createSpss(df, df_name)
+      }
     }
   }
 
   # Clean Up
   suppressWarnings(source("api/env/cleanup.R"))
   
-
-  
 }
 
-#nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "subjectkey", "sex")
 
 
-
-# example:
-#dataRequest("prl")
-
-# requestData("rgpts", "kamin")
-# 
