@@ -1,10 +1,25 @@
-# Get full file paths of all R files in the api directory
-# base::source all files using lapply()
+#' Data Merge
+#'
+#' The code below is meant to simplify data merging across measures.
+#' It uses a candidate key of NDA Required Variables to ensure a seamless merge
+#' of clean data frames.
+#' 
+#' @param ... Variable, many clean data frames
+#' @param by Optional; nda_merge_vars
+#' @param all Optional; OUTER JOIN
+#' @param no.dups Optional; keep duplicates
+#' 
+#' @examples
+#' dataMerge("prl", "rgpts", all=FALSE) # INNER JOIN
+#' dataMerge("kamin,"lshsr,"sips_p, by = "subjectkey")
+#' @return the merged dataframes
+#' @author Joshua Kenney <joshua.kenney@yale.edu>
 
 # nda variables required for merging
 nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
 
-dataMerge <- function(..., by = c(nda_merging_variables), all = TRUE, no.dups = FALSE) {
+dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site"), all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
+  
   # inner join = FALSE
   # outer join = TRUE
 
@@ -14,9 +29,16 @@ dataMerge <- function(..., by = c(nda_merging_variables), all = TRUE, no.dups = 
 
   # Use the provided 'by' and 'all' parameters
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
-
-  # Clean Up
-  # suppressWarnings(source("api/env/cleanup.R"))
+  
+  if (csv) {
+    createCsv(dfs, "merged_dfs")
+  }
+  if (rds) {
+    createRds(dfs, "merged_dfs")
+  }
+  if (spss) {
+    createSpss(dfs, "merged_dfs")
+  }
 
   return(dfs)
 }

@@ -19,7 +19,8 @@ all_objects_env <- mget(all_objects)
 
 # Filtering data frames ending with "_clean" and "_dictionary"
 data_frames_clean <- names(Filter(function(obj) is.data.frame(obj), all_objects_env))
-data_frames_clean <- Filter(function(name) grepl("(_clean$|_dictionary$)", name), data_frames_clean)
+# data_frames_clean <- Filter(function(name) grepl("(_clean$|_dictionary$)", name), data_frames_clean)
+data_frames_clean <- Filter(function(name) grepl("(_clean$)", name), data_frames_clean)
 
 # Combine explicit keep list and data frames ending with "_clean"
 keep_objects <- unique(c(explicit_keep, data_frames_clean))  # Ensuring no duplicates

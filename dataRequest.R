@@ -182,6 +182,7 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       # sources each script
       task_data <- source(task_file)
       source("api/testSuite.R")
+      testSuite(data_list[i], "task", task_file)
       # extract controller
       df_name <- paste0(data_list[i], "_clean")
       # Fetch the dataframe
