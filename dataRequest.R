@@ -1,6 +1,6 @@
 #' Data Request
 #'
-#' The code below is meant to simplify requests for data
+#' The code below is meant to simplify requests for clean data.
 #' It makes a request to the appropriate API for the named measure or measures
 #' and runs the associated data cleaning routines. It then runs a series of
 #' unit tests to verify the data quality standards are met to merge the data.
@@ -127,19 +127,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       redcap_data <- source(redcap_file)
       source("api/testSuite.R")
       testSuite(data_list[i], "redcap", redcap_file)
-      # extract controller
+      # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
-      # Fetch the dataframe
-      df <- base::get(df_name)
-      if (csv) {
-        createCsv(df, df_name)
-      }
-      if (rds) {
-        createRds(df, df_name)
-      }
-      if (spss) {
-        createSpss(df, df_name)
-      }
+      createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
   # source qualtrics cleaning scripts to obtain data frames
@@ -156,19 +146,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       qualtrics_data <- source(qualtrics_file)
       source("api/testSuite.R")
       testSuite(data_list[i], "qualtrics", qualtrics_file)
-      # extract controller
+      # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
-      # Fetch the dataframe
-      df <- base::get(df_name)
-      if (csv) {
-        createCsv(df, df_name)
-      }
-      if (rds) {
-        createRds(df, df_name)
-      }
-      if (spss) {
-        createSpss(df, df_name)
-      }
+      createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
   # source task cleaning scripts to obtain data frames
@@ -183,19 +163,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       task_data <- source(task_file)
       source("api/testSuite.R")
       testSuite(data_list[i], "task", task_file)
-      # extract controller
+      # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
-      # Fetch the dataframe
-      df <- base::get(df_name)
-      if (csv) {
-        createCsv(df, df_name)
-      }
-      if (rds) {
-        createRds(df, df_name)
-      }
-      if (spss) {
-        createSpss(df, df_name)
-      }
+      createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
 
