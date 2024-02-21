@@ -167,6 +167,7 @@ getRedcap <- function(instrument_name) {
 
   # convert dates
   df$int_diff <- as.numeric(df$int_end - df$int_start)
+  df$interview_date <- df$int_start
 
   # add measure column
   df$measure <- instrument_name

@@ -9,6 +9,8 @@
 #' @param csv Optional; Boolean, create a .csv extract in ./tmp
 #' @param rds Optional; Boolean, create a .Rds extract in ./tmp
 #' @param spss Optional; Boolean create a .sav extract in ./tmp
+#' @param id Optional; String accepts "numeric" or "character", converts src_subject_id
+#'        to desired format
 #' 
 #' @example
 #' 
@@ -59,7 +61,7 @@
 ### data frames, so that createCsv() can be removed from individual scripts
 
 
-dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
+dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
   # DATA RETRIEVAL
   # get list of all files in api/src that end in .R (get list of all R scripts);
   # source al of those files
@@ -69,6 +71,7 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
     install.packages("tidyverse")
   }
   library(tidyverse)
+  library(dplyr)
 
   # init an empty list called data_list
   data_list <- list(...)
@@ -129,6 +132,10 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       testSuite(data_list[i], "redcap", redcap_file)
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
+      # adding option for numeric id, character id, or default of source script
+      clean_df <- base::get(df_name) %>% 
+        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+                                     ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
@@ -148,6 +155,10 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       testSuite(data_list[i], "qualtrics", qualtrics_file)
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
+      # adding option for numeric id, character id, or default of source script
+      clean_df <- base::get(df_name) %>% 
+        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+                                            ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
@@ -165,6 +176,10 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE) {
       testSuite(data_list[i], "task", task_file)
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
+      # adding option for numeric id, character id, or default of source script
+      clean_df <- base::get(df_name) %>% 
+        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+                                            ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }

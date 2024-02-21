@@ -14,6 +14,9 @@ checkColumnPrefix <- function(measure_alias, measure_type, nda_required_variable
   # Determine columns to check based on measure_type
   if (measure_type == "qualtrics") {
     non_nda_cols <- setdiff(colnames(df), c(nda_required_variables, "ResponseId"))
+  } else if (measure_type=="redcap") {
+    non_nda_cols <- setdiff(colnames(df), c(nda_required_variables, "int_start", 
+                                            "int_end"))
   } else {
     non_nda_cols <- setdiff(colnames(df), nda_required_variables)
   }
