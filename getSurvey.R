@@ -96,7 +96,7 @@ getSurvey <- function(qualtrics, label = FALSE) {
   # df$src_subject_id <- as.numeric(df$src_subject_id)
 
   # convert dates
-  df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
+  # df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
 
   # add measure column
   df$measure <- qualtrics

@@ -78,7 +78,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   
   # List of NDA required variables
-  nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "week", 
+  nda_required_variables <- c("src_subject_id", "phenotype", "site", "arm", "visit", "week", 
                               "subjectkey", "sex", "interview_date", "interview_age")
   
   # test cases encapsulated in functions
