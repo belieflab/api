@@ -156,9 +156,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
       # adding option for numeric id, character id, or default of source script
-      clean_df <- base::get(df_name) %>% 
-        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
-                                            ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
+      # clean_df <- base::get(df_name) %>% 
+        # dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+                                            # ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }

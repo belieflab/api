@@ -1,4 +1,18 @@
-
+#' Check for NA Values in a Dataset
+#'
+#' Scans a specified dataset for any NA (Not Available) values and reports the findings,
+#' indicating the subject ID and the column name where NA values are found.
+#'
+#' @param measure_alias A string representing the alias name of the dataset to be checked.
+#' @return This function does not return a value but will output messages for each NA value found,
+#'         detailing its location within the dataset.
+#' @export
+#' @examples
+#' checkNan("your_dataset_alias")
+#' @importFrom testthat test_that expect_false
+#' @importFrom base get
+#' @note This function is intended for cleaned datasets named with a '_clean' suffix and
+#'       is crucial for datasets where completeness is critical.
 checkNan <- function(measure_alias) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)

@@ -2,7 +2,7 @@
 removeStandardOutput <- function(df) {
   # List of Qualtrics columns to remove
   cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
-                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel",
+                      "Finished", "RecordedDate", "DistributionChannel",
                       "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
   
   # Remove columns only if they exist in df

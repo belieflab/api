@@ -56,29 +56,29 @@ getSurvey <- function(qualtrics, label = FALSE) {
 
   qualtrics_base_url <- if (surveyIds[qualtrics] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
 
-  qualtRics::qualtrics_api_credentials(
+  suppressWarnings(qualtRics::qualtrics_api_credentials(
     api_key = qualtrics_api_key,
     base_url = qualtrics_base_url,
     install = TRUE,
     overwrite = TRUE
-  )
+  ))
 
   # Your original .Renviron will be backed up and stored in your R HOME directory if needed.
   # Your Qualtrics key and base URL have been stored in your .Renviron.
   # To use now, restart R or run `readRenviron("~/.Renviron")`
   # this MUST remain to handle switches between api keys
-  readRenviron("~/.Renviron")
+  suppressWarnings(readRenviron("~/.Renviron"))
 
   pb <- txtProgressBar(min = 0, max = 100, style = 3) # Create progress bar
 
-  df <- qualtRics::fetch_survey(
+  df <- suppressWarnings(qualtRics::fetch_survey(
     surveyID = toString(surveyIds[qualtrics]),
     verbose = FALSE,
     label = label, # both of these must be set to false to import numeric
     convert = label, # both of these must be set to false to import numeric
     force_request = TRUE,
     add_column_map = TRUE
-  )
+  ))
 
   # Close the progress bar
   close(pb)

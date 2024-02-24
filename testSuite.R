@@ -79,11 +79,11 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # List of NDA required variables
   nda_required_variables <- c("src_subject_id", "phenotype", "site", "arm", "visit", "week", 
-                              "subjectkey", "sex", "interview_date", "interview_age")
+                              "subjectkey", "sex", "interview_date", "interview_age", "state")
   
   # test cases encapsulated in functions
 
-  checkDuplicates(measure_alias, measure_type)
+  checkQualtricsDuplicates(measure_alias, measure_type)
   
   cleanDataFrameExists(measure_alias, measure_type)
   

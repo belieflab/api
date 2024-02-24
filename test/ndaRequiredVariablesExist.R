@@ -1,4 +1,21 @@
-
+#' Check for Presence of NDA Required Variables in a Data Frame
+#'
+#' This function checks if a cleaned data frame contains all the variables required by the National Data Archive (NDA).
+#' The set of required variables can be adjusted based on the specific requirements of the study and the presence
+#' of certain variables like 'visit' or 'week'. The function is useful for ensuring data compliance before submission.
+#'
+#' @param measure_alias A string representing the alias name of the dataset to be checked.
+#' @param measure_type A string indicating the type of measure, used to adjust the list of required variables if necessary.
+#' @param nda_required_variables A vector of strings representing the initial set of NDA required variables to check for.
+#'        This parameter is overwritten inside the function but can be used to extend the functionality in the future.
+#' @return This function does not return a value but uses the `testthat` package to assert the presence of all NDA required variables and provides detailed feedback if any are missing.
+#' @export
+#' @examples
+#' ndaRequiredVariablesExist("your_dataset_alias", "qualtrics", c("src_subject_id", "phenotype"))
+#' @importFrom testthat test_that expect_true
+#' @importFrom base get setdiff
+#' @note While currently the function overwrites the 'nda_required_variables' parameter internally, future versions may allow for dynamic adjustment based on 'measure_type'.
+#'       It assumes that the dataset has been cleaned and is named according to a standard naming convention with a '_clean' suffix.
 ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_variables) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)
