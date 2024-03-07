@@ -24,6 +24,7 @@ dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "
   # outer join = TRUE
 
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
 
   data_list <- list(...)
 

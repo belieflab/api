@@ -33,6 +33,12 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
   # Adjust NDA required variables based on presence of 'visit' or 'week'
   adjusted_nda_required <- nda_required_variables
   
+  # alter required variables for redcap measures (no interview_date or interview_age)
+  if (measure_type=="redcap") {
+    adjusted_nda_required <- nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "week", 
+                                                         "subjectkey", "sex")
+  }
+  
   # If 'visit' and 'week' are not both required, adjust the list accordingly:
   if (!("visit" %in% colnames(df_clean)) && ("week" %in% colnames(df_clean))) {
     adjusted_nda_required <- setdiff(adjusted_nda_required, "visit")  # Remove 'visit' if it's not there but 'week' is
@@ -40,6 +46,7 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
     adjusted_nda_required <- setdiff(adjusted_nda_required, "week")  # Remove 'week' if it's not there but 'visit' is
   } # If neither or both are present, no changes needed to adjusted_nda_required
   
+
   # Now check if the output dataframe contains all adjusted NDA required variables
   missing_vars <- setdiff(adjusted_nda_required, colnames(df_clean))
   

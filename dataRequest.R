@@ -66,7 +66,7 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
   # get list of all files in api/src that end in .R (get list of all R scripts);
   # source al of those files
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-
+  lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
   if (!require(tidyverse)) {
     install.packages("tidyverse")
   }
@@ -133,9 +133,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
       # adding option for numeric id, character id, or default of source script
-      clean_df <- base::get(df_name) %>% 
-        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
-                                     ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
+      # clean_df <- base::get(df_name) %>% 
+      #   dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+      #                                ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
@@ -177,9 +177,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
       # create extract from _clean df
       df_name <- paste0(data_list[i], "_clean")
       # adding option for numeric id, character id, or default of source script
-      clean_df <- base::get(df_name) %>% 
-        dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
-                                            ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
+      # clean_df <- base::get(df_name) %>% 
+      #   dplyr::mutate(src_subject_id=ifelse(id=="numeric",as.numeric(src_subject_id),
+      #                                       ifelse(id=="character",as.character(src_subject_id),src_subject_id)))
       createExtract(base::get(df_name), df_name, csv, rds, spss)
     }
   }
