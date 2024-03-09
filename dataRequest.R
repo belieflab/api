@@ -69,11 +69,9 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
   # source al of those files
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
-  if (!require(tidyverse)) {
-    install.packages("tidyverse")
-  }
-  library(tidyverse)
-  library(dplyr)
+  
+  if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
+  if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
 
   # init an empty list called data_list
   data_list <- list(...)
