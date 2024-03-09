@@ -64,6 +64,7 @@
 if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
 if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
 if (!require("future")) {install.packages("future")}; library(future)
+if (!require("future.apply")) {install.packages("future.apply")}; library(future.apply)
 if (!require("parallel")) {install.packages("parallel")}; library(parallel)
 
 # Parallel Setup
