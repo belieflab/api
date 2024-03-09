@@ -62,6 +62,8 @@
 
 
 dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
+  start_time <- Sys.time()
+  
   # DATA RETRIEVAL
   # get list of all files in api/src that end in .R (get list of all R scripts);
   # source al of those files
@@ -186,6 +188,10 @@ dataRequest <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
 
   # Clean Up
   suppressWarnings(source("api/env/cleanup.R"))
+  
+  end_time <- Sys.time()
+  time_taken <- end_time - start_time
+  print(time_taken)
   
 }
 

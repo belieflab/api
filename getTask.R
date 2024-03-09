@@ -81,6 +81,7 @@ getTask <- function(task, identifier = "src_subject_id") {
     
   }
   
+  start_time <- Sys.time()
   
   # store mongoDB connection credentials
   df <- mongolite::mongo(
@@ -131,7 +132,14 @@ getTask <- function(task, identifier = "src_subject_id") {
 
   # return filtered task dataframe
   suppressWarnings(return(df_filtered))
+  
+  end_time <- Sys.time()
+  time_taken <- end_time - start_time
+  print(time_taken)
 }
 
 # alias
 getMongo <- getTask
+
+# print(time_taken)
+
