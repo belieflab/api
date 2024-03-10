@@ -44,7 +44,7 @@ setupMongoDB <- function(collection_name) {
 #' df_filtered <- getTaskData("task_name", list(start = 0, size = 100), mongo_collection, "src_subject_id")
 #' @export
 getTaskData <- function(task, batch_info, mongo_collection, identifier = "src_subject_id") {
-  query_json <- sprintf('{"%s": {"$exists": true}}', identifier)
+  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
   tryCatch({
     df_filtered <- mongo_collection$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
     # Additional filtering to ensure the identifier exists
@@ -57,6 +57,7 @@ getTaskData <- function(task, batch_info, mongo_collection, identifier = "src_su
     message("Error fetching data: ", e$message)
     return(NULL)  # Return NULL in case of error
   })
+  
 }
 
 #' Main Parallel Data Retrieval Function
@@ -79,7 +80,7 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   mongo_collection <- setupMongoDB(collection_name)
   
-  total_records <- mongo_collection$count(sprintf('{"%s": {"$exists": true}}', identifier))
+  total_records <- mongo_collection$count(sprintf('{"%s": {"$ne": ""}}', identifier))
   message(sprintf("Imported %d records. Simplifying into dataframe...", total_records))
   show_loading_animation()
   
@@ -93,6 +94,7 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   
   results <- future_lapply(data_chunks, function(chunk) {
     getTaskData(collection_name, chunk, mongo_collection, identifier)
+
   })
   
   # Use bind_rows() instead of do.call(rbind, ...)
@@ -102,10 +104,46 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   #   if (!is.null(df)) return(df) else return(NULL)
   # }))
   
+  combined_results <- dataHarmonization(combined_results, identifier, collection_name)
+  
   end_time <- Sys.time()
   time_taken <- end_time - start_time
   message(sprintf("Data retrieval completed in %f seconds", as.numeric(time_taken)))
   
   return(combined_results)
+}
+
+
+dataHarmonization <- function(df_filtered, identifier, task) { 
+  
+  # Check if 'visit' column exists
+  if ("visit" %in% colnames(df_filtered)) {
+    # 'visit' exists, now check if it's only filled with empty strings, ignoring NAs
+    if (all(df_filtered$visit == "" | is.na(df_filtered$visit), na.rm = TRUE)) {
+      # If every non-NA entry is an empty string, replace all with "bl"
+      df_filtered$visit <- ifelse(is.na(df_filtered$visit) | df_filtered$visit == "", "bl", df_filtered$visit)
+    }
+    # If there are non-empty non-NA strings, do nothing (pass)
+  } else {
+    # 'visit' does not exist, so add it and set all values to "bl"
+    df_filtered$visit <- "bl"
+  }
+
+  # df_filtered$src_subject_id <- as.numeric(df_filtered$src_subject_id)
+  
+  # convert dates (from string ("m/d/Y") to date format)
+  if (tolower(identifier) != "rat_id") {
+    df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
+  }
+  
+  # add measure column
+  df_filtered$measure <- task
+  
+  # in the case of delay discounting, for some reason, src_subject_id are empty strings and we need to do this
+  if (tolower(identifier) == "src_subject_id") {
+    df_filtered <- subset(df_filtered, src_subject_id != "")
+  }
+  
+  return(df_filtered)
 }
 
