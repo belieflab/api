@@ -81,24 +81,26 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   
   total_records <- mongo_collection$count(sprintf('{"%s": {"$exists": true}}', identifier))
   message(sprintf("Imported %d records. Simplifying into dataframe...", total_records))
-
   show_loading_animation()
-
+  
   num_chunks <- ceiling(total_records / chunk_size)
   data_chunks <- lapply(0:(num_chunks - 1), function(i) {
     list(start = i * chunk_size, size = chunk_size)
   })
   
   num_cores <- parallel::detectCores(logical = TRUE)
-  plan(future::multisession, workers = max(1, num_cores - 1))
+  plan(future::multisession, workers = max(1, num_cores - 2))
   
   results <- future_lapply(data_chunks, function(chunk) {
     getTaskData(collection_name, chunk, mongo_collection, identifier)
   })
   
-  combined_results <- do.call(rbind, lapply(results, function(df) {
-    if (!is.null(df)) return(df) else return(NULL)
-  }))
+  # Use bind_rows() instead of do.call(rbind, ...)
+  combined_results <- dplyr::bind_rows(results)
+  
+  # combined_results <- do.call(rbind, lapply(results, function(df) {
+  #   if (!is.null(df)) return(df) else return(NULL)
+  # }))
   
   end_time <- Sys.time()
   time_taken <- end_time - start_time
@@ -106,3 +108,4 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   
   return(combined_results)
 }
+
