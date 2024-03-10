@@ -113,7 +113,13 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   
   end_time <- Sys.time()
   time_taken <- end_time - start_time
-  message(sprintf("Data retrieval completed in %f seconds", as.numeric(time_taken)))
+  if (time_taken >= 60) {
+    minutes <- time_taken / 60
+    message(sprintf("Data retrieval completed in %.2f minutes", minutes))
+  } else {
+    message(sprintf("Data retrieval completed in %.2f seconds", time_taken))
+  }
+  
   
   return(combined_results)
 }
