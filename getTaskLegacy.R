@@ -25,7 +25,7 @@ progress_callback <- function(count, total) {
   setTxtProgressBar(pb, count) # Update the loading animation
 }
 
-getTask <- function(task, identifier = "src_subject_id") {
+getTaskLegacy <- function(task, identifier = "src_subject_id") {
   
   message(paste0("default identifier is ",identifier))
   

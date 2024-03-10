@@ -73,7 +73,7 @@ getTaskData <- function(task, batch_info, mongo_collection, identifier = "src_su
 #' @examples
 #' results <- getTaskParallel("mooney_test", 10000, "custom_id")
 #' @export
-getTaskParallel <- function(collection_name, identifier = "src_subject_id", chunk_size = 10000) {
+getTask <- function(collection_name, identifier = "src_subject_id", chunk_size = 10000) {
   start_time <- Sys.time()
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
