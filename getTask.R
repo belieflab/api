@@ -92,6 +92,11 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   num_cores <- parallel::detectCores(logical = TRUE)
   plan(future::multisession, workers = max(1, num_cores - 2))
   
+  if (num_cores > 2) {
+    message(sprintf("Speeding up with %d cores!", num_cores - 2))
+  }
+  
+  
   results <- future_lapply(data_chunks, function(chunk) {
     getTaskData(collection_name, chunk, mongo_collection, identifier)
 
