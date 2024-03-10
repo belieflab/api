@@ -1,68 +1,13 @@
-# getTaskParallel.R
+# ./api/getTask.R
 
 if (!require(mongolite)) { install.packages("mongolite") }; library(mongolite)
 if (!require(future)) { install.packages("future") }; library(future)
 if (!require(future.apply)) { install.packages("future.apply") }; library(future.apply)
 if (!require(config)) { install.packages("config") }; library(config)
 
-#' Setup MongoDB connection
-#'
-#' Establishes a connection to a MongoDB collection using configurations specified 
-#' in the 'secrets.R' and 'config' files.
-#'
-#' @param collection_name The name of the collection you want to connect to.
-#' @return A mongolite::mongo object representing the connection to the MongoDB collection.
-#' @examples
-#' mongo_collection <- setupMongoDB("your_collection_name")
-#' @export
-setupMongoDB <- function(collection_name) {
-  if (!file.exists("secrets.R")) stop("secrets.R file not found. Please create it and add connectionString.")
-  source("secrets.R")
-  config <- config::get()
-  mongo_options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
-  mongo_collection <- mongolite::mongo(
-    collection = collection_name, 
-    db = config$study_alias, 
-    url = connectionString,
-    verbose = FALSE,  # Set verbose to FALSE to suppress messages
-    options = mongo_options
-  )
-  return(mongo_collection)
-}
-
-#' Retrieve Task Data
-#'
-#' Retrieves data from MongoDB based on the specified batch information and query criteria. 
-#' It filters out entries where the specified identifier doesn't exist or is empty.
-#'
-#' @param task Not used but reserved for future task-specific processing.
-#' @param batch_info List containing 'start' and 'size' defining the batch to fetch.
-#' @param mongo_collection The MongoDB connection object.
-#' @param identifier The document field to check for existence and non-emptiness.
-#' @return A data.frame with the filtered data or NULL if no valid data is found or in case of error.
-#' @examples
-#' df_filtered <- getTaskData("task_name", list(start = 0, size = 100), mongo_collection, "src_subject_id")
-#' @export
-getTaskData <- function(task, batch_info, mongo_collection, identifier = "src_subject_id") {
-  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
-  tryCatch({
-    df_filtered <- mongo_collection$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
-    # Additional filtering to ensure the identifier exists
-    df_filtered <- df_filtered[!is.na(df_filtered[[identifier]]) & df_filtered[[identifier]] != "", ]
-    if (nrow(df_filtered) == 0) {
-      return(NULL)  # Return NULL if no valid data after filtering
-    }
-    return(df_filtered)
-  }, error = function(e) {
-    message("Error fetching data: ", e$message)
-    return(NULL)  # Return NULL in case of error
-  })
-  
-}
-
 #' Main Parallel Data Retrieval Function
 #'
-#' This function orchestrates the parallel retrieval of data from a MongoDB collection.
+#' This function orchestrates the parallel retrieval of collections from MongoDB
 #' It computes the total records based on a query, divides the work into chunks, 
 #' and uses parallel processing to fetch the data.
 #'
@@ -72,44 +17,60 @@ getTaskData <- function(task, batch_info, mongo_collection, identifier = "src_su
 #'        Defaults to "src_subject_id".
 #' @return A data.frame consolidating all fetched records.
 #' @examples
-#' results <- getTaskParallel("mooney_test", 10000, "custom_id")
+#' results <- getTask("prl", "workerId", 1000)
 #' @export
 getTask <- function(collection_name, identifier = "src_subject_id", chunk_size = 10000) {
   start_time <- Sys.time()
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-  mongo_collection <- setupMongoDB(collection_name)
+  Mongo <- Connect(collection_name)
   
-  total_records <- mongo_collection$count(sprintf('{"%s": {"$ne": ""}}', identifier))
+  total_records <- Mongo$count(sprintf('{"%s": {"$ne": ""}}', identifier))
   message(sprintf("Imported %d records. Simplifying into dataframe...", total_records))
+  
   show_loading_animation()
   
+  # Calculate the number of chunks needed by dividing the total number of
+  # records by the chunk size and rounding up to ensure all records are included.
   num_chunks <- ceiling(total_records / chunk_size)
-  data_chunks <- lapply(0:(num_chunks - 1), function(i) {
+  
+  # Create a list of chunks; each chunk is defined by starting index and size.
+  # This list will be used to process or analyze data in manageable segments.
+  chunks <- lapply(0:(num_chunks - 1), function(i) {
+    # For each chunk, create a list containing:
+    # 'start': the index of the first record in the chunk,
+    # 'size': the number of records in the chunk (equal to chunk_size for all
+    # but potentially the last chunk).
     list(start = i * chunk_size, size = chunk_size)
   })
   
+  # parallelism
   num_cores <- parallel::detectCores(logical = TRUE)
-  plan(future::multisession, workers = max(1, num_cores - 2))
+  min_cores <- 2 # leaving to CPUs to overheads
+  plan(future::multisession, workers = max(1, num_cores - min_cores))
   
-  if (num_cores > 2) {
-    message(sprintf("Speeding up with %d cores!", num_cores - 2))
+  if (num_cores > min_cores) {
+    message(sprintf("Speeding up with %d cores!", num_cores - min_cores))
   }
   
-  
-  results <- future_lapply(data_chunks, function(chunk) {
-    getTaskData(collection_name, chunk, mongo_collection, identifier)
-
+  # future_lapply(data_chunks, function(chunk) { ... }):
+  # This line applies a function asynchronously to each element of the chunks list.
+  # chunks is a list expected to contain information defining different chunks of data.
+  # The anonymous function(chunk) { getData(Mongo, identifier, chunk) }
+  # is applied to each element of the data_chunks
+  results <- future_lapply(chunks, function(chunk) {
+    getData(Mongo, identifier, chunk)
+    
   })
   
   # Use bind_rows() instead of do.call(rbind, ...)
-  combined_results <- dplyr::bind_rows(results)
+  df <- dplyr::bind_rows(results)
   
   # combined_results <- do.call(rbind, lapply(results, function(df) {
   #   if (!is.null(df)) return(df) else return(NULL)
   # }))
   
-  combined_results <- dataHarmonization(combined_results, identifier, collection_name)
+  clean_df <- dataHarmonization(df, identifier, collection_name)
   
   end_time <- Sys.time()
   time_taken <- end_time - start_time
@@ -121,40 +82,112 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   }
   
   
-  return(combined_results)
+  return(clean_df)
 }
 
+# ################ #
+# Helper Functions #
+# ################ #
 
-dataHarmonization <- function(df_filtered, identifier, task) { 
-  
-  # Check if 'visit' column exists
-  if ("visit" %in% colnames(df_filtered)) {
-    # 'visit' exists, now check if it's only filled with empty strings, ignoring NAs
-    if (all(df_filtered$visit == "" | is.na(df_filtered$visit), na.rm = TRUE)) {
-      # If every non-NA entry is an empty string, replace all with "bl"
-      df_filtered$visit <- ifelse(is.na(df_filtered$visit) | df_filtered$visit == "", "bl", df_filtered$visit)
+#' Setup MongoDB connection
+#'
+#' Establishes a connection to a MongoDB collection using configurations specified 
+#' in the './secrets.R' and './config.yml' files.
+#'
+#' @param collection_name The name of the collection you want to connect to.
+#' @return A mongolite::mongo object representing the connection to the MongoDB collection.
+#' @examples
+#' Mongo <- Connect("prl_sabotage")
+#' @export
+Connect <- function(collection_name) {
+  if (!file.exists("secrets.R")) stop("secrets.R file not found. Please create it and add connectionString.")
+  source("secrets.R")
+  config <- config::get()
+  options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
+  Mongo <- mongolite::mongo(
+    collection = collection_name, 
+    db = config$study_alias, 
+    url = connectionString,
+    verbose = FALSE,  # Set verbose to FALSE to suppress messages
+    options = options
+  )
+  return(Mongo)
+}
+
+#' Retrieve Task Data
+#'
+#' Retrieves data from MongoDB based on the specified batch information and query criteria. 
+#' It filters out entries where the specified identifier doesn't exist or is empty.
+#'
+#' @param Mongo The MongoDB connection object.
+#' @param identifier The document field to check for existence and non-emptiness.
+#' @param batch_info List containing 'start' and 'size' defining the batch to fetch.
+#' @return A data.frame with the filtered data or NULL if no valid data is found or in case of error.
+#' @examples
+#' df <- getData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
+#' @export
+getData <- function(Mongo, identifier = "src_subject_id", batch_info) {
+  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
+  tryCatch({
+    df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
+    # Additional filtering to ensure the identifier exists
+    df <- df[!is.na(df[[identifier]]) & df[[identifier]] != "", ]
+    if (nrow(df) == 0) {
+      return(NULL)  # Return NULL if no valid data after filtering
     }
-    # If there are non-empty non-NA strings, do nothing (pass)
-  } else {
-    # 'visit' does not exist, so add it and set all values to "bl"
-    df_filtered$visit <- "bl"
-  }
+    return(df)
+  }, error = function(e) {
+    message("Error fetching data: ", e$message)
+    return(NULL)  # Return NULL in case of error
+  })
+  
+}
 
-  # df_filtered$src_subject_id <- as.numeric(df_filtered$src_subject_id)
+#' Data Harmonization Function
+#'
+#' This function performs data cleaning and preparation tasks, including handling missing values, 
+#' converting date formats, and adding necessary columns. It is tailored for a specific dataset 
+#' structure used in psychological or medical research.
+#'
+#' @param df A data frame containing the data to be harmonized. 
+#' @param identifier A string that specifies the unique identifier for the dataset; 
+#' it influences how date conversions and subsetting are handled.
+#' @param collection_name A string representing the specific collection that needs harmonization.
+#'
+#' @return A data frame with the harmonized data, including standardized 'visit' column entries, 
+#' converted interview dates, and added 'measure' column based on the task.
+#'
+#' @examples
+#' # Assuming 'df' is your dataset, 'src_subject_id' is your identifier, and 'rgpts' is your task:
+#' harmonized_data <- dataHarmonization(df, 'src_subject_id', 'task1')
+#'
+#' @importFrom stats setNames
+#' @importFrom base ifelse
+#' @importFrom base subset
+#' @importFrom base as.Date
+#' @export
+dataHarmonization <- function(df, identifier, collection_name) {
+  
+  # Ensure 'visit' column exists and update it as necessary
+  if (!("visit" %in% colnames(df))) {
+    df$visit <- "bl"  # Add 'visit' column with all values as "bl" if it doesn't exist
+  } else {
+    df$visit <- ifelse(is.na(df$visit) | df$visit == "", "bl", df$visit)  # Replace empty or NA 'visit' values with "bl"
+  }
+  
+  # capr wants as.numeric
+  # if (config$study_alias === "capr") {
+  #   df$src_subject_id <- as.numeric(df$src_subject_id)
+  # }
   
   # convert dates (from string ("m/d/Y") to date format)
   if (tolower(identifier) != "rat_id") {
-    df_filtered$interview_date <- as.Date(df_filtered$interview_date, "%m/%d/%Y")
+    df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   }
   
   # add measure column
-  df_filtered$measure <- task
+  df$measure <- collection_name
   
-  # in the case of delay discounting, for some reason, src_subject_id are empty strings and we need to do this
-  if (tolower(identifier) == "src_subject_id") {
-    df_filtered <- subset(df_filtered, src_subject_id != "")
-  }
-  
-  return(df_filtered)
+  return(df)
 }
 
