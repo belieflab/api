@@ -67,60 +67,53 @@ if (!require("future")) {install.packages("future")}; library(future)
 if (!require("future.apply")) {install.packages("future.apply")}; library(future.apply)
 if (!require("parallel")) {install.packages("parallel")}; library(parallel)
 
-# Parallel Setup
-num_cores <- parallel::detectCores(logical = TRUE)
-threads <- max(1, num_cores - 2)  # Reserve two cores for system stability
-print(threads)
-plan(future::multisession, workers = threads)
-
-
-# Prepare lists for REDCap, Qualtrics, and tasks
-redcap_list <- tools::file_path_sans_ext(list.files("clean/redcap/"))
-qualtrics_list <- tools::file_path_sans_ext(list.files("clean/qualtrics/"))
-task_list <- tools::file_path_sans_ext(list.files("clean/task/"))
-
-# Data Request Function
-dataRequestParallel <- function(..., csv=FALSE, rds=FALSE, spss=FALSE, id=NULL) {
+# Data processing and request management
+dataRequestParallel <- function(..., csv = FALSE, rds = FALSE, spss = FALSE, id = NULL) {
   start_time <- Sys.time()
   
-  # Dependencies
-  base::source("api/testSuite.R")
-
+  # Source necessary R scripts from the 'api' directory
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
+  base::source("api/testSuite.R")
   
-  # Initialize data list
+  # Compile data list and validate measures
   data_list <- list(...)
-  
-  # Validate Measures
   validateMeasures(data_list)
   
-  # Parallel processing across different data sources
+  # Now process 'task' measures separately (not in parallel)
+  task_measures <- intersect(data_list, task_list)
+  for(measure in task_measures) {
+    processMeasure(measure, "task", csv, rds, spss)
+  }
+  
+  # Setup parallel processing and process measures in parallel
+  setupParallelEnvironment()
   processMeasuresInParallel(data_list, csv, rds, spss)
   
-  # Clean Up
-  suppressWarnings(base::source("api/env/cleanup.R"))
-  end_time <- Sys.time()
-  time_taken <- end_time - start_time
-  print(time_taken)
-  
+  # Clean up and record processing time
+  performCleanup()
+  print(Sys.time() - start_time)
 }
-
-# Helper functions
-
 
 validateMeasures <- function(data_list) {
   invalid_list <- Filter(function(measure) measure %!in% c(redcap_list, qualtrics_list, task_list), data_list)
   if (length(invalid_list) > 0) {
-    stop(paste(invalid_list, collapse=", "), " do not have a cleaning script, please create one!\n")
+    stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one!\n")
   }
 }
 
+setupParallelEnvironment <- function() {
+  num_cores <- detectCores(logical = TRUE)
+  plan(multisession, workers = max(1, num_cores - 2))  # Reserve 2 cores for system stability
+}
+
 processMeasuresInParallel <- function(data_list, csv, rds, spss) {
-  sources <- list("redcap" = redcap_list, "qualtrics" = qualtrics_list, "task" = task_list)
+  # Exclude 'task' measures from parallel processing
+  non_task_measures <- setdiff(data_list, task_list)
+  sources <- list("redcap" = redcap_list, "qualtrics" = qualtrics_list)
   
   results <- lapply(names(sources), function(source) {
-    measures <- intersect(data_list, sources[[source]])
+    measures <- intersect(non_task_measures, sources[[source]])
     future_lapply(measures, function(measure) {
       processMeasure(measure, source, csv, rds, spss)
     }, future.seed = TRUE)
@@ -128,16 +121,26 @@ processMeasuresInParallel <- function(data_list, csv, rds, spss) {
 }
 
 processMeasure <- function(measure, source, csv, rds, spss) {
-  file_path <- paste0("clean/", source, "/", measure, ".R")
-  message("\nFetching and cleaning ", source, ": ", measure, "...\n")
+  file_path <- sprintf("./clean/%s/%s.R", source, measure)
+  message("\nProcessing ", measure, " from ", source, "...\n")
   result <- tryCatch({
-    base::source(file_path)
-    testSuite(measure, source, file_path)
+    source(file_path)
+    testSuite(measure, "redcap", file_path)
     df_name <- paste0(measure, "_clean")
     createExtract(get(df_name), df_name, csv, rds, spss)
   }, error = function(e) {
-    message("Error processing ", measure, " from ", source, ": ", e$message)
+    message("Error with ", measure, ": ", e$message)
     NULL  # Return NULL on error
   })
   return(result)
 }
+
+performCleanup <- function() {
+  # Placeholder for cleanup operations, like disconnecting from databases
+  suppressWarnings(source("api/env/cleanup.R"))
+}
+
+redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
+qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
+task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
+
