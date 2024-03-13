@@ -44,10 +44,11 @@
 #' @return a vector of discrepant source subject IDs
 #' @export
 phenotypeDiscrepancy <- function(){
+  source("api/dataRequest.R")
+  source("api/dataMerge.R")
   
   dataRequest("nda_study_intake")
   dataRequest("sips_scoresheet")
-  source("api/dataMerge.R")
   merged_redcap <- dataMerge(nda_study_intake_clean, sips_scoresheet_clean)
   
   
