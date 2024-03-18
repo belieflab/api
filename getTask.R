@@ -181,7 +181,9 @@ dataHarmonization <- function(df, identifier, collection_name) {
   # }
   
   # convert dates (from string ("m/d/Y") to date format)
-  if (tolower(identifier) != "rat_id") {
+  interview_date_exists <- "interview_date" %in% colnames(df)
+  
+  if (interview_date_exists) {
     df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   }
   
