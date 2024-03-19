@@ -19,21 +19,17 @@
 #' #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' 
 dataRequest <- function(..., csv = FALSE, rds = FALSE, spss = FALSE, id = NULL) {
-  # Function body remains the same
-}
-# Required Libraries Setup
-if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
-if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
-base::source("api/testSuite.R")
 
-# Prepare lists for REDCap, Qualtrics, and tasks
-redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
-qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
-task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
+  # Required Libraries Setup
+  if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
+  if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
+  base::source("api/testSuite.R")
+  
+  # Prepare lists for REDCap, Qualtrics, and tasks
+  redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
+  qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
+  task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
 
-# Data Request Function
-# This function processes data requests for clean data sequentially.
-dataRequest <- function(..., csv = FALSE, rds = FALSE, spss = FALSE, id = NULL) {
   start_time <- Sys.time()
   
   # Source necessary R scripts from the 'api' directory
