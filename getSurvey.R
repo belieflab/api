@@ -1,5 +1,16 @@
-
-
+#' Retrieve Survey Data from Qualtrics
+#'
+#' This function connects to the Qualtrics API to retrieve survey data based on a specified alias. 
+#' It ensures that the correct credentials are used and performs data harmonization before returning the cleaned data frame.
+#' 
+#' @param qualtrics_alias The alias for the Qualtrics survey to be retrieved.
+#' @param identifier The unique identifier for the survey respondents (default is "src_subject_id").
+#' @param label Logical indicating whether to return coded values or their associated labels (default is FALSE).
+#' @return A cleaned and harmonized data frame containing the survey data.
+#' @importFrom dplyr %>% select mutate
+#' @export
+#' @examples
+#' survey_data <- getSurvey("rgpts")
 getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FALSE) {
   # Load required packages
   if (!require(config)) {install.packages("config"); library(config)}
@@ -28,6 +39,15 @@ getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FA
 # Helper Functions #
 # ################ #
 
+#' Connect to Qualtrics API
+#'
+#' This helper function sets up the connection to the Qualtrics API using credentials stored in a file or environment variables. 
+#' It is called internally by the 'getSurvey' function.
+#' 
+#' @param qualtrics_alias The alias for the Qualtrics survey to connect to.
+#' @importFrom config get
+#' @import qualtRics qualtrics_api_credentials
+#' @noRd
 connect <- function(qualtrics_alias) {
   if (!file.exists("secrets.R")) {
     stop("secrets.R file not found. Please create it and add apiKey and baseUrl.")
@@ -61,7 +81,16 @@ connect <- function(qualtrics_alias) {
   Sys.setenv(QUALTRICS_BASE_URL = qualtrics_base_url)
 }
 
-
+#' Retrieve Data from Qualtrics
+#'
+#' Fetches survey data from Qualtrics based on the survey alias and label preference. 
+#' It attempts to fetch survey data and handle any errors that occur.
+#'
+#' @param qualtrics_alias The alias for the Qualtrics survey whose data is to be fetched.
+#' @param label Logical indicating whether to fetch choice labels instead of coded values.
+#' @return Data frame containing survey data, or NULL in case of error.
+#' @importFrom qualtRics fetch_survey
+#' @noRd
 getData <- function(qualtrics_alias, label) {
   tryCatch({
     config <- config::get()
@@ -82,6 +111,16 @@ getData <- function(qualtrics_alias, label) {
   
 }
 
+#' Harmonize Data
+#'
+#' Performs data cleaning and harmonization on the fetched Qualtrics survey data.
+#'
+#' @param df Data frame containing Qualtrics survey data.
+#' @param identifier The unique identifier for survey respondents.
+#' @param qualtrics_alias The alias for the Qualtrics survey.
+#' @return Harmonized data frame.
+#' @importFrom dplyr mutate
+#' @noRd
 dataHarmonization <- function(df, identifier, qualtrics_alias) {
   
   # check for visit variable, if not add baseline
@@ -108,9 +147,25 @@ dataHarmonization <- function(df, identifier, qualtrics_alias) {
   suppressWarnings(return(df))
 }
 
+#' Extract Column Mapping from Qualtrics Data Frame
+#'
+#' This function extracts column mappings from the metadata of a Qualtrics survey data frame.
+#'
+#' @param qualtrics_df Data frame obtained from Qualtrics.
+#' @return A list containing the mappings of column names to survey questions.
+#' @noRd
 getDictionary <- function(qualtrics_df) {
   return(extract_colmap(respdata = qualtrics_df))
 }
 
-# create alias
+#' Alias for 'getSurvey'
+#'
+#' This is an alias for the 'getSurvey' function for ease of use.
+#'
+#' @inheritParams getSurvey
+#' @inherit getSurvey return
+#' @export
+#' @examples
+#' survey_data <- getQualtrics("your_survey_alias")
+#' @aliases getQualtrics getSurvey
 getQualtrics <- getSurvey
