@@ -1,63 +1,53 @@
-# Get full file paths of all R files in the api directory
-# base::source all files using lapply()
 
-# Call the loading animation function before fetch_survey
-show_loading_animation <- function() {
-  cat("Loading ")
-  pb <- txtProgressBar(min = 0, max = 20, style = 3)
-  
-  for (i in 1:20) {
-    Sys.sleep(0.1) # Simulate some computation time
-    setTxtProgressBar(pb, i)
-  }
-  
-  close(pb)
-}
-show_loading_animation()
 
 getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FALSE) {
-  
-  if (!require(config)) {install.packages("config")}; library(config)
-  if (!require(qualtRics)) {install.packages("qualtRics")}; library(qualtRics)
-  if (!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
+  # Load required packages
+  if (!require(config)) {install.packages("config"); library(config)}
+  if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
+  if (!require(dplyr)) {install.packages("dplyr"); library(dplyr)}
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
-  if (label == FALSE) {
-    message(paste0("Extracting numeric values:"))
-  }
+  message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
   
-  if (label == TRUE) {
-    message(paste0("Extracting choice text:"))
-  }
+  # Connect to Qualtrics to ensure correct credentials are used
+  connect(qualtrics_alias)  # Always connect to ensure correct credentials
   
-  # If credentials are already set, connect!
-  if (Sys.getenv("QUALTRICS_API_KEY") %in% c("", NA) && Sys.getenv("QUALTRICS_BASE_URL") %in% c("", NA)) {
-    Qualtrics <- Connect()
-  }
+  show_loading_animation()
+  
   
   df <- getData(qualtrics_alias, label)
   
   clean_df <- dataHarmonization(df, identifier, qualtrics_alias)
   
   return(clean_df)
-  
 }
+
 
 # ################ #
 # Helper Functions #
 # ################ #
 
-Connect <- function() {
-  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add apiKey and baseUrl")
-  base::source("secrets.R") # sensitive info for api key
+connect <- function(qualtrics_alias) {
+  if (!file.exists("secrets.R")) {
+    stop("secrets.R file not found. Please create it and add apiKey and baseUrl.")
+  } else {
+    base::source("secrets.R")  # Load API key and base URL from secrets
+  }
+  
   config <- config::get()
-  base::source(config$qualtrics$survey_ids)
+  if (!is.null(config$qualtrics$survey_ids)) {
+    base::source(config$qualtrics$survey_ids)
+  } else {
+    stop("Survey IDs configuration not found.")
+  }
   
-  !(surveyIds[qualtrics_alias] %in% config$qualtrics$survey_ids)
-  
-  qualtrics_api_key <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
-  qualtrics_base_url <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
+  if (qualtrics_alias %in% names(surveyIds)) {
+    qualtrics_api_key <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
+    qualtrics_base_url <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
+  } else {
+    stop("Provided qualtrics_alias does not match any survey IDs.")
+  }
   
   qualtRics::qualtrics_api_credentials(
     api_key = qualtrics_api_key,
@@ -65,8 +55,12 @@ Connect <- function() {
     install = TRUE,
     overwrite = TRUE
   )
-
+  
+  # After setting credentials, manually update the environment variables to ensure they're current
+  Sys.setenv(QUALTRICS_API_KEY = qualtrics_api_key)
+  Sys.setenv(QUALTRICS_BASE_URL = qualtrics_base_url)
 }
+
 
 getData <- function(qualtrics_alias, label) {
   tryCatch({
