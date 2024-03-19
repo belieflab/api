@@ -11,7 +11,7 @@
 #' @export
 #' @examples
 #' survey_data <- getSurvey("rgpts")
-getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FALSE) {
+getQualtrics <- function(qualtrics_alias, identifier = "src_subject_id", label = FALSE) {
   # Load required packages
   if (!require(config)) {install.packages("config"); library(config)}
   if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
@@ -25,7 +25,6 @@ getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FA
   connect(qualtrics_alias)  # Always connect to ensure correct credentials
   
   show_loading_animation()
-  
   
   df <- getData(qualtrics_alias, label)
   
@@ -51,23 +50,27 @@ getSurvey <- function(qualtrics_alias, identifier = "src_subject_id", label = FA
 connect <- function(qualtrics_alias) {
   if (!file.exists("secrets.R")) {
     stop("secrets.R file not found. Please create it and add apiKey and baseUrl.")
-  } else {
-    base::source("secrets.R")  # Load API key and base URL from secrets
   }
+  base::source("secrets.R")  # Load API key and base URL from secrets
+  
   
   config <- config::get()
-  if (!is.null(config$qualtrics$survey_ids)) {
-    base::source(config$qualtrics$survey_ids)
-  } else {
+  
+  # Guard clause
+  if (is.null(config$qualtrics$survey_ids)) {
     stop("Survey IDs configuration not found.")
   }
+  base::source(config$qualtrics$survey_ids)
   
-  if (qualtrics_alias %in% names(surveyIds)) {
-    qualtrics_api_key <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) apiKey2 else apiKey
-    qualtrics_base_url <- if (surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys) baseUrl2 else baseUrl
-  } else {
+  # Ensure that qualtrics_alias is valid
+  if (!(qualtrics_alias %in% names(surveyIds))) {
     stop("Provided qualtrics_alias does not match any survey IDs.")
   }
+  
+  # Set the API key and base URL based on whether the alias is for an NU survey
+  qualtrics_api_key <- ifelse(surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys, apiKey2, apiKey)
+  qualtrics_base_url <- ifelse(surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys, baseUrl2, baseUrl)
+  
   
   qualtRics::qualtrics_api_credentials(
     api_key = qualtrics_api_key,
@@ -101,14 +104,13 @@ getData <- function(qualtrics_alias, label) {
       label = label, # both of these must be set to false to import numeric
       convert = label, # both of these must be set to false to import numeric
       force_request = TRUE,
-      add_column_map = TRUE
+      add_column_map = TRUE # adds necessary context for dataDictionary()
     )
     return(df)
   }, error = function(e) {
     message("Error fetching data: ", e$message)
     return(NULL)  # Return NULL in case of error
   })
-  
 }
 
 #' Harmonize Data
@@ -155,7 +157,7 @@ dataHarmonization <- function(df, identifier, qualtrics_alias) {
 #' @return A list containing the mappings of column names to survey questions.
 #' @noRd
 getDictionary <- function(qualtrics_df) {
-  return(extract_colmap(respdata = qualtrics_df))
+  return(qualtRics::extract_colmap(respdata = qualtrics_df))
 }
 
 #' Alias for 'getSurvey'
@@ -168,4 +170,4 @@ getDictionary <- function(qualtrics_df) {
 #' @examples
 #' survey_data <- getQualtrics("your_survey_alias")
 #' @aliases getQualtrics getSurvey
-getQualtrics <- getSurvey
+getSurvey <- getQualtrics

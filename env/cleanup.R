@@ -9,7 +9,8 @@ nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex",
 
 # List of objects you want to explicitly keep, now correctly including contents of nda_merge_vars
 explicit_keep <- c("createCsv", "createSpss", "createRds","getRedcap","getTask","getSurvey",
-                   "dataRequest","processMeasure", "performCleanup", "dataFilter", "dataMerge", nda_merge_vars)
+                   "dataRequest","processMeasure", "performCleanup", "dataFilter", "dataMerge",
+                   "getDictionary", nda_merge_vars)
 
 # Since explicit_keep should directly contain the values, ensure nda_merge_vars are expanded into it
 explicit_keep <- unique(c(explicit_keep, nda_merge_vars))  # This combines and deduplicates the items
