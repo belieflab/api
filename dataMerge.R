@@ -22,11 +22,19 @@ dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "
   
   # inner join = FALSE
   # outer join = TRUE
+  
+  if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
+  
 
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
 
   data_list <- list(...)
+  
+  # in case dataFilter() was not applied, remove interview_date and interview_age
+  data_list <- lapply(data_list, function(df) {
+    df %>% dplyr::select(-any_of(c("interview_date", "interview_age")))
+  })
 
   # Use the provided 'by' and 'all' parameters
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
