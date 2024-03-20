@@ -18,7 +18,7 @@
 
 dataFilter <- function(df, columns_of_interest = NULL, visit = "bl") {
   
-  nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
+  nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site", "arm", "state")
   
   # filtering based on columns of interest
   df <- df[, names(df) %in% c(nda_merge_vars, columns_of_interest)]
