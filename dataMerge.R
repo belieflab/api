@@ -14,10 +14,7 @@
 #' dataMerge("kamin,"lshsr,"sips_p, by = "subjectkey")
 #' @return the merged dataframes
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
-
-# nda variables required for merging
-nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
-
+#' @export
 dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site"), all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
   
   # inner join = FALSE
