@@ -3,7 +3,7 @@ addColumnPrefix <- function(df) {
   prefix <- sub("_clean$", "", deparse(substitute(df)))
   
   # Specify columns that should not have the prefix added
-  excluded_cols <- c("src_subject_id", "visit", "phenotype", "interview_age", "interview_date", "site", "sex", "subjectkey")
+  excluded_cols <- c("src_subject_id", "visit", "phenotype", "interview_age", "interview_date", "site", "sex", "subjectkey", "arm")
   
   # Identify columns that are not in the excluded list and don't already start with the prefix
   cols_to_prefix <- names(df)[!names(df) %in% excluded_cols & !startsWith(names(df), prefix)]
