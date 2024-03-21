@@ -1,81 +1,64 @@
 #' Data Merge
 #'
-#' The code below is meant to simplify data merging across measures.
-#' It uses a candidate key of NDA Required Variables to ensure a seamless merge
-#' of clean data frames.
-#' 
-#' @param ... Variable, many clean data frames
-#' @param by Optional; nda_merge_vars
-#' @param all Optional; OUTER JOIN
-#' @param no.dups Optional; keep duplicates
-#' 
+#' This function simplifies the process of merging multiple cleaned data frames by automatically determining 
+#' common merge keys or utilizing user-specified keys. Supports both inner and outer join methods, 
+#' and offers options for exporting the merged data.
+#'
+#' @param ... Clean data frames to be merged.
+#' @param by A vector of strings specifying the column names to be used as merge keys. If NULL, 
+#'           the function automatically determines common keys from the provided data frames.
+#' @param all Logical; if TRUE, performs an OUTER JOIN. If FALSE, performs an INNER JOIN.
+#' @param no.dups Logical; if TRUE, duplicates are removed post-merge.
+#' @param csv Logical; if TRUE, the merged data frame is exported as a CSV file.
+#' @param rds Logical; if TRUE, the merged data frame is saved as an RDS file.
+#' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
+#'
 #' @examples
-#' dataMerge("prl", "rgpts", all=FALSE) # INNER JOIN
-#' dataMerge("kamin,"lshsr,"sips_p, by = "subjectkey")
-#' @return the merged dataframes
+#' # Perform an OUTER JOIN on 'prl' and 'rgpts' using default keys:
+#' dataMerge(prl, rgpts, all = TRUE)
+#' # Perform an INNER JOIN using 'subjectkey' as the merge key:
+#' dataMerge(prl, rgpts, by = "subjectkey", all = FALSE)
+#' # Merge multiple data frames using specified keys and export to CSV:
+#' dataMerge(prl, rgpts, lshsr, by = c("src_subject_id", "visit"), csv = TRUE)
+#'
+#' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export
-dataMerge <- function(..., by = c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site"), all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
+dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
   
-  # inner join = FALSE
-  # outer join = TRUE
+  if(!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   
-  if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
+  # Inform about the type of join being performed
+  message(ifelse(all, "Performing an OUTER JOIN:", "Performing an INNER JOIN:"))
   
-
+  merging_variables <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+  
+  # Load custom scripts if any
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
-
+  
   data_list <- list(...)
   
-  # in case dataFilter() was not applied, remove interview_date and interview_age
-  data_list <- lapply(data_list, function(df) {
-    df %>% dplyr::select(-any_of(c("interview_date", "interview_age")))
-  })
-
-  # Use the provided 'by' and 'all' parameters
-  dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
+  # Determine the keys to use for merging
+  if (is.null(by)) {
+    common_candidate_keys <- Reduce(intersect, lapply(data_list, function(df) intersect(merging_variables, names(df))))
+    message("Detected common candidate keys for merge: ", toString(common_candidate_keys))
+  } else {
+    common_candidate_keys <- by
+    message("Using user-specified keys for merge: ", toString(common_candidate_keys))
+  }
   
-  if (csv) {
-    createCsv(dfs, "merged_dfs")
-  }
-  if (rds) {
-    createRds(dfs, "merged_dfs")
-  }
-  if (spss) {
-    createSpss(dfs, "merged_dfs")
-  }
-
+  # Preprocess data frames
+  data_list <- lapply(data_list, function(df) df %>% select(-any_of(c("interview_date", "interview_age"))))
+  
+  # Perform the merging process
+  dfs <- Reduce(function(x, y) base::merge(x, y, by = common_candidate_keys, all = all, no.dups = no.dups), data_list)
+  
+  # Export merged data if requested
+  if (csv) { createCsv(dfs, "merged_dfs.csv") }
+  if (rds) { createRDS(dfs, "merged_dfs.rds") }
+  if (spss) { createSpss(dfs, "merged_dfs.sav") }
+  
+  
   return(dfs)
 }
-
-
-# checkMergeDuplicates <- function(df) {
-#   if (!require(dplyr)) {
-#     install.packages("dplyr")
-#   }
-#   library(dplyr)
-# 
-#   if ("visit" %in% colnames(df)) {
-#     df$duplicates <- duplicated(df[c("src_subject_id")])
-# 
-#     df$measure <- duplicated(df)
-# 
-#     # separate the duplicates to their own df
-#     df_dup_ids <- subset(df, duplicates == TRUE)[c("src_subject_id")]
-# 
-#     # filter only the subject ids that are duplicated to include both iterations
-#     df_duplicates <- df %>%
-#       filter(src_subject_id %in% df_dup_ids$src_subject_id) %>%
-#       select(nda_required_variables, measure.x, measure.y, measure)
-# 
-#     if (nrow(df_duplicates) == 0) {
-#       cat("no duplicates")
-#     }
-#     if (nrow(df_duplicates) > 0) {
-#       View(df_duplicates)
-#       cat("Duplicates detected.\nPlease contact your data admin to remove duplicates from Qualtrics.")
-#       return(df_duplicates)
-#     }
-#   }
-# }
