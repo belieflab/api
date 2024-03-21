@@ -29,9 +29,10 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   if(!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   
   # Inform about the type of join being performed
-  message(ifelse(all, "Performing an OUTER JOIN:", "Performing an INNER JOIN:"))
+  message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
   
-  merging_variables <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+  # NDA variables suitable for merging
+  candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
   
   # Load custom scripts if any
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
@@ -41,18 +42,18 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   # Determine the keys to use for merging
   if (is.null(by)) {
-    common_candidate_keys <- Reduce(intersect, lapply(data_list, function(df) intersect(merging_variables, names(df))))
-    message("Detected common candidate keys for merge: ", toString(common_candidate_keys))
+    by <- Reduce(intersect, lapply(data_list, function(df) intersect(candidate_keys, names(df))))
+    message("Detected common candidate keys for merge: ", toString(by))
   } else {
-    common_candidate_keys <- by
-    message("Using user-specified keys for merge: ", toString(common_candidate_keys))
+    by <- by
+    message("Using user-specified keys for merge: ", toString(by))
   }
   
   # Preprocess data frames
-  data_list <- lapply(data_list, function(df) df %>% select(-any_of(c("interview_date", "interview_age"))))
+  data_list <- lapply(data_list, function(df) df %>% dplyr::select(-any_of(c("interview_date", "interview_age"))))
   
   # Perform the merging process
-  dfs <- Reduce(function(x, y) base::merge(x, y, by = common_candidate_keys, all = all, no.dups = no.dups), data_list)
+  dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
   
   # Export merged data if requested
   if (csv) { createCsv(dfs, "merged_dfs.csv") }

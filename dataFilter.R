@@ -1,59 +1,72 @@
 #' Data Filter
 #'
-#' The code below is meant to simplify data filtering.
-#' It uses a candidate key of NDA Required Variables to quickly filter data and
-#' prepare them to be used by Data Merge.
-#' 
-#' @param ... Variable, many clean data frames
-#' @param by Optional; nda_merge_vars
-#' @param all Optional; OUTER JOIN
-#' @param no.dups Optional; keep duplicates
-#' 
+#' Filters a dataframe based on specified 'visit', 'week', and 'state' parameters and 
+#' selects columns based on 'columns_of_interest'. If 'columns_of_interest' is not provided,
+#' retains all columns by default. Filters by 'visit' and 'week' if these columns exist
+#' and values for them are provided.
+#'
+#' @param df Dataframe to be filtered and trimmed based on the provided parameters.
+#' @param columns_of_interest Optional; a vector of column names to be retained in the final output. 
+#'        If NULL or empty, all columns in the dataframe are retained.
+#' @param visit Optional; a specific visit value to filter the dataframe by. Only used if 
+#'        'visit' column exists in the dataframe.
+#' @param week Optional; a specific week value to filter the dataframe by. Only used if 
+#'        'week' column exists in the dataframe.
+#' @param states Optional; a vector of state conditions to filter the dataframe by. Only used 
+#'        if 'state' column exists in the dataframe. Can include values like 'complete', 
+#'        'completed baseline', 'completed 12m', 'completed 24m', etc.
+#'
+#' @return A filtered dataframe based on the provided 'visit', 'week', and 'state' parameters, 
+#'         and containing only the columns specified in 'columns_of_interest'. If no columns 
+#'         are specified, returns the entire dataframe with applied row filters.
+#'
 #' @examples
-#' dataMerge("prl", "rgpts", all=FALSE) # INNER JOIN
-#' dataMerge("kamin,"lshsr,"sips_p, by = "subjectkey")
-#' @return the filtered dataframe
-#' @author Joshua Kenney <joshua.kenney@yale.edu>
+#' data_filtered <- dataFilter(df, 
+#'                             columns_of_interest = c("src_subject_id", "phenotype"), 
+#'                             visit = 2, 
+#'                             states = c("complete", "completed baseline"))
+#' @import dplyr
+#' @export
 
-
-dataFilter <- function(df, columns_of_interest = NULL, visit = "bl") {
+dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL, states = NULL) {
   
-  nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site", "arm", "state")
+  if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   
-  # filtering based on columns of interest
-  df <- df[, names(df) %in% c(nda_merge_vars, columns_of_interest)]
+  # Define timepoints and candidate keys
+  timepoints <- c("visit", "week")
+  candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
   
-  # filtering based on time point
-  # df <- subset(df, visit == visit)
+  # Detect existing keys and timepoints in the dataframe
+  detected_timepoints <- intersect(timepoints, names(df))
+  detected_keys <- intersect(candidate_keys, names(df))
+  
+  # Ensure 'columns_of_interest' is a non-null vector
+  if (!is.null(columns_of_interest) && length(columns_of_interest) > 0) {
+    columns_of_interest <- unique(c(detected_keys, detected_timepoints, columns_of_interest))
+  } else {
+    # If no specific columns of interest are provided, use all columns
+    columns_of_interest <- names(df)
+    message("No columns of interest provided; all columns will be included.")
+  }
+  
+  # Filter by 'visit' or 'week' if applicable
+  if ("visit" %in% detected_timepoints && !is.null(visit)) {
+    message("Filtering by visit: ", visit)
+    df <- df %>% dplyr::filter(visit == !!visit)
+  } else if ("week" %in% detected_timepoints && !is.null(week)) {
+    message("Filtering by week: ", week)
+    df <- df %>% dplyr::filter(week == !!week)
+  }
+  
+  # Filter by 'state' if applicable and if column exists
+  if ("state" %in% names(df) && !is.null(states)) {
+    message("Filtering by state: ", toString(states))
+    df <- df %>% dplyr::filter(state %in% !!states)
+  }
+  
+  # Filtering based on columns of interest (including any existing keys and timepoints)
+  message("Selecting columns of interest: ", toString(columns_of_interest))
+  df <- df[, names(df) %in% columns_of_interest]
   
   return(df)
 }
-
-# dataFilter <- function(df, visit = "bl", end_date = Sys.Date()) {
-#   df <- df[df$visit == visit, ]
-#   # df <- subset(df, visit == visit)
-# 
-#   if (df$interview_date) {
-#     df <- df[df$interview_date <= end_date, ]
-#   }
-# 
-#   if (df$int_diff) {
-#     df <- df[df$int_end <= end_date, ]
-#   }
-# 
-#   return(df)
-# }
-
-
-
-
-# columns_of_interest <- c("eod_total")
-# eod_clean <- eod_clean[, names(eod_clean) %in% c(nda_merge_vars, columns_of_interest)]
-# columns_of_interest <- c("demo_race", "demo_ethnicity", "demo_gender", "sex", "demo_age_in_years") # some ages look weird 
-# demo_clean <- demo_clean[, names(demo_clean) %in% c(nda_merge_vars, columns_of_interest)]
-# columns_of_interest <- c("kamin_blocking_score", "kamin_control_score")
-# kamin_clean <- kamin_clean[, names(kamin_clean) %in% c(nda_merge_vars, columns_of_interest)]
-# columns_of_interest <- c("pdi21_p_conviction", "pdi21_d_conviction")
-# pdi21_clean <- pdi21_clean[, names(pdi21_clean)  %in% c(nda_merge_vars, columns_of_interest)]
-# columns_of_interest <- c("rgpts_total", "rgpts_persecution", "rgpts_reference")
-# rgpts_clean <- rgpts_clean[, names(rgpts_clean)  %in% c(nda_merge_vars, columns_of_interest)]
