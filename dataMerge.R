@@ -26,8 +26,6 @@
 #' @export
 dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
   
-  if(!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
-  
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
   
@@ -40,6 +38,13 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   data_list <- list(...)
   
+  # Preprocess data frames: Remove specified columns and ungroup
+  data_list <- lapply(data_list, function(df) {
+    # Remove 'interview_date' and 'interview_age' columns
+    df <- df[setdiff(names(df), c("interview_date", "interview_age"))]
+    return(df)
+  })
+  
   # Determine the keys to use for merging
   if (is.null(by)) {
     by <- Reduce(intersect, lapply(data_list, function(df) intersect(candidate_keys, names(df))))
@@ -48,9 +53,6 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
     by <- by
     message("Using user-specified keys for merge: ", toString(by))
   }
-  
-  # Preprocess data frames
-  data_list <- lapply(data_list, function(df) df %>% dplyr::select(-any_of(c("interview_date", "interview_age"))))
   
   # Perform the merging process
   dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
