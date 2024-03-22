@@ -18,12 +18,15 @@
 #' 
 #' #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' 
+#' 
+
+
 dataRequest <- function(..., csv = FALSE, rds = FALSE, spss = FALSE, id = NULL) {
+  base::source("api/testSuite.R")
 
   # Required Libraries Setup
   if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
-  base::source("api/testSuite.R")
   
   # Prepare lists for REDCap, Qualtrics, and tasks
   redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
@@ -66,8 +69,9 @@ processMeasure <- function(measure, source, csv, rds, spss) {
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
   result <- tryCatch({
-    source(file_path)
+    base::source(file_path)
     # Assuming testSuite is a function for running unit tests
+    base::source("api/testSuite.R") # leaving this just in case people rm=(list=ls()) inside their cleaning script
     testSuite(measure, source, file_path)
     df_name <- paste0(measure, "_clean")
     # Assuming createExtract is a function to create data extracts
