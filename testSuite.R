@@ -83,15 +83,15 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # test cases encapsulated in functions
 
-  checkQualtricsDuplicates(measure_alias, measure_type)
+  checkQualtricsDuplicates(measure_alias, measure_type) # and give allow to View them in a table
   
-  cleanDataFrameExists(measure_alias, measure_type)
+  cleanDataFrameExists(measure_alias, measure_type) #checkin_clean x
   
-  ndaRequiredVariablesExist(measure_alias, measure_type, nda_required_variables)
+  ndaRequiredVariablesExist(measure_alias, measure_type, nda_required_variables) # do Nda req variables exist
   
-  checkColumnPrefix(measure_alias, measure_type, nda_required_variables)
+  checkColumnPrefix(measure_alias, measure_type, nda_required_variables) # checkin_distress
   
-  checkInterviewAge(measure_alias)
+  checkInterviewAge(measure_alias) # <240 >860
   
   
   # User input to decide which tests to run
