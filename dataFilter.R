@@ -34,7 +34,14 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
   
   # Define timepoints and candidate keys
   timepoints <- c("visit", "week")
-  candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
+  config <- config::get()
+  
+  if (config$study_alias == "capr") {
+    # NDA variables suitable for merging fromr capr
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
+  } else {
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state")
+  }
   
   # Detect existing keys and timepoints in the dataframe
   detected_timepoints <- intersect(timepoints, names(df))
