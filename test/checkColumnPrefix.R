@@ -39,14 +39,16 @@ checkColumnPrefix <- function(measure_alias, measure_type, nda_required_variable
   tryCatch({
     # Check naming convention for non-NDA columns
     test_that("Check column naming convention", {
-      testthat::expect_true(
-        all(grepl(paste0("^", measure_alias, "_"), non_nda_cols)),
-        info = paste("Some non-NDA columns in '", df_name, 
-                     "' do not follow the correct naming convention starting with ", measure_alias, "_")
+      actual_non_conform <- non_nda_cols[!grepl(paste0("^", measure_alias, "_"), non_nda_cols)]
+      is_conforming <- length(actual_non_conform) == 0
+      expect_true(
+        is_conforming,
+        info = paste("The following non-NDA columns in '", df_name, 
+                     "' do not follow the correct naming convention starting with '", measure_alias, "_':",
+                     paste(actual_non_conform, collapse = ", "))
       )
     })
   }, error = function(e) {
-    message(paste("Some non-NDA columns in '", df_name, 
-                  "' do not follow the correct naming convention starting with ", measure_alias, "_"), e$message)
+    message(e$message)
   })
 }
