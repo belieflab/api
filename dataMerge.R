@@ -29,9 +29,14 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
   
-  # NDA variables suitable for merging
-  candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
-  # candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+  config <- config::get()
+  
+  if (config$study_alias == "capr") {
+    # NDA variables suitable for merging fromr capr
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
+  } else {
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+  }
   
   # Load custom scripts if any
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)

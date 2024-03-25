@@ -28,13 +28,20 @@
 #' @import dplyr
 #' @export
 
-dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL, states = NULL) {
+dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL, states = NULL, arm = NULL, site=NULL) {
   
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   
   # Define timepoints and candidate keys
   timepoints <- c("visit", "week")
-  candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
+  config <- config::get()
+  
+  if (config$study_alias == "capr") {
+    # NDA variables suitable for merging fromr capr
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
+  } else {
+    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state")
+  }
   
   # Detect existing keys and timepoints in the dataframe
   detected_timepoints <- intersect(timepoints, names(df))
@@ -62,6 +69,18 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
   if ("state" %in% names(df) && !is.null(states)) {
     message("Filtering by state: ", toString(states))
     df <- df %>% dplyr::filter(state %in% !!states)
+  }
+  
+  # Filter by 'state' if applicable and if column exists
+  if ("arm" %in% names(df) && !is.null(arm)) {
+    message("Filtering by arm: ", toString(arm))
+    df <- df %>% dplyr::filter(arm %in% !!arm)
+  }
+  
+  # Filter by 'state' if applicable and if column exists
+  if ("site" %in% names(df) && !is.null(site)) {
+    message("Filtering by site: ", toString(site))
+    df <- df %>% dplyr::filter(site %in% !!site)
   }
   
   # Filtering based on columns of interest (including any existing keys and timepoints)
