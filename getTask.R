@@ -30,6 +30,9 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   
   show_loading_animation()
   
+  # This variable controls the explicit disconnection
+  explicit_disconnect <- TRUE
+  
   # Calculate the number of chunks needed by dividing the total number of
   # records by the chunk size and rounding up to ensure all records are included.
   num_chunks <- ceiling(total_records / chunk_size)
@@ -59,8 +62,15 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   # The anonymous function(chunk) { getData(Mongo, identifier, chunk) }
   # is applied to each element of the data_chunks
   results <- future_lapply(chunks, function(chunk) {
-    getData(Mongo, identifier, chunk)
-    
+    # Connect only within the scope needed
+    Mongo <- Connect(collection_name)
+    data_chunk <- getData(Mongo, identifier, chunk)
+    if (explicit_disconnect) {
+      # Explicitly remove the connection object and call garbage collection
+      rm(Mongo)
+      gc()  # Force the garbage collector to run, closing the connection
+    }
+    return(data_chunk)
   })
   
   # Use bind_rows() instead of do.call(rbind, ...)
