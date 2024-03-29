@@ -28,62 +28,59 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   total_records <- Mongo$count(sprintf('{"%s": {"$ne": ""}}', identifier))
   message(sprintf("Imported %d records. Simplifying into dataframe...", total_records))
   
-  show_loading_animation()
-  
-  # Calculate the number of chunks needed by dividing the total number of
-  # records by the chunk size and rounding up to ensure all records are included.
+  # Adjust the initialization of the progress bar to be conditional
   num_chunks <- ceiling(total_records / chunk_size)
+  pb <- NULL  # Initialize pb as NULL indicating that the progress bar is not yet created
   
-  # Create a list of chunks; each chunk is defined by starting index and size.
-  # This list will be used to process or analyze data in manageable segments.
   chunks <- lapply(0:(num_chunks - 1), function(i) {
-    # For each chunk, create a list containing:
-    # 'start': the index of the first record in the chunk,
-    # 'size': the number of records in the chunk (equal to chunk_size for all
-    # but potentially the last chunk).
     list(start = i * chunk_size, size = chunk_size)
   })
   
-  # parallelism
   num_cores <- parallel::detectCores(logical = TRUE)
-  min_cores <- 2 # leaving to CPUs to overheads
-  plan(future::multisession, workers = max(1, num_cores - min_cores))
-  
-  if (num_cores > min_cores) {
-    message(sprintf("Speeding up with %d cores!", num_cores - min_cores))
+  plan(future::multisession, workers = max(1, num_cores - 2))
+  if (num_cores > 2) {
+    message(sprintf("Speeding up with %d cores!", num_cores - 2))
   }
   
-  # future_lapply(data_chunks, function(chunk) { ... }):
-  # This line applies a function asynchronously to each element of the chunks list.
-  # chunks is a list expected to contain information defining different chunks of data.
-  # The anonymous function(chunk) { getData(Mongo, identifier, chunk) }
-  # is applied to each element of the data_chunks
-  results <- future_lapply(chunks, function(chunk) {
-    getData(Mongo, identifier, chunk)
-    
-  })
+  future_results <- vector("list", length(chunks))
+  for (i in seq_along(chunks)) {
+    if (is.null(pb)) {  # Initialize the progress bar when the first chunk starts processing
+      pb <- initializeLoadingAnimation(num_chunks + 1)  # +1 for the data combination step
+    }
+    future_results[[i]] <- future({
+      Mongo <- Connect(collection_name)
+      data_chunk <- getData(Mongo, identifier, chunks[[i]])
+      data_chunk  # Return the fetched data chunk
+    })
+    updateLoadingAnimation(pb, i)  # Update the progress bar after each chunk is scheduled
+  }
   
-  # Use bind_rows() instead of do.call(rbind, ...)
+  # Collect results and bind them into one dataframe
+  results <- lapply(future_results, value)
   df <- dplyr::bind_rows(results)
   
-  # combined_results <- do.call(rbind, lapply(results, function(df) {
-  #   if (!is.null(df)) return(df) else return(NULL)
-  # }))
+  # Final step in data processing, update the progress bar accordingly
+  updateLoadingAnimation(pb, num_chunks + 1)  # Reflect the data combination process
   
   clean_df <- dataHarmonization(df, identifier, collection_name)
+  if (!is.null(pb)) {
+    completeLoadingAnimation(pb)  # Close the progress bar if it has been created
+  }
+  cat("\n")  # Ensure the console output starts on a new line after the progress bar
   
   end_time <- Sys.time()
   time_taken <- end_time - start_time
   if (time_taken >= 60) {
-    minutes <- time_taken / 60
-    message(sprintf("Data retrieval completed in %.2f minutes", minutes))
+    message(sprintf("Data retrieval completed in %.2f minutes", time_taken / 60))
   } else {
     message(sprintf("Data retrieval completed in %.2f seconds", time_taken))
   }
   
-  
   return(clean_df)
 }
+
+
+
 
 # ################ #
 # Helper Functions #

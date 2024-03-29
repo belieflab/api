@@ -17,7 +17,7 @@ progress_callback <- function(count, total) {
 }
 
 initializeLoadingAnimation <- function(max_progress) {
-  cat("Loading...\n")
+  # cat("Loading...\n")
   pb <- txtProgressBar(min = 0, max = max_progress, style = 3)
   return(pb)
 }
@@ -45,7 +45,7 @@ completeLoadingAnimation <- function(pb) {
 #' @export
 show_loading_animation_with_chunks <- function(step = NULL, total_steps = NULL, pb = NULL) {
   if (is.null(pb)) {
-    cat("Loading:\n")
+    # cat("Loading:\n")  # Comment this out if you don't want the static "Loading..." message
     pb <- txtProgressBar(min = 0, max = total_steps, style = 3)
   }
   if (!is.null(step) && !is.null(total_steps)) {
@@ -53,3 +53,4 @@ show_loading_animation_with_chunks <- function(step = NULL, total_steps = NULL, 
   }
   return(pb)
 }
+

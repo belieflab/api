@@ -66,6 +66,8 @@ dataRequest <- function(..., csv = FALSE, rds = FALSE, spss = FALSE, id = NULL) 
 
 # Process Individual Measure Function
 processMeasure <- function(measure, source, csv, rds, spss) {
+  # perform check to see if the measure is individual or combined
+  # if individual, then do
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
   result <- tryCatch({
@@ -80,6 +82,8 @@ processMeasure <- function(measure, source, csv, rds, spss) {
     message("Error with ", measure, ": ", e$message)
     NULL  # Return NULL on error
   })
+  # if combined, then do
+  # dataParse
   return(result)
 }
 
