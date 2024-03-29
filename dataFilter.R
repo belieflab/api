@@ -38,14 +38,14 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
   } else {
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state")
   }
   
   # Detect existing keys and timepoints in the dataframe
   detected_timepoints <- intersect(timepoints, names(df))
-  detected_keys <- intersect(candidate_keys, names(df))
+  detected_keys <- intersect(super_key, names(df))
   
   # Ensure 'columns_of_interest' is a non-null vector
   if (!is.null(columns_of_interest) && length(columns_of_interest) > 0) {
