@@ -10,7 +10,7 @@
 #' @param all Logical; if TRUE, performs an OUTER JOIN. If FALSE, performs an INNER JOIN.
 #' @param no.dups Logical; if TRUE, duplicates are removed post-merge.
 #' @param csv Logical; if TRUE, the merged data frame is exported as a CSV file.
-#' @param rds Logical; if TRUE, the merged data frame is saved as an RDS file.
+#' @param rdata Logical; if TRUE, the merged data frame is saved as an Rda file.
 #' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
 #'
 #' @examples
@@ -24,7 +24,7 @@
 #' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export
-dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
+dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
@@ -65,7 +65,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   # Export merged data if requested
   if (csv) { createCsv(dfs, "merged_dfs.csv") }
-  if (rds) { createRDS(dfs, "merged_dfs.rds") }
+  if (rdata) { createRda(dfs, "merged_dfs") }
   if (spss) { createSpss(dfs, "merged_dfs.sav") }
   
   

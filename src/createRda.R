@@ -16,20 +16,20 @@
 #' @export
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 
-createRds <- function(df, df_name = NULL) {
-  # Use df_name if provided, otherwise derive from df variable name
+createRda <- function(df, df_name = NULL) {
+  if(is.null(df) || nrow(df) == 0) {
+    stop("DataFrame is empty or NULL. Cannot save to RDS.")
+  }
+  
   filename <- if (!is.null(df_name)) {
     df_name
   } else {
     deparse(substitute(df))
   }
   
-  # Construct the file path
-  path <- paste0("./tmp/", filename, '.Rda')
+  path <- paste0("./tmp/", filename, '.Rds')
   
-  # Write the DataFrame to an RDS file
   saveRDS(df, file = path)
   
-  # Notify user of file creation
   message(paste0("Extract created at ", path, "\n"))
 }
