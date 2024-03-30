@@ -33,9 +33,9 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
   } else {
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
   }
   
   # Load custom scripts if any
@@ -53,7 +53,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   # Determine the keys to use for merging
   if (is.null(by)) {
-    by <- Reduce(intersect, lapply(data_list, function(df) intersect(candidate_keys, names(df))))
+    by <- Reduce(intersect, lapply(data_list, function(df) intersect(super_key, names(df))))
     message("Detected common candidate keys for merge: ", toString(by))
   } else {
     by <- by
