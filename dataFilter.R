@@ -40,7 +40,7 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
     # NDA variables suitable for merging fromr capr
     super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
   } else {
-    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
   }
   
   # Detect existing keys and timepoints in the dataframe

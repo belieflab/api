@@ -35,7 +35,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
     # NDA variables suitable for merging fromr capr
     super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
   } else {
-    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
   }
   
   # Load custom scripts if any
