@@ -69,19 +69,14 @@ processMeasure <- function(measure, source, csv, rdata, spss) {
   # perform check to see if the measure is individual or combined
   # if individual, then do
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  print(file_path)
   message("\nProcessing ", measure, " from ", source, "...")
   result <- tryCatch({
     print("before source file_path")
     base::source(file_path)
-    print("after file_path")
     # Assuming testSuite is a function for running unit tests
     base::source("api/testSuite.R") # leaving this just in case people rm=(list=ls()) inside their cleaning script
-    print("after testSuite")
     testSuite(measure, source, file_path)
-    print("after testSuite()")
     df_name <- paste0(measure, "_clean")
-    print("after df_name")
     # Assuming createExtract is a function to create data extracts
     createExtract(get(df_name), df_name, csv, rdata, spss)
   }, error = function(e) {
