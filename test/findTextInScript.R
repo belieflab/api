@@ -40,7 +40,7 @@ findTextInScript <- function(script_path, text_to_search) {
   
   tryCatch({
     # Create a test that fails only if none of the strings are found
-    test_that(paste0("At least one of ", toString(text_to_search), " is present"), {
+    test_that(paste0("SCRIPT ERROR: At least one of ", toString(text_to_search), " is present"), {
       testthat::expect_true(matches_grep, 
                   info = paste(toString(text_to_search), " don't appear in your script."))
     }, error = function(e) {

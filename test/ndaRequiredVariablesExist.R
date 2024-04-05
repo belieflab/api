@@ -53,7 +53,7 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
   tryCatch({
     test_that("Check for missing NDA required variables", {
       testthat::expect_true(length(missing_vars) == 0, 
-                            info = paste("All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, "."))
+                            info = paste("SCRIPT ERROR: All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, "."))
     })
   }, error = function(e) {
     message("All NDA required variables are not present in '", measure_alias, " please make sure the following variable is present in the clean df: '", missing_vars, ".", e$message)

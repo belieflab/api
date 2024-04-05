@@ -40,7 +40,7 @@ checkInterviewAge <- function(measure_alias) {
     test_that(paste0("Check interview_age is between ", min_age, " and ", max_age), {
       testthat::expect_true(
         all(df_clean$interview_age >= min_age & df_clean$interview_age <= max_age),
-        info = paste("All values in 'interview_age' should be greater than ", min_age, " and less than ", max_age, ". src_subject_id not meeting condition:", paste(rows_not_meeting_condition, collapse = ", "))
+        info = paste("DATA ERROR: All values in 'interview_age' should be greater than ", min_age, " and less than ", max_age, ". src_subject_id not meeting condition:", paste(rows_not_meeting_condition, collapse = ", "))
       )
     })
   }, error = function(e) {

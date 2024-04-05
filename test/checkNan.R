@@ -33,7 +33,7 @@ checkNan <- function(measure_alias) {
           message(paste("src_subject_id:", src_subject_id, "- Column:", column_name))
         }
         testthat::expect_false(TRUE, 
-                               info = paste("NA values found. src_subject_id:", df_clean$src_subject_id[any_na[,1]], "- Column:", colnames(df_clean)[any_na[,2]]))
+                               info = paste("DATA ERROR: NA values found. src_subject_id:", df_clean$src_subject_id[any_na[,1]], "- Column:", colnames(df_clean)[any_na[,2]]))
       } else {
         expect_true(TRUE, info = "No NA values should be present in the dataframe.")
       }

@@ -43,7 +43,7 @@ checkColumnPrefix <- function(measure_alias, measure_type, nda_required_variable
       is_conforming <- length(actual_non_conform) == 0
       expect_true(
         is_conforming,
-        info = paste("The following non-NDA columns in '", df_name, 
+        info = paste("SCRIPT ERROR: The following non-NDA columns in '", df_name, 
                      "' do not follow the correct naming convention starting with '", measure_alias, "_':",
                      paste(actual_non_conform, collapse = ", "))
       )

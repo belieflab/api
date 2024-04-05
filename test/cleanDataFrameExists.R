@@ -27,7 +27,7 @@ cleanDataFrameExists <- function(measure_alias, measure_type) {
       
       # Check if the expected output_df_name is created
       testthat::expect_true(exists(output_df_name), 
-                                               info = paste("The script did not create '", output_df_name, "' dataframe."))
+                                               info = paste("SCRIPT ERROR: The script did not create '", output_df_name, "' dataframe."))
     })
     
   }, error = function(e) {

@@ -36,7 +36,7 @@ checkDuplicates <- function(measure_alias, measure_type) {
             tryCatch({
               test_that("Check for Qualtrics duplicates", {
                 expect_true(nrow(df_duplicates) == 0, 
-                            info = paste("Duplicates detected in '", measure_alias, "': ", 
+                            info = paste("DATA ERROR: Duplicates detected in '", measure_alias, "': ", 
                                          "Offending IDs: ", toString(unique(df_duplicates[[identifier]]))))
               })
             }, error = function(e) {
