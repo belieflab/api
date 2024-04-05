@@ -190,3 +190,12 @@ dataHarmonization <- function(df, identifier, collection_name) {
   return(df)
 }
 
+getCollections <- function() {
+  
+  Mongo <- Connect("foo")
+  collections <- Mongo$run('{"listCollections":1,"nameOnly":true}')
+  print(collections$cursor$firstBatch$name) # lists collections in database
+
+  return(collections$cursor$firstBatch$name)
+  
+}

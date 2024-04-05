@@ -9,7 +9,7 @@
 #' @param df The dataframe to be exported.
 #' @param df_name The base name for the output file(s) without extension.
 #' @param csv Logical; if TRUE, a CSV file is created using the `createCsv` function.
-#' @param rds Logical; if TRUE, an RDS file is created using the `createRds` function.
+#' @param rdata Logical; if TRUE, an RDS file is created using the `createRda` function.
 #' @param spss Logical; if TRUE, an SPSS file is created using the `createSpss` function.
 #' @importFrom base source
 #' @examples
@@ -17,17 +17,17 @@
 #' @export
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 
-createExtract <- function(df, df_name, csv=NULL, rds=NULL, spss=NULL) {
+createExtract <- function(df, df_name, csv=NULL, rdata=NULL, spss=NULL) {
   
   base::source("api/src/createCsv.R")
-  base::source("api/src/createRds.R")
+  base::source("api/src/createRda.R")
   base::source("api/src/createSpss.R")
   
   if (!is.null(csv) && csv) {
     createCsv(df, df_name)
   }
-  if (!is.null(rds) && rds) {
-    createRds(df, df_name)
+  if (!is.null(rdata) && rdata) {
+    createRda(df, df_name)
   }
   if (!is.null(spss) && spss) {
     createSpss(df, df_name)

@@ -10,7 +10,7 @@
 #' @param all Logical; if TRUE, performs an OUTER JOIN. If FALSE, performs an INNER JOIN.
 #' @param no.dups Logical; if TRUE, duplicates are removed post-merge.
 #' @param csv Logical; if TRUE, the merged data frame is exported as a CSV file.
-#' @param rds Logical; if TRUE, the merged data frame is saved as an RDS file.
+#' @param rdata Logical; if TRUE, the merged data frame is saved as an Rda file.
 #' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
 #'
 #' @examples
@@ -24,7 +24,7 @@
 #' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export
-dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rds = FALSE, spss = FALSE) {
+dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
@@ -33,9 +33,9 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
   } else {
-    candidate_keys <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state")
+    super_key <- c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
   }
   
   # Load custom scripts if any
@@ -53,7 +53,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   # Determine the keys to use for merging
   if (is.null(by)) {
-    by <- Reduce(intersect, lapply(data_list, function(df) intersect(candidate_keys, names(df))))
+    by <- Reduce(intersect, lapply(data_list, function(df) intersect(super_key, names(df))))
     message("Detected common candidate keys for merge: ", toString(by))
   } else {
     by <- by
@@ -65,7 +65,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   # Export merged data if requested
   if (csv) { createCsv(dfs, "merged_dfs.csv") }
-  if (rds) { createRDS(dfs, "merged_dfs.rds") }
+  if (rdata) { createRda(dfs, "merged_dfs") }
   if (spss) { createSpss(dfs, "merged_dfs.sav") }
   
   
