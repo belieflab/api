@@ -28,7 +28,8 @@
 #' @import dplyr
 #' @export
 
-dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL, states = NULL, arm = NULL, site=NULL) {
+dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
+                       visit = NULL, week = NULL, states = NULL, arm = NULL, site=NULL) {
   
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   
@@ -54,6 +55,11 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
     # If no specific columns of interest are provided, use all columns
     columns_of_interest <- names(df)
     message("No columns of interest provided; all columns will be included.")
+  }
+  
+  # Ensure 'rows_of_interest' is a non-null vector
+  if (is.null(rows_of_interest)) {
+    rows_of_interest <- rep(T,nrow(df))
   }
   
   # Filter by 'visit' or 'week' if applicable
@@ -85,7 +91,7 @@ dataFilter <- function(df, columns_of_interest = NULL, visit = NULL, week = NULL
   
   # Filtering based on columns of interest (including any existing keys and timepoints)
   message("Selecting columns of interest: ", toString(columns_of_interest))
-  df <- df[, names(df) %in% columns_of_interest]
+  df <- df[rows_of_interest, names(df) %in% columns_of_interest]
   
   return(df)
 }
