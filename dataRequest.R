@@ -71,7 +71,6 @@ processMeasure <- function(measure, source, csv, rdata, spss) {
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
   result <- tryCatch({
-    print("before source file_path")
     base::source(file_path)
     # Assuming testSuite is a function for running unit tests
     base::source("api/testSuite.R") # leaving this just in case people rm=(list=ls()) inside their cleaning script
