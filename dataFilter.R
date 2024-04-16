@@ -6,6 +6,8 @@
 #' and values for them are provided.
 #'
 #' @param df Dataframe to be filtered and trimmed based on the provided parameters.
+#' @param rows_of_interest Optional; a vector of row names to be retained in the final output. 
+#'        If NULL or empty, all rows in the dataframe are retained.
 #' @param columns_of_interest Optional; a vector of column names to be retained in the final output. 
 #'        If NULL or empty, all columns in the dataframe are retained.
 #' @param visit Optional; a specific visit value to filter the dataframe by. Only used if 
@@ -22,6 +24,7 @@
 #'
 #' @examples
 #' data_filtered <- dataFilter(df, 
+#'                             rows_of_interest = c("foo","bar"),
 #'                             columns_of_interest = c("src_subject_id", "phenotype"), 
 #'                             visit = 2, 
 #'                             states = c("complete", "completed baseline"))
