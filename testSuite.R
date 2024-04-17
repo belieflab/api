@@ -72,7 +72,7 @@ testSummary <- function() {
 
 
 testSuite <- function(measure_alias, measure_type, script_path) {
-
+  
   # source all scripts in ./api/test
   lapply(list.files("api/test", pattern = "\\.R$", full.names = TRUE), base::source)
   
@@ -82,23 +82,21 @@ testSuite <- function(measure_alias, measure_type, script_path) {
                               "subjectkey", "sex", "interview_date", "interview_age", "state")
   
   # test cases encapsulated in functions
-
-  # checkDuplicates(measure_alias, measure_type)
   
-  checkQualitricsDuplicates(measure_alias, measure_type)
-
+  checkQualtricsDuplicates(measure_alias, measure_type) # and give allow to View them in a table
+  
   cleanDataFrameExists(measure_alias, measure_type) #checkin_clean x
-
+  
   ndaRequiredVariablesExist(measure_alias, measure_type, nda_required_variables) # do Nda req variables exist
-
+  
   checkColumnPrefix(measure_alias, measure_type, nda_required_variables) # checkin_distress
-
+  
   checkInterviewAge(measure_alias) # <240 >860
-
+  
   
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
-
+  
   # additional_tests <- getUserInput("Run additional tests? y/n")
   # 
   # if (additional_tests == "y") {
@@ -117,7 +115,7 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   #   }
   #   
   # }
-
+  
   
   # ...add additional functions here, making sure they pass in measure_alias and measure_type
 }
