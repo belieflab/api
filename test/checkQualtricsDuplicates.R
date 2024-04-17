@@ -19,7 +19,7 @@
 #'       It checks for duplicates based on 'src_subject_id' combined with 'visit' or 'week' columns.
 #'       The function will stop and throw an error if the necessary columns are not present.
 checkQualtricsDuplicates <- function(measure_alias, measure_type) {
-
+  
   # Ensure required packages are loaded
   if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
   if (!require(testthat)) { install.packages("testthat") }; library(testthat)
@@ -50,7 +50,7 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
             
             # export
             duplicate_extract <- paste0("duplicates_", measure_alias)
-
+            
             # Use your custom function to create a CSV file
             createCsv(df_duplicates, paste0("duplicates_", measure_alias))
             
@@ -58,8 +58,8 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
             tryCatch({
               test_that("Check for Qualtrics duplicates", {
                 testthat::expect_true(nrow(df_duplicates) == 0, 
-                            info = paste("DATA ERROR: Duplicates detected in '", measure_alias, "': ", 
-                                         "Offending IDs: ", toString(unique(df_duplicates[[identifier]]))))
+                                      info = paste("DATA ERROR: Duplicates detected in '", measure_alias, "': ", 
+                                                   "Offending IDs: ", toString(unique(df_duplicates[[identifier]]))))
               })
             }, error = function(e) {
               # Convert the duplicate details into a readable format
