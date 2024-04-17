@@ -83,7 +83,9 @@ testSuite <- function(measure_alias, measure_type, script_path) {
   
   # test cases encapsulated in functions
 
-  checkDuplicates(measure_alias, measure_type)
+  # checkDuplicates(measure_alias, measure_type)
+  
+  checkQualitricsDuplicates(measure_alias, measure_type)
 
   cleanDataFrameExists(measure_alias, measure_type) #checkin_clean x
 
