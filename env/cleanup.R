@@ -3,6 +3,26 @@
 #' Keeps R Environment tidy when using dataRequest()
 #'
 #' @author Joshua G Kenney <joshua.kenney@yale.edu>
+#' @author Minerva K Pappu <minerva.pappu@yale.edu>
+
+# Function to detach all non-base packages
+detach_all_packages <- function() {
+  # Base packages that should not be detached
+  base_packages <- c("package:stats", "package:graphics", "package:grDevices", 
+                     "package:utils", "package:datasets", "package:methods", "package:base")
+  # Get the list of currently loaded packages
+  currently_loaded_packages <- search()
+  # Determine which packages to detach
+  packages_to_detach <- setdiff(currently_loaded_packages, base_packages)
+  
+  # Detach the packages
+  for (pkg in packages_to_detach) {
+    detach(pkg, character.only = TRUE, unload = TRUE, force = TRUE)
+  }
+}
+
+# Detach all non-base packages
+detach_all_packages()
 
 # nda variables required for merging
 nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
