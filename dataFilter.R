@@ -93,8 +93,8 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   }
   
   # Filtering based on columns of interest (including any existing keys and timepoints)
-  message("Selecting columns of interest: ", toString(columns_of_interest))
-  df <- df[rows_of_interest, names(df) %in% columns_of_interest]
+  # message("Selecting columns of interest: ", toString(columns_of_interest))
+  # df <- df[rows_of_interest, names(df) %in% columns_of_interest]
   
   return(df)
 }
