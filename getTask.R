@@ -22,6 +22,15 @@ if (!require(config)) { install.packages("config") }; library(config)
 getTask <- function(collection_name, identifier = "src_subject_id", chunk_size = 10000) {
   start_time <- Sys.time()
   
+  # check to see if identifier is acceptable
+  accepted_identifiers <- c("src_subject_id", "workerId", "PROLIFIC_PID", "participantId, rat_id")
+  
+  # if identifer supplied by parameter is in the list of accepted identifiers, continue
+  # guard clause
+  if (identifier %!in% accepted_identifiers) {
+    stop(paste0(identifier, " is not an approved identifier."))
+  }
+  
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   Mongo <- Connect(collection_name)
   
@@ -199,3 +208,5 @@ getCollections <- function() {
   return(collections$cursor$firstBatch$name)
   
 }
+
+getMongo <- getTask
