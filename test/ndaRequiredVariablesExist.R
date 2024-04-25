@@ -46,7 +46,7 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
     adjusted_nda_required <- setdiff(adjusted_nda_required, "week")  # Remove 'week' if it's not there but 'visit' is
   } # If neither or both are present, no changes needed to adjusted_nda_required
   
-
+  
   # Now check if the output dataframe contains all adjusted NDA required variables
   missing_vars <- setdiff(adjusted_nda_required, colnames(df_clean))
   

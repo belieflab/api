@@ -70,30 +70,41 @@ testSummary <- function() {
 
 ################## Test Suite ##################
 
-
-testSuite <- function(measure_alias, measure_type, script_path) {
-  
-  # source all scripts in ./api/test
+testSuite <- function(measure_alias, measure_type, script_path, super_key) {
+  # Source all scripts in ./api/test
   lapply(list.files("api/test", pattern = "\\.R$", full.names = TRUE), base::source)
-  
   
   # List of NDA required variables
   nda_required_variables <- c("src_subject_id", "phenotype", "site", "arm", "visit", "week", 
                               "subjectkey", "sex", "interview_date", "interview_age", "state")
   
-  # test cases encapsulated in functions
-  
+  # Perform checks
   checkQualtricsDuplicates(measure_alias, measure_type) # and give allow to View them in a table
-  
   cleanDataFrameExists(measure_alias, measure_type) #checkin_clean x
-  
   ndaRequiredVariablesExist(measure_alias, measure_type, nda_required_variables) # do Nda req variables exist
-  
   checkColumnPrefix(measure_alias, measure_type, nda_required_variables) # checkin_distress
-  
   checkInterviewAge(measure_alias) # <240 >860
   
+
+  ## debugging  
+  # candidate_keys <- checkKeys(measure_alias, super_key, "raw")
+  # print(candidate_keys)
+  # candidate_keys_in_clean_df <- checkKeys(paste0(measure_alias, "_clean"), candidate_keys, "clean")
+  # print(candidate_keys_in_clean_df)
+  # 
   
+  
+  if (exists(measure_alias, envir = .GlobalEnv)) {
+    print("Raw data found. Looking for super keys...")
+    # Check for presence of super_key variables in the raw data
+    candidate_keys <- checkKeys(measure_alias, super_key, "raw")
+    # Assuming you still want to verify these keys are present in the cleaned data
+    if (exists(paste0(measure_alias, "_clean"), envir = .GlobalEnv)) {
+      print("Clean data found. Looking for candidate keys... ")
+      candidate_keys <- checkKeys(paste0(measure_alias, "_clean"), candidate_keys, "clean")
+    }
+  }
+
   # User input to decide which tests to run
   # Optional unit tests to run; "Do you want to run these extra optional tests?"
   

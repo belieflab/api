@@ -55,6 +55,14 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL
   qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
   task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
   
+  # Determine `super_key` based on configuration
+  config <- config::get()  # Assuming 'config' library is loaded or handled elsewhere
+  super_key <- if (config$study_alias == "capr") {
+    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
+  } else {
+    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
+  }
+  
   start_time <- Sys.time()
   
   # Source necessary R scripts from the 'api' directory
@@ -63,9 +71,9 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL
   
   # Validate Measures Function
   validateMeasures <- function(data_list) {
-    invalid_list <- Filter(function(measure) measure %!in% c(redcap_list, qualtrics_list, task_list), data_list)
+    invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, task_list), data_list)
     if (length(invalid_list) > 0) {
-      stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one!\n")
+      stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one.\n")
     }
   }
   
@@ -74,9 +82,9 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL
   validateMeasures(data_list)
   
   # Process each measure using processMeasure function
-  for(measure in data_list) {
+  for (measure in data_list) {
     sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "task"))
-    processMeasure(measure, sourceCategory, csv, rdata, spss)
+    processMeasure(measure, sourceCategory, csv, rdata, spss, super_key)
   }
   
   # Clean up and record processing time
@@ -84,31 +92,37 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL
   print(Sys.time() - start_time)  # Print time taken for processing
 }
 
-
-
-# Process Individual Measure Function
-processMeasure <- function(measure, source, csv, rdata, spss) {
-  # perform check to see if the measure is individual or combined
-  # if individual, then do
+processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
+  # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
+  
   result <- tryCatch({
-    base::source(file_path)
-    # Assuming testSuite is a function for running unit tests
-    base::source("api/testSuite.R") # leaving this just in case people rm=(list=ls()) inside their cleaning script
-    testSuite(measure, source, file_path)
-    df_name <- paste0(measure, "_clean")
+    base::source(file_path)  # Execute the cleaning script for the measure
+    # Ensure testSuite is sourced and then called
+    base::source("api/testSuite.R")
+    testSuite(measure, source, file_path, super_key)  # Call testSuite with super_key
+    df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
+    
     # Assuming createExtract is a function to create data extracts
-    createExtract(get(df_name), df_name, csv, rdata, spss)
+    createExtract(get(df_name), df_name, csv, rdata, spss)  # Create data extracts
   }, error = function(e) {
     message("Error with ", measure, ": ", e$message)
     NULL  # Return NULL on error
   })
-  # if combined, then do
-  # dataParse
-  #base::source("api/dataParse.R")
+  
   return(result)
 }
+
+
+
+
+
+
+
+
+
+
 
 # Cleanup Function
 performCleanup <- function() {
