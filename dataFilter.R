@@ -45,17 +45,15 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   
   # Convert the 'interview_date' column to Date format if it exists
   if ("interview_date" %in% names(df)) {
-    df$interview_date <- mdy(df$interview_date)
+    df$interview_date <- as.Date(parseAnyDate(df$interview_date))
   }
   
+  # Parse the input 'interview_date' parameter and filter the data
   if (!is.null(interview_date)) {
-    parsed_date <- mdy(interview_date)  # Parse the provided 'interview_date' parameter
-    if (is.na(parsed_date)) {
-      stop("Invalid interview_date format. Please use MM/DD/YYYY.")
-    }
-    # Ensure df$interview_date is already converted as Date object above
-    df <- df %>% filter(interview_date <= parsed_date)
+    input_date <- as.Date(parseAnyDate(interview_date))
+    df <- df %>% filter(interview_date <= input_date)
   }
+  
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr
@@ -126,4 +124,16 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   df <- df[rows_of_interest, names(df) %in% columns_of_interest]
   
   return(df)
+}
+
+# Helper function to parse any date format
+parseAnyDate <- function(date_string) {
+  date <- tryCatch(mdy(date_string), error = function(e) NULL)
+  if (is.null(date) || any(is.na(date))) {
+    date <- tryCatch(ymd(date_string), error = function(e) NULL)
+  }
+  if (is.null(date) || any(is.na(date))) {
+    stop("Failed to parse date. Please check the format.")
+  }
+  return(date)
 }
