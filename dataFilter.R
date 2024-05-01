@@ -39,21 +39,39 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   if (!require(lubridate, quietly = TRUE)) {install.packages("lubridate")}; library(lubridate)
   
+  # Helper function to parse any date format
+  parseAnyDate <- function(date_string) {
+    # Check if the date contains dashes or slashes to infer the format
+    if (grepl("-", date_string)) {
+      # Likely in YYYY-MM-DD format
+      date <- tryCatch(ymd(date_string), error = function(e) NULL)
+    } else if (grepl("/", date_string)) {
+      # Likely in MM/DD/YYYY format
+      date <- tryCatch(mdy(date_string), error = function(e) NULL)
+    } else {
+      # If the format is not recognizable, return NULL
+      date <- NULL
+    }
+    
+    if (is.null(date) || any(is.na(date))) {
+      stop("Failed to parse date. Please check the format: ", date_string)
+    }
+    
+    return(date)
+  }
+  
+  
   # Define timepoints and candidate keys
   timepoints <- c("visit", "week")
   config <- config::get()
   
   # Convert the 'interview_date' column to Date format if it exists
-  if ("interview_date" %in% names(df)) {
-    df$interview_date <- as.Date(parseAnyDate(df$interview_date))
-  }
-  
-  # Parse the input 'interview_date' parameter and filter the data
-  if (!is.null(interview_date)) {
+  if ("interview_date" %in% names(df) && !is.null(interview_date)) {
+    # Apply parsing to each element in the column
+    df$interview_date <- sapply(df$interview_date, parseAnyDate)
     input_date <- as.Date(parseAnyDate(interview_date))
     df <- df %>% filter(interview_date <= input_date)
   }
-  
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr
@@ -126,14 +144,4 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   return(df)
 }
 
-# Helper function to parse any date format
-parseAnyDate <- function(date_string) {
-  date <- tryCatch(mdy(date_string), error = function(e) NULL)
-  if (is.null(date) || any(is.na(date))) {
-    date <- tryCatch(ymd(date_string), error = function(e) NULL)
-  }
-  if (is.null(date) || any(is.na(date))) {
-    stop("Failed to parse date. Please check the format.")
-  }
-  return(date)
-}
+
