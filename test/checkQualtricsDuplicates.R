@@ -26,6 +26,7 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
   
   # Generate the name of the dataframe and get it
   output_df_name <- paste0(measure_alias, "_clean")
+  print(output_df_name)
   df <- base::get(output_df_name)
   
   identifier <- "src_subject_id"
@@ -36,41 +37,35 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
     }
     
     for (col in c("visit", "week")) {
-      if (col %in% colnames(df)) {
-        df$duplicates <- duplicated(df[c(identifier, col)], first = TRUE)
+      if (col %in% base::colnames(df)) {
+        df$duplicates <- base::duplicated(df[c(identifier, col)], first = TRUE)
+        df_dup_ids <- base::subset(df, duplicates == TRUE)[, c(identifier, col)]
         
-        # Separate the duplicates to their own df
-        df_dup_ids <- subset(df, duplicates == TRUE)[, c(identifier, col)]
-        
-        if (nrow(df_dup_ids) > 0) {
-          df_duplicates <- df %>% filter((.[[identifier]] %in% df_dup_ids[[identifier]]) & (.[[col]] %in% df_dup_ids[[col]]))
-          
-          # Check for duplicates and create a CSV file if found
-          if (nrow(df_duplicates) > 0) {
-            
-            # export
+        if (base::nrow(df_dup_ids) > 0) {
+          # Using inner_join to filter duplicates correctly
+          df_duplicates <- df %>% 
+            dplyr::inner_join(df_dup_ids, by = c(identifier, col))
+
+          if (base::nrow(df_duplicates) > 0) {
+            # Export and create a CSV file if duplicates found
             duplicate_extract <- paste0("duplicates_", measure_alias)
+            createCsv(df_duplicates, paste0("duplicates_", measure_alias, ".csv"))
             
-            # Use your custom function to create a CSV file
-            createCsv(df_duplicates, paste0("duplicates_", measure_alias))
-            
-            # Wrap the test_that in a try-catch block
             tryCatch({
-              test_that("Check for Qualtrics duplicates", {
-                testthat::expect_true(nrow(df_duplicates) == 0, 
+              testthat::test_that("Check for Qualtrics duplicates", {
+                testthat::expect_true(base::nrow(df_duplicates) == 0, 
                                       info = paste("DATA ERROR: Duplicates detected in '", measure_alias, "': ", 
-                                                   "Offending IDs: ", toString(unique(df_duplicates[[identifier]]))))
+                                                   "Offending IDs: ", toString(base::unique(df_duplicates[[identifier]]))))
               })
             }, error = function(e) {
-              # Convert the duplicate details into a readable format
-              duplicates_summary <- toString(unique(df_duplicates[[identifier]]))
+              duplicates_summary <- toString(base::unique(df_duplicates[[identifier]]))
               message(paste("Error in testing for duplicates in '", measure_alias, "': ", e$message, 
                             "\nOffending IDs: ", duplicates_summary,
                             "\nDetails exported to ", paste0("./tmp/",duplicate_extract,".csv")))
             })
             
-            # View the offending records in RStudio's data viewer
-            View(df_duplicates)
+            # Optionally view the offending records in RStudio's data viewer
+            # View(df_duplicates)
           }
         }
       }
