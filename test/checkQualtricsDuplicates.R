@@ -26,7 +26,6 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
   
   # Generate the name of the dataframe and get it
   output_df_name <- paste0(measure_alias, "_clean")
-  print(output_df_name)
   df <- base::get(output_df_name)
   
   identifier <- "src_subject_id"
@@ -49,7 +48,7 @@ checkQualtricsDuplicates <- function(measure_alias, measure_type) {
           if (base::nrow(df_duplicates) > 0) {
             # Export and create a CSV file if duplicates found
             duplicate_extract <- paste0("duplicates_", measure_alias)
-            createCsv(df_duplicates, paste0("duplicates_", measure_alias, ".csv"))
+            createCsv(df_duplicates, paste0("duplicates_", measure_alias))
             
             tryCatch({
               testthat::test_that("Check for Qualtrics duplicates", {
