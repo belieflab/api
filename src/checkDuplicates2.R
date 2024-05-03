@@ -9,7 +9,7 @@ checkRedcapDuplicates <- function(df) {
 }
 
 #Need to add an if statement for surveys that have multiple visits!
-checkQualitricsDuplicates <- function(df) {
+checkQualtricsDuplicates <- function(df) {
   if (deparse(substitute(df)) == "iipsc" | deparse(substitute(df)) == "pqb" | deparse(substitute(df)) == "demo_fu") {
     df$duplicates  <- duplicated(df[c("src_subject_id", "visit")],  first = TRUE)
     
