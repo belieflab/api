@@ -43,7 +43,13 @@
 #' 
 
 
-dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL) {
+dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifier = NULL) {
+  if (is.null(identifier)) {
+    identifier = "src_subject_id"
+  } else {
+    identifier = identifier
+  }
+  
   base::source("api/testSuite.R")
   
   # Required Libraries Setup
@@ -88,7 +94,7 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL
   }
   
   # Clean up and record processing time
-  performCleanup()
+  # performCleanup()
   print(Sys.time() - start_time)  # Print time taken for processing
 }
 

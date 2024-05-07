@@ -3,7 +3,7 @@
 
 
 dataParse <- function(qualtrics_alias){
-  library(dplyr)
+  if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
   
   # Step 0: Ensure short name of study matches qualtrics survey name
   source("api/getSurvey.R") # call getSurvey()
@@ -53,7 +53,7 @@ dataParse <- function(qualtrics_alias){
   return(list2env(output,globalenv()))
 }
 
-dat <- dataParse("prl_pilot")
+# dat <- dataParse("prl_pilot")
 
 
 
