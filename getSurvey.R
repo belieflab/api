@@ -33,6 +33,36 @@ getQualtrics <- function(qualtrics_alias, identifier = "src_subject_id", label =
   return(clean_df)
 }
 
+### mkp dynamic identifier selection
+# # dynamically selects identifier from df; if none found, default is src_subject_id
+# getQualtrics <- function(qualtrics_alias, label = FALSE) {
+#   if (!require(config)) {install.packages("config"); library(config)}
+#   if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
+#   if (!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
+#   
+#   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+#   
+#   message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
+#   
+#   connect(qualtrics_alias)
+#   show_loading_animation()
+#   
+#   df <- getData(qualtrics_alias, label)
+#   
+#   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")
+#   selected_identifier <- intersect(super_keys, colnames(df))
+#   
+#   if (length(selected_identifier) == 0) {
+#     stop("No valid identifier column found.")
+#   } else {
+#     selected_identifier <- selected_identifier[1]  # Select the first valid identifier
+#   }
+#   
+#   clean_df <- dataHarmonization(df, selected_identifier, qualtrics_alias)
+#   
+#   return(clean_df)
+# }
+
 
 # ################ #
 # Helper Functions #
