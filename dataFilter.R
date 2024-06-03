@@ -31,117 +31,71 @@
 #'                             states = c("complete", "completed baseline"))
 #' @import dplyr
 #' @export
-
 dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
-                       visit = NULL, week = NULL, states = NULL, arm = NULL, site=NULL,
+                       visit = NULL, week = NULL, states = NULL, arm = NULL, site = NULL,
                        interview_date = NULL) {
   
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   if (!require(lubridate, quietly = TRUE)) {install.packages("lubridate")}; library(lubridate)
   
-  # Helper function to parse any date format
+  # print("Initial dataframe head:")
+  # print(head(df))
+  
   parseAnyDate <- function(date_string) {
-    # Check if the date contains dashes or slashes to infer the format
     if (grepl("-", date_string)) {
-      # Likely in YYYY-MM-DD format
       date <- tryCatch(ymd(date_string), error = function(e) NULL)
     } else if (grepl("/", date_string)) {
-      # Likely in MM/DD/YYYY format
       date <- tryCatch(mdy(date_string), error = function(e) NULL)
     } else {
-      # If the format is not recognizable, return NULL
       date <- NULL
     }
-    
     if (is.null(date) || any(is.na(date))) {
       stop("Failed to parse date. Please check the format: ", date_string)
     }
-    
     return(date)
   }
   
-  
-  # Define timepoints and candidate keys
-  timepoints <- c("visit", "week")
-  config <- config::get()
-  
-  # Convert the 'interview_date' column to Date format if it exists
   if ("interview_date" %in% names(df) && !is.null(interview_date)) {
-    # Apply parsing to each element in the column
     df$interview_date <- sapply(df$interview_date, parseAnyDate)
     input_date <- as.Date(parseAnyDate(interview_date))
     df <- df %>% filter(interview_date <= input_date)
+    print("Filtered by interview_date dataframe head:")
+    print(head(df))
   }
   
-  if (config$study_alias == "capr") {
-    # NDA variables suitable for merging fromr capr
-    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm")
-  } else {
-    super_key <- c("src_subject_id", "subjectkey", "phenotype", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
+  if ("state" %in% names(df) && !is.null(states) && length(states) > 0) {
+    df <- df %>% filter(state %in% states)
+    # print("Filtered by state dataframe head:")
+    # print(head(df))
   }
   
-  # Detect existing keys and timepoints in the dataframe
-  detected_timepoints <- intersect(timepoints, names(df))
-  detected_keys <- intersect(super_key, names(df))
+  if ("visit" %in% names(df) && !is.null(visit)) {
+    df <- df %>% filter(visit == visit)
+  }
   
-  # Ensure 'columns_of_interest' is a non-null vector
+  if ("week" %in% names(df) && !is.null(week)) {
+    df <- df %>% filter(week == week)
+  }
+  
+  if ("arm" %in% names(df) && !is.null(arm)) {
+    df <- df %>% filter(arm %in% arm)
+  }
+  
+  if ("site" %in% names(df) && !is.null(site)) {
+    df <- df %>% filter(site %in% site)
+  }
+  
   if (!is.null(columns_of_interest) && length(columns_of_interest) > 0) {
-    columns_of_interest <- unique(c(detected_keys, detected_timepoints, columns_of_interest))
+    df <- df[, columns_of_interest, drop = FALSE]
   } else {
-    # If no specific columns of interest are provided, use all columns
-    columns_of_interest <- names(df)
     message("No columns of interest provided; all columns will be included.")
   }
   
-  # Ensure 'rows_of_interest' is a non-null vector
-  # if (is.null(rows_of_interest)) {
-  #   rows_of_interest <- rep(T,nrow(df))
-  # }
-  # more robust code
-  # Ensure 'rows_of_interest' is a numeric vector within the valid range
   if (!is.null(rows_of_interest)) {
-    if (!all(rows_of_interest %in% seq_len(nrow(df)))) {
-      stop("rows_of_interest contains invalid row indices.")
-    }
-  } else {
-    rows_of_interest <- seq_len(nrow(df))
-    message("No specific rows of interest provided; all rows will be included.")
+    df <- df[rows_of_interest, , drop = FALSE]
   }
-  
-  # Filter by 'visit' or 'week' if applicable
-  if ("visit" %in% detected_timepoints && !is.null(visit)) {
-    message("Filtering by visit: ", visit)
-    df <- df %>% dplyr::filter(visit == !!visit)
-  } else if ("week" %in% detected_timepoints && !is.null(week)) {
-    message("Filtering by week: ", week)
-    df <- df %>% dplyr::filter(week == !!week)
-  }
-  
-  # Filter by 'state' if applicable and if column exists
-  if ("state" %in% names(df) && !is.null(states)) {
-    message("Filtering by state: ", toString(states))
-    df <- df %>% dplyr::filter(state %in% !!states)
-  }
-  
-  # Filter by 'arm' if applicable and if column exists
-  if ("arm" %in% names(df) && !is.null(arm)) {
-    message("Filtering by arm: ", toString(arm))
-    df <- df %>% dplyr::filter(arm %in% !!arm)
-  }
-  
-  # Filter by 'site' if applicable and if column exists
-  if ("site" %in% names(df) && !is.null(site)) {
-    message("Filtering by site: ", toString(site))
-    df <- df %>% dplyr::filter(site %in% !!site)
-  }
-  
-
-  
-  # Filtering based on columns of interest (including any existing keys and timepoints)
-  message("Selecting columns of interest: ", toString(columns_of_interest))
-  df <- df[rows_of_interest, names(df) %in% columns_of_interest]
   
   return(df)
 }
 
-
+merged_qualtrics_filtered_broken <- dataFilter(merged_qualtrics, states = c("complete"))
