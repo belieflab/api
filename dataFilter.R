@@ -97,5 +97,3 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   
   return(df)
 }
-
-merged_qualtrics_filtered_broken <- dataFilter(merged_qualtrics, states = c("complete"))
