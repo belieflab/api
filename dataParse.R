@@ -42,7 +42,7 @@ dataParse <- function(qualtrics_alias){
   # Exclude non-survey and specific columns
   non_survey_columns <- c(existing_keys, "interview_date", "PROLIFIC_PID")
   survey_columns <- names(df)[!names(df) %in% non_survey_columns & grepl("_", names(df))]
-  print(survey_columns)
+  # print(survey_columns)
   
   # Extract unique survey prefixes from survey-specific column names
   extract_first_part <- function(string) {
@@ -56,8 +56,8 @@ dataParse <- function(qualtrics_alias){
   survey_prefixes <- survey_prefixes[!survey_prefixes %in% excluded_prefixes]
   
   # Print detected survey prefixes for debugging
-  print("Detected survey prefixes:")
-  print(survey_prefixes)
+  # print("Detected survey prefixes:")
+  # print(survey_prefixes)
   
   # Create a list of dataframes, one for each survey
   output = list()
