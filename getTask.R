@@ -12,6 +12,7 @@ if (!require(config)) { install.packages("config") }; library(config)
 #' and uses parallel processing to fetch the data.
 #'
 #' @param collection_name The name of the MongoDB collection.
+#' @param db_name The name of the MongoDB database. Default is config$study_alias from config.yml.
 #' @param chunk_size The number of records to fetch in each parallel batch.
 #' @param identifier Field to filter documents by existence and non-emptiness. 
 #'        Defaults to "src_subject_id".
@@ -19,7 +20,7 @@ if (!require(config)) { install.packages("config") }; library(config)
 #' @examples
 #' results <- getTask("prl", "workerId", 1000)
 #' @export
-getTask <- function(collection_name, identifier = "src_subject_id", chunk_size = 10000) {
+getTask <- function(collection_name, db_name = NULL, identifier = "src_subject_id", chunk_size = 10000) {
   start_time <- Sys.time()
   
   # # check to see if identifier is acceptable
@@ -32,10 +33,13 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
   # }
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-  Mongo <- Connect(collection_name)
-  
+  Mongo <- Connect(collection_name, db_name)
+  config <- config::get()
+  if (is.null(db_name)) {
+    db_name = config$study_alias
+  }
   total_records <- Mongo$count(sprintf('{"%s": {"$ne": ""}}', identifier))
-  message(sprintf("Imported %d records. Simplifying into dataframe...", total_records))
+  message(sprintf("Imported %d records from %s/%s. Simplifying into dataframe...", total_records, db_name, collection_name))
   
   # Adjust the initialization of the progress bar to be conditional
   num_chunks <- ceiling(total_records / chunk_size)
@@ -57,7 +61,7 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
       pb <- initializeLoadingAnimation(num_chunks + 1)  # +1 for the data combination step
     }
     future_results[[i]] <- future({
-      Mongo <- Connect(collection_name)
+      Mongo <- Connect(collection_name, db_name)
       data_chunk <- getData(Mongo, identifier, chunks[[i]])
       data_chunk  # Return the fetched data chunk
     })
@@ -105,14 +109,17 @@ getTask <- function(collection_name, identifier = "src_subject_id", chunk_size =
 #' @examples
 #' Mongo <- Connect("prl_sabotage")
 #' @export
-Connect <- function(collection_name) {
+Connect <- function(collection_name, db_name) {
   if (!file.exists("secrets.R")) stop("secrets.R file not found. Please create it and add connectionString.")
   source("secrets.R")
   config <- config::get()
+  if (is.null(db_name)) {
+    db_name = config$study_alias
+  }
   options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
   Mongo <- mongolite::mongo(
     collection = collection_name, 
-    db = config$study_alias, 
+    db = db_name, 
     url = connectionString,
     verbose = FALSE,  # Set verbose to FALSE to suppress messages
     options = options
