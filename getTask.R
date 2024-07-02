@@ -141,20 +141,27 @@ Connect <- function(collection_name, db_name) {
 #' @export
 getData <- function(Mongo, identifier = "src_subject_id", batch_info) {
   query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
-  tryCatch({
+  
+  result <- tryCatch({
     df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
+    
     # Additional filtering to ensure the identifier exists
     df <- df[!is.na(df[[identifier]]) & df[[identifier]] != "", ]
+    
     if (nrow(df) == 0) {
+      message("\nNo data found. Please verify spelling of db/collection name.")
       return(NULL)  # Return NULL if no valid data after filtering
     }
+    
     return(df)
   }, error = function(e) {
     message("Error fetching data: ", e$message)
     return(NULL)  # Return NULL in case of error
   })
   
+  return(result)
 }
+
 
 #' Data Harmonization Function
 #'
