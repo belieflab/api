@@ -1,176 +1,167 @@
-# sister script of dataRequest for NDA uploads
-
-
+#' Process and Prepare Data for NDA Submission
+#'
+#' This function processes specified measures, validates them, and prepares the data
+#' for submission to the National Data Archive (NDA). It handles both Qualtrics surveys
+#' and task-based measures.
+#'
+#' @param ... Character strings specifying the measures to process. These can be 
+#'   Qualtrics survey names or task names.
+#'
+#' @return This function does not return a value. It processes the specified measures
+#'   and creates NDA templates as a side effect.
+#'
+#' @import tidyverse
+#' @import dplyr
+#' @importFrom tools file_path_sans_ext
+#' @importFrom config get
+#'
+#' @examples
+#' ndaRequest("cesd", "eefrt")
+#' ndaRequest("pss", "dd", "ch")
+#'
+#' @export
 ndaRequest <- function(...) {
   
-  # dependencies
-  source("api/getRedcap.R")
-  source("api/getSurvey.R")
-  source("api/getTask.R")
   source("api/ndaSuite.R")
   
-  # DATA RETRIEVAL
-  # get list of all files in api/src that end in .R (get list of all R scripts);
-  # source al of those files
-  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-
+  # Ensure surveyIds and other necessary variables are loaded
+  config <- config::get()
+  source(config$qualtrics$survey_ids)
+  
+  # Load required libraries
   if (!require(tidyverse)) { install.packages("tidyverse") }; library(tidyverse)
   if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
   
-  # init an empty list called data_list
-  data_list <- list(...)
+  # Source all R scripts in api/src
+  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
-  # List all files in the cleaning directories
-  redcap_list <- list.files("clean/redcap/")
-  qualtrics_list <- list.files("clean/qualtrics/")
-  task_list <- list.files("clean/task/")
-
-  # Remove file extensions
-  redcap_list <- tools::file_path_sans_ext(redcap_list)
-  qualtrics_list <- tools::file_path_sans_ext(qualtrics_list)
-  task_list <- tools::file_path_sans_ext(task_list)
-
-  # init empty list called invalid_list to store invalid measures
-  invalid_list <- list()
-
-  # check if measures in data_list are not found in the list of valid measures;
-  # if they are not found in the lists of valid measures (from redcap, qualtrics, and task),
-  # add those to invalid_list
-  for (i in 1:length(data_list)) {
-    if (data_list[i] %!in% redcap_list && data_list[i] %!in% qualtrics_list && data_list[i] %!in% task_list) {
-      invalid_list <- c(invalid_list, data_list[i])
+  # Prepare lists for REDCap, Qualtrics, and tasks
+  redcap_list <- tools::file_path_sans_ext(list.files("clean/redcap/"))
+  qualtrics_list <- tools::file_path_sans_ext(list.files("clean/qualtrics/"))
+  task_list <- tools::file_path_sans_ext(list.files("clean/task/"))
+  
+  # Compile data list
+  data_list <- c(...)
+  
+  # Validate measures
+  validateMeasures(data_list, redcap_list, qualtrics_list, task_list)
+  
+  # Process each measure
+  for (measure in data_list) {
+    if (measure %in% qualtrics_list) {
+      processQualtricsMeasure(measure)
+    } else if (measure %in% task_list) {
+      processTaskMeasure(measure)
     }
   }
+}
 
+#' Validate Measure Names
+#'
+#' This function checks if the provided measure names are valid (i.e., exist in the 
+#' REDCap, Qualtrics, or task lists).
+#'
+#' @param data_list A character vector of measure names to validate.
+#' @param redcap_list A character vector of valid REDCap measure names.
+#' @param qualtrics_list A character vector of valid Qualtrics measure names.
+#' @param task_list A character vector of valid task measure names.
+#'
+#' @return This function does not return a value. It stops execution with an error 
+#'   message if any invalid measure names are found.
+#'
+#' @keywords internal
+validateMeasures <- function(data_list, redcap_list, qualtrics_list, task_list) {
+  invalid_list <- data_list[!data_list %in% c(redcap_list, qualtrics_list, task_list)]
   if (length(invalid_list) > 0) {
-    # output on how to remedy
-    message("Check that each measure is spelled correctly and exists in these lists:\n")
-
-    message("REDCap: ")
-    cat(paste(redcap_list), "\n")
-
-    message("Qualtrics: ")
-    cat(paste(qualtrics_list), "\n")
-
-    message("Tasks: ")
-    cat(paste(task_list), "\n\n")
-
-
-    # abort routine if any measure names are invalid
-    for (i in 1:length(invalid_list)) {
-      stop(invalid_list[i], " is not a valid measure name!\n")
-    }
+    stop(paste(invalid_list, collapse = ", "), " are not valid measure names!")
   }
+}
 
-  # source redcap cleaning scripts to obtain data frames
-  for (i in 1:length(data_list)) {
-    if (data_list[i] %in% redcap_list) {
-      # use getter
-      df <- getRedcap(data_list[[i]])
-      cat("\n")
-      cat(paste("fetching", data_list[i], "..."))
-      cat("\n")
-      # unit testing
-      ndaSuite(data_list[i], "redcap", df)
-      # get NDA prefix
-      script_path <- paste0("clean/redcap/", data_list[i], ".R")
-      nda_prefix <- getNdaPrefix(script_path)
-      # create NDA extract
-      ndaTemplate(df,nda_prefix)
-    }
+
+#' Process Qualtrics Measure
+#'
+#' This function processes a single Qualtrics measure. It fetches the data, removes 
+#' specified columns, runs the ndaSuite, and creates an NDA template.
+#'
+#' @param measure A character string specifying the Qualtrics measure to process.
+#'
+#' @return This function does not return a value. It processes the measure and 
+#'   creates an NDA template as a side effect.
+#'
+#' @keywords internal
+processQualtricsMeasure <- function(measure) {
+  base::source("api/getSurvey.R")
+  cat("\nFetching", measure, "from Qualtrics...\n")
+  df <- getQualtrics(measure)
+  
+  # Remove specified columns
+  cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
+                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
+                      "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
+  df <- df[!names(df) %in% cols_to_remove]
+  
+  # Run ndaSuite
+  ndaSuite(measure, "qualtrics", df)
+  
+  # Get NDA prefix using switch
+  nda_prefix <- switch(measure,
+                       "cesd" = "ces_d,1",
+                       "demo" = "demographics,2",
+                       "duf" = "duf,1",
+                       "lec" = "lec,1",
+                       "pqb" = "pq,1",
+                       "pss" = "pss,1",
+                       measure)  # default case
+  
+  # Create NDA template
+  ndaTemplate(df, nda_prefix)
+}
+
+#' Process Task Measure
+#'
+#' This function processes a single task measure. It fetches the data, removes 
+#' specified columns, performs task-specific processing if needed, runs the ndaSuite, 
+#' and creates an NDA template.
+#'
+#' @param measure A character string specifying the task measure to process.
+#'
+#' @return This function does not return a value. It processes the measure and 
+#'   creates an NDA template as a side effect.
+#'
+#' @keywords internal
+processTaskMeasure <- function(measure) {
+  base::source("api/getTask.R")
+  cat("\nFetching", measure, "from tasks...\n")
+  df <- getTask(measure)
+  
+  # Remove specified columns
+  cols_to_remove <- c("stimulus", "key_press", "trial_index", "trial_type", "time_elapsed", 
+                      "internal_node_id", "test_part", "visit", "measure")
+  df <- df[!names(df) %in% cols_to_remove]
+  
+  # Task-specific processing (e.g., for eefrt)
+  if (measure == "eefrt") {
+    cols_to_include <- c("eefrt_01_condition", "eefrt_01_taps", "hard_reward_magnitude",
+                         "interview_age", "interview_date", "reward_hard", "index",
+                         "sex", "site", "src_subject_id", "subjectkey")
+    df <- df[, cols_to_include]
+    names(df)[names(df) == "hard_reward_magnitude"] <- "reward_sensitivity_beta"
+    names(df)[names(df) == "reward_hard"] <- "total_hard_choice"
   }
   
-  # source qualtrics cleaning scripts to obtain data frames
-  for (i in 1:length(data_list)) {
-    if (data_list[i] %in% qualtrics_list) {
-      # use getter
-     #assign(data_list[[i]], getSurvey(data_list[[i]])) # Create variable with the name from data_list[[i]]
-      df <- getSurvey(data_list[[i]])
-      cat("\n")
-      cat(paste("fetching", data_list[i], "..."))
-      cat("\n")
-      
-      # List of columns to remove
-      cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
-                          "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
-                          "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
-      
-      # Remove columns only if they exist in df
-      df <- df %>% select(-any_of(cols_to_remove))
-      
-      # unit testing
-      ndaSuite(data_list[i], "qualtrics", df)
-      # get NDA prefix
-      # script_path <- paste0("clean/qualtrics/", data_list[i], ".R")
-      # nda_prefix <- getNdaPrefix(script_path)
-      # Using switch to modify nda_prefix
-      nda_prefix <- switch(data_list[[i]],
-                           "cesd" = "ces_d,1",
-                           "demo" = "demographics,2",
-                           "duf" = "duf,1",
-                           "lec" = "lec,1",
-                           "pqb" = "pq,1",
-                           "pss" = "pss,1",
-                           data_list[[i]]  # default case to leave the value unchanged
-      )
-      # create NDA extract
-      ndaTemplate(df,nda_prefix)
-    }
-  }
+  # Rename 'index' to 'trial'
+  names(df)[names(df) == "index"] <- "trial"
   
-  # source task cleaning scripts to obtain data frames
-  for (i in 1:length(data_list)) {
-    if (data_list[i] %in% task_list) {
-      # use getter
-      df <- getTask(data_list[[i]])
-      cat("\n")
-      cat(paste("fetching", data_list[i], "..."))
-      cat("\n")
-      
-      # List of columns to remove
-      cols_to_remove <- c("stimulus","key_press","trial_index","trial_type","time_elapsed","internal_node_id","test_part","visit","measure")
-      
-      # Remove columns only if they exist in df
-      df <- df %>% select(-any_of(cols_to_remove))
-      
-      if (data_list[[i]] == "eefrt") {
-        
-        cols_to_include <- c("eefrt_01_condition", "eefrt_01_taps", "hard_reward_magnitude", 
-                          "interview_age", "interview_date", "reward_hard", "index",
-                          "sex", "site", "src_subject_id", "subjectkey")
-        
-        # Subset the dataframe to include only the specified columns
-        df <- select(df, all_of(cols_to_include))
-        
-        # Rename columns
-        # names(df)[names(df) == "old_name1"] <- "new_name1"
-        names(df)[names(df) == "hard_reward_magnitude"] <- "reward_sensitivity_beta"
-        names(df)[names(df) == "reward_hard"] <- "total_hard_choice"
-        
-      }
-      
-      # rename index to trial
-      names(df)[names(df) == "index"] <- "trial"
-      
-      
-    
-      
-      # unit testing
-      ndaSuite(data_list[i], "task", df)
-      # get NDA prefix
-      # script_path <- paste0("clean/task/", data_list[i], ".R")
-      # nda_prefix <- getNdaPrefix(script_path)
-      # Using switch to modify nda_prefix
-      nda_prefix <- switch(data_list[[i]],
-                           "eefrt" = "eefrt,1",
-                           "dd" = "deldisk,1",
-                           "ch" = "conhal,1",
-                           data_list[[i]]  # default case to leave the value unchanged
-      )
-      # create NDA extract
-      ndaTemplate(df,nda_prefix)
-    }
-  }
-
+  # Run ndaSuite
+  ndaSuite(measure, "task", df)
   
+  # Get NDA prefix using switch
+  nda_prefix <- switch(measure,
+                       "eefrt" = "eefrt,1",
+                       "dd" = "deldisk,1",
+                       "ch" = "conhal,1",
+                       measure)  # default case
+  
+  # Create NDA template
+  ndaTemplate(df, nda_prefix)
 }

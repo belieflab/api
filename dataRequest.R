@@ -9,29 +9,7 @@
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
 #' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
 #' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
-#' @param id Optional; String, accepts "numeric" or "character", converts src_subject_id to desired format.
-#' @return Prints the time taken for the data request process.
-#' @export
-#' @examples
-#' dataRequest("prl", csv=TRUE)
-#' dataRequest("rgpts", "kamin", rdata=TRUE)
-#' 
-#' #' @author Joshua Kenney <joshua.kenney@yale.edu>
-#' 
-#' 
-
-#' Data Request
-#'
-#' This function processes requests for clean data sequentially for specified measures.
-#' It makes a request to the appropriate API for the named measure or measures
-#' and runs the associated data cleaning routines. It then runs a series of
-#' unit tests to verify that the data quality standardata are met.
-#'
-#' @param ... Strings, specifying the measures to process, which can be a Mongo collection, REDCap instrument, or Qualtrics survey.
-#' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
-#' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
-#' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
-#' @param id Optional; String, accepts "numeric" or "character", converts src_subject_id to desired format.
+#' @param identifier Optional; String, accepts "numeric" or "character", converts src_subject_id to desired format.
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples

@@ -20,7 +20,7 @@ if (!require(config)) { install.packages("config") }; library(config)
 #' @examples
 #' results <- getTask("prl", "workerId", 1000)
 #' @export
-getTask <- function(collection_name, db_name = NULL, identifier = "src_subject_id", chunk_size = 10000) {
+getMongo <- function(collection_name, db_name = NULL, identifier = "src_subject_id", chunk_size = 10000) {
   start_time <- Sys.time()
   
   # # check to see if identifier is acceptable
@@ -223,4 +223,5 @@ getCollections <- function() {
   
 }
 
-# getMongo <- getTask
+#' Alias for 'getTask'
+getTask <- getMongo

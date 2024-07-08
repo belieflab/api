@@ -27,6 +27,9 @@ getQualtrics <- function(qualtrics_alias, identifier = "src_subject_id", label =
   show_loading_animation()
   
   df <- getData(qualtrics_alias, label)
+  if (is.null(df)) {
+    stop("Failed to fetch data from Qualtrics.")
+  }
   
   clean_df <- dataHarmonization(df, identifier, qualtrics_alias)
   
@@ -131,15 +134,18 @@ getData <- function(qualtrics_alias, label) {
     df <- qualtRics::fetch_survey(
       surveyID = toString(surveyIds[qualtrics_alias]),
       verbose = FALSE,
-      label = label, # both of these must be set to false to import numeric
-      convert = label, # both of these must be set to false to import numeric
+      label = label,
+      convert = label,
       force_request = TRUE,
-      add_column_map = TRUE # adds necessary context for dataDictionary()
+      add_column_map = TRUE
     )
+    if (!is.data.frame(df)) {
+      stop(paste("fetch_survey did not return a data frame for", qualtrics_alias))
+    }
     return(df)
   }, error = function(e) {
-    message("Error fetching data: ", e$message)
-    return(NULL)  # Return NULL in case of error
+    message("Error in getData: ", e$message)
+    return(NULL)
   })
 }
 
@@ -154,6 +160,9 @@ getData <- function(qualtrics_alias, label) {
 #' @importFrom dplyr mutate
 #' @noRd
 dataHarmonization <- function(df, identifier, qualtrics_alias) {
+  if (!is.data.frame(df)) {
+    stop("Input to dataHarmonization is not a data frame")
+  }
   
   # check for visit variable, if not add baseline
   if ("visit" %!in% colnames(df)) {
