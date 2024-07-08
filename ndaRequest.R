@@ -93,6 +93,7 @@ processQualtricsMeasure <- function(measure) {
   base::source("api/getSurvey.R")
   cat("\nFetching", measure, "from Qualtrics...\n")
   df <- getQualtrics(measure)
+  View(df)
   
   # Remove specified columns
   cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
