@@ -22,6 +22,8 @@
 #' @export
 ndaRequest <- function(...) {
   
+  if (!require("config")) {install.packages("config")}; library(config)
+  
   source("api/ndaSuite.R")
   
   # Ensure surveyIds and other necessary variables are loaded
@@ -97,7 +99,7 @@ processQualtricsMeasure <- function(measure) {
   
   # Remove specified columns
   cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
-                      "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
+                      "Finished", "RecordedDate", "DistributionChannel", 
                       "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
   df <- df[!names(df) %in% cols_to_remove]
   
@@ -116,6 +118,8 @@ processQualtricsMeasure <- function(measure) {
   
   # Create NDA template
   ndaTemplate(df, nda_prefix)
+  
+  return(df)
 }
 
 #' Process Task Measure
