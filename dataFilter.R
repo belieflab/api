@@ -54,35 +54,30 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
     }
     return(date)
   }
-  
   if ("interview_date" %in% names(df) && !is.null(interview_date)) {
     df$interview_date <- sapply(df$interview_date, parseAnyDate)
     input_date <- as.Date(parseAnyDate(interview_date))
-    df <- df %>% filter(interview_date <= input_date)
-    print("Filtered by interview_date dataframe head:")
-    print(head(df))
+    df <- df[df$interview_date <= input_date, ]
   }
   
   if ("state" %in% names(df) && !is.null(states) && length(states) > 0) {
-    df <- df %>% filter(state %in% states)
-    # print("Filtered by state dataframe head:")
-    # print(head(df))
+    df <- df[df$state %in% states, ]
   }
   
   if ("visit" %in% names(df) && !is.null(visit)) {
-    df <- df %>% filter(visit == visit)
+    df <- df[df$visit == visit, ]
   }
   
   if ("week" %in% names(df) && !is.null(week)) {
-    df <- df %>% filter(week == week)
+    df <- df[df$week == week, ]
   }
   
   if ("arm" %in% names(df) && !is.null(arm)) {
-    df <- df %>% filter(arm %in% arm)
+    df <- df[df$arm %in% arm, ]
   }
   
   if ("site" %in% names(df) && !is.null(site)) {
-    df <- df %>% filter(site %in% site)
+    df <- df[df$site %in% site, ]
   }
   
   if (!is.null(columns_of_interest) && length(columns_of_interest) > 0) {
