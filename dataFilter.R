@@ -17,6 +17,8 @@
 #' @param states Optional; a vector of state conditions to filter the dataframe by. Only used 
 #'        if 'state' column exists in the dataframe. Can include values like 'complete', 
 #'        'completed baseline', 'completed 12m', 'completed 24m', etc.
+#' @param sex Optional; a string of sex at birth 'M', 'F'
+#' @param phenotype Optional; a string of phenotype to drill down
 #' @param interview_date Optional; a string in MM/DD/YYYY format to lock data
 #'
 #' @return A filtered dataframe based on the provided 'visit', 'week', and 'state' parameters, 
@@ -33,6 +35,7 @@
 #' @export
 dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
                        visit = NULL, week = NULL, states = NULL, arm = NULL, site = NULL,
+                       sex = NULL, phenotype = NULL,
                        interview_date = NULL) {
   
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
@@ -78,6 +81,14 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   
   if ("site" %in% names(df) && !is.null(site)) {
     df <- df[df$site %in% site, ]
+  }
+  
+  if ("sex" %in% names(df) && !is.null(sex)) {
+    df <- df[df$sex %in% sex, ]
+  }
+  
+  if ("phenotype" %in% names(df) && !is.null(phenotype)) {
+    df <- df[df$phenotype %in% phenotype, ]
   }
   
   if (!is.null(columns_of_interest) && length(columns_of_interest) > 0) {
