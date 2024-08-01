@@ -60,9 +60,18 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
       stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one.\n")
     }
   }
-  
+
   # Compile data list and validate measures
   data_list <- list(...)
+  
+  #this is so the function doesn't break if user enters a variable storing a character vector 
+  #or a list of strings 
+  #in other words it let's you do this:
+  #vars_i_want <- c('demo','sps','sips_p')
+  #dataRequest(vars_i_want)
+  if (length(data_list) == 1){
+    data_list = data_list[[1]]
+  }
   validateMeasures(data_list)
   
   # Process each measure using processMeasure function

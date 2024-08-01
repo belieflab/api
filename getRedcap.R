@@ -122,10 +122,10 @@ getRedcap <- function(instrument_name) {
   # df <- filter(df, between(df$src_subject_id, 10000, 71110)) # between seems() to cause error
   # might be less flexible character to numeric
   # src_subject_id may download as character sometimes
-  df <- filter(df, src_subject_id > 10000, src_subject_id < 79110)
+  df <- dplyr::filter(df, src_subject_id > 10000, src_subject_id < 79110)
   # include guard clauses for mesaures that require aditional filtering beyond form name
   if (instrument_name == "scid_scoresheet") {
-    df %>% select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) # scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :)
+    df %>% dplyr::select(contains(c("src_subject_id", "redcap_event_name", "scid_", "scip_", "mdd_", "pdd_"))) # scid_p18a was misspelled in the dataframe, that is why there is a "scip" variable :)
   }
   df$src_subject_id <- as.character(df$src_subject_id)
 
@@ -140,11 +140,11 @@ getRedcap <- function(instrument_name) {
         ifelse(phenotype == 4, "ineligible",
         ifelse(phenotype == 5, "withdrawn",NA))))))) -> df
   
-  # remove withdrawn and ineligible participants
-  ### edited to ensure only invalid data being removed... not just missing
-  df %>% mutate(remove=ifelse(is.na(phenotype),0,
-                       ifelse(phenotype=="ineligible" | phenotype=="withdrawn",1,0))) %>% 
-    filter(remove==0) %>% select(-remove) -> df
+  # Remove rows where phenotype is NA
+  df <- df[!is.na(df$phenotype), ]
+  
+  # Remove rows where phenotype is 'ineligible' or 'withdrawn'
+  df <- df[!(df$phenotype %in% c("ineligible", "withdrawn")), ]
 
   # create a visit variable based on redcap_event_name
   ## not over-writing with rename(), so that redcap_event_name can do a "soft retire"
