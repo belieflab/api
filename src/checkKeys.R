@@ -24,7 +24,7 @@ checkKeys <- function(df_name, variables, type = "data") {
   tryCatch({
     if (length(missing_vars) > 0) {
       # Instead of stopping, just print the message about missing variables
-      message(paste("Missing variables in", type, "data of", df_name, ":", paste(missing_vars, collapse=", "), "."))
+      message(paste("Missing variables in", type, "data of", df_name, ":", paste(missing_vars, collapse=", "), ". Merging on present variables:", paste(present_vars, collapse=", "), "."))
     } else {
       # Only print this message if there are no missing variables
       message(paste("All required variables are present in ", type, " data of ", df_name, "."))
