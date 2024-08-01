@@ -75,6 +75,28 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
   # performCleanup()
   print(Sys.time() - start_time)  # Print time taken for processing
 }
+# 
+# processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
+#   # Construct the path to the measure's cleaning script
+#   file_path <- sprintf("./clean/%s/%s.R", source, measure)
+#   message("\nProcessing ", measure, " from ", source, "...")
+#   
+#   result <- tryCatch({
+#     base::source(file_path)  # Execute the cleaning script for the measure
+#     # Ensure testSuite is sourced and then called
+#     base::source("api/testSuite.R")
+#     testSuite(measure, source, file_path, super_key)  # Call testSuite with super_key
+#     df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
+#     
+#     # Assuming createExtract is a function to create data extracts
+#     createExtract(get(df_name), df_name, csv, rdata, spss)  # Create data extracts
+#   }, error = function(e) {
+#     message("Error with ", measure, ": ", e$message)
+#     NULL  # Return NULL on error
+#   })
+#   
+#   return(result)
+# }
 
 processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
   # Construct the path to the measure's cleaning script
@@ -85,17 +107,25 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
     base::source(file_path)  # Execute the cleaning script for the measure
     # Ensure testSuite is sourced and then called
     base::source("api/testSuite.R")
-    testSuite(measure, source, file_path, super_key)  # Call testSuite with super_key
+    
+    # Call testSuite with super_key
+    testSuite(measure, source, file_path, super_key)  
+    
     df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
     
     # Assuming createExtract is a function to create data extracts
     createExtract(get(df_name), df_name, csv, rdata, spss)  # Create data extracts
   }, error = function(e) {
-    message("Error with ", measure, ": ", e$message)
+    # Check if super_key is valid (you can modify this logic based on your criteria)
+    if (length(super_key) == 0 || all(is.na(super_key))) {
+      message("An error occurred: ", e$message)  # General error message
+    } else {
+      message("Error with ", measure, ": ", e$message)  # Specific error message
+    }
     NULL  # Return NULL on error
   })
   
-  return(result)
+  return(result)  # Return the result of the processing
 }
 
 
