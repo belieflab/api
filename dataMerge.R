@@ -57,17 +57,6 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   if (length(data_list) == 1){
     data_list = data_list[[1]]
   }
- # browser()
-  #if (length(args) == 1 && is.list(args[[1]]) && all(sapply(args[[1]], is.data.frame))) {
-  #  message("Vector of data frames")
-  #  stop()
-  #} else if (all(sapply(args, is.data.frame))) {
-  #  message("Comma-separated data frames")
-  #  stop()
-  #} else {
-  #  message("Other")
-  #  stop()
-  #}
   
   # Preprocess data frames: Remove specified columns and ungroup
   data_list <- lapply(data_list, function(df) {
