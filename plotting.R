@@ -85,8 +85,10 @@ createBarPlot <- function(df, outcome, arm = NULL) {
   return(plot)
 }
 
-createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL) {
-  
+
+
+createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL, group = "all") {
+
   # Create proper labels if not provided
   if (is.null(x_label)) x_label <- gsub("_", " ", x_var)
   if (is.null(y_label)) y_label <- gsub("_", " ", y_var)
@@ -100,8 +102,11 @@ createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL
   # Format correlation and p-value
   cor_label <- sprintf("r = %.2f, p = %.3f", r, p)
   
+  # Create group label
+  group_label <- if (group == "all") "Music (All Groups)" else paste0("Music (", group, ")")
+  
   # Create the plot
-  scatter_plot <- ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]])) +
+  scatterplot <- ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]])) +
     geom_point(color = 'royalblue4') +
     theme_minimal() +
     theme(panel.grid.major = element_blank(),
@@ -109,23 +114,25 @@ createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL
           axis.line.x.bottom = element_line(linewidth = .6),
           axis.line.y.left = element_line(linewidth = .6),
           axis.title.x = element_text(size = 20, face = "bold"),
-          axis.title.y = element_text(size = 20, face = "bold")) +
+          axis.title.y = element_text(size = 20, face = "bold"),
+          plot.title = element_text(size = 22, face = "bold", hjust = 0.5)) +
     geom_smooth(method = 'lm', formula = y ~ x, color = "black") +
-    labs(x = paste0("∆ ", x_label), y = paste0("∆ ", y_label))
+    labs(x = paste0("∆ ", x_label),
+         y = paste0("∆ ", y_label),
+         title = group_label)
   
   # Add correlation information to the plot
-  scatter_plot <- scatter_plot + annotate("text", x = min(data[[x_var]]), y = max(data[[y_var]]),
-                                          label = cor_label, hjust = 0, vjust = 1)
+  scatterplot <- scatterplot + annotate("text", x = min(data[[x_var]]), y = max(data[[y_var]]),
+                    label = cor_label, hjust = 0, vjust = 1)
   
   # Add sample size to the plot
-  scatter_plot <- scatter_plot + annotate("text", x = max(data[[x_var]]), y = min(data[[y_var]]),
-                                          label = paste("n =", n), hjust = 1, vjust = 0)
+  scatterplot <- scatterplot + annotate("text", x = max(data[[x_var]]), y = min(data[[y_var]]),
+                    label = paste("n =", n), hjust = 1, vjust = 0)
   
   # Save the plot
-  plot_name <- paste0("plots/correlations/", x_var, "_vs_", y_var, "_scatter.png")
-  ggsave(plot_name, plot = scatter_plot, width = 10, height = 8, dpi = 300)
+  plot_name <- paste0("plots/correlations/", x_var, "_vs_", y_var, "_", group, "_scatter.png")
+  ggsave(plot_name, plot = scatterplot, width = 10, height = 8, dpi = 300)
   
   # Return the plot object
-  return(scatter_plot)
+  return(scatterplot)
 }
-
