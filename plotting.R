@@ -103,7 +103,7 @@ createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL
   cor_label <- sprintf("r = %.2f, p = %.3f", r, p)
   
   # Create group label
-  group_label <- if (group == "all") "Music (All Groups)" else paste0("Music (", group, ")")
+  group_label <- if (group == "all") "Music (All Groups)" else paste0("Arm: ", group)
   
   # Create the plot
   scatterplot <- ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]])) +
