@@ -5,6 +5,9 @@
 #   into individual dataframes for each survey including only the correct
 #   identifier: participantId, workerId, PROLIFIC_PID, or src_subject_id (default in getSurvey())
 
+
+
+
 dataParse <- function(qualtrics_alias){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
@@ -22,18 +25,27 @@ dataParse <- function(qualtrics_alias){
     stop("No valid identifiers found in the dataframe.")
   }
   
-  # Find the first identifier with no NA values
+  # Print existing identifiers for debugging
+  print("Existing identifiers:")
+  print(existing_keys)
+  
+  # Find the first identifier with non-NA values
   identifier <- NA
   for (key in existing_keys) {
-    if (all(!is.na(df[[key]]))) {
+    non_na_count <- sum(!is.na(df[[key]]))
+    
+    # Debug print to check how many non-NA values exist in each column
+    print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
+    
+    if (non_na_count > 0) {  # As long as there's at least 1 non-NA value
       identifier <- key
       break
     }
   }
   
-  # If no column is completely free of NA values, issue a warning or stop
+  # If no column has any non-NA values, issue a warning or stop
   if (is.na(identifier)) {
-    stop("No identifier found without NA values.")
+    stop("No identifier found with non-NA values.")
   }
   
   # Print the detected identifier for debugging
@@ -42,7 +54,6 @@ dataParse <- function(qualtrics_alias){
   # Exclude non-survey and specific columns
   non_survey_columns <- c(existing_keys, "interview_date", "PROLIFIC_PID")
   survey_columns <- names(df)[!names(df) %in% non_survey_columns & grepl("_", names(df))]
-  # print(survey_columns)
   
   # Extract unique survey prefixes from survey-specific column names
   extract_first_part <- function(string) {
@@ -54,10 +65,6 @@ dataParse <- function(qualtrics_alias){
   # Exclude prefixes that might still be problematic
   excluded_prefixes <- c("PROLIFIC", "interview")
   survey_prefixes <- survey_prefixes[!survey_prefixes %in% excluded_prefixes]
-  
-  # Print detected survey prefixes for debugging
-  # print("Detected survey prefixes:")
-  # print(survey_prefixes)
   
   # Create a list of dataframes, one for each survey
   output = list()
@@ -71,59 +78,7 @@ dataParse <- function(qualtrics_alias){
   
   names(output) <- survey_prefixes
   
-  # return(output)
-  return(list2env(output,globalenv()))
+  return(list2env(output, globalenv()))
 }
-
-
-
-# dat <- dataParse("prl_pilot")
-
-### mkp dynamic identifier selection
-# getSurvey will get the correct identifier in the df
-# dataParse <- function(qualtrics_alias){
-#   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
-#   
-#   source("api/getSurvey.R")  # Load the getSurvey function
-#   
-#   # Get the survey data, assuming the identifier is properly included and handled in getSurvey
-#   df <- getSurvey(qualtrics_alias)
-#   
-#   # Define necessary columns including 'interview_date' and 'CompletionCode'
-#   required_keys <- c("interview_date", "CompletionCode")
-#   
-#   # Assuming getSurvey includes the identifier, detect it dynamically
-#   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")
-#   # Find the first super key that is actually present in the dataframe
-#   identifier <- names(df)[names(df) %in% super_keys][1]
-#   
-#   # Include these keys plus the dynamically determined identifier in the subset operations
-#   candidate_keys <- c(identifier, required_keys)
-#   
-#   # Ensure these keys exist in the dataframe before proceeding
-#   existing_keys <- intersect(candidate_keys, colnames(df))
-#   
-#   # Extract prefixes before the first occurrence of "_"
-#   extract_first_part <- function(string) {
-#     parts <- strsplit(string, "_")[[1]]
-#     return(parts[1])
-#   }
-#   survey_prefixes <- unique(sapply(names(df)[grepl("_", names(df))], extract_first_part))
-#   
-#   # Creating subsets of the dataframe based on these prefixes
-#   output <- list()
-#   for (prefix in survey_prefixes) {
-#     survey_columns <- grep(paste0("^", prefix, "_"), names(df), value = TRUE)
-#     if (length(survey_columns) > 0) {
-#       subset_df <- df %>%
-#         select(all_of(existing_keys), all_of(survey_columns))
-#       output[[prefix]] <- subset_df
-#     }
-#   }
-#   
-#   names(output) <- survey_prefixes  # Name the list elements based on prefixes
-#   
-#   return(output)
-# }
 
 
