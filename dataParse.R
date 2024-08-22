@@ -16,7 +16,7 @@ dataParse <- function(qualtrics_alias){
   
   # Filter to keep only existing keys in the dataframe
   existing_keys <- super_keys[super_keys %in% names(df)]
-  
+
   # Check if any identifiers exist in the dataframe
   if (length(existing_keys) == 0) {
     stop("No valid identifiers found in the dataframe.")
@@ -33,7 +33,7 @@ dataParse <- function(qualtrics_alias){
   
   # If no column is completely free of NA values, issue a warning or stop
   if (is.na(identifier)) {
-    stop("No identifier found without NA values.")
+    stop(paste("No identifier found without NA values or multiple identifiers exist:", existing_keys))
   }
   
   # Print the detected identifier for debugging
