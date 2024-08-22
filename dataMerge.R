@@ -44,6 +44,20 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   data_list <- list(...)
   
+  #if one inputs a list of dataframes then we need to unpack the list using the
+  #following code. For example you can now do this:
+  #create a list of dfs to merge
+  #  dfs_to_merge = NULL
+  #  for (name in variables_to_merge){
+  #      dfs_to_merge[[name]]<-base::get(name)
+  #      }
+  #then input that list into dataMerge
+  #  merged_df<-dataMerge(dfs_to_merge)
+  
+  if (length(data_list) == 1){
+    data_list = data_list[[1]]
+  }
+  
   # Preprocess data frames: Remove specified columns and ungroup
   data_list <- lapply(data_list, function(df) {
     # Remove 'interview_date' and 'interview_age' columns
