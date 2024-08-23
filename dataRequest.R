@@ -43,10 +43,11 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
   config <- config::get()  # Assuming 'config' library is loaded or handled elsewhere
   super_key <- if (config$study_alias == "capr") {
     c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
+  } else if (config$study_alias == "sing") {
+    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
   } else {
-    super_key <- c(config$super_key)
-      } 
-  
+    c(config$super_key)
+  }
   start_time <- Sys.time()
   
   # Source necessary R scripts from the 'api' directory
