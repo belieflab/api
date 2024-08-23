@@ -44,8 +44,8 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
   super_key <- if (config$study_alias == "capr") {
     c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
   } else {
-    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
-  }
+    super_key <- c(config$super_key)
+      } 
   
   start_time <- Sys.time()
   
@@ -55,12 +55,26 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
   
   # Validate Measures Function
   validateMeasures <- function(data_list) {
+    # Check if input is a dataframe
+    if (is.data.frame(data_list)) {
+      # Get the name of the dataframe as a string
+      data_list <- deparse(substitute(data_list))
+    }
+    
+    # Ensure data_list is a character vector (in case it's a single string)
+    if (!is.character(data_list)) {
+      data_list <- as.character(data_list)
+    }
+    
+    # Validate measures against predefined lists
     invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, task_list), data_list)
+    
     if (length(invalid_list) > 0) {
-      stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one.\n")
+      stop(paste(invalid_list, collapse = ", "), " does not have a cleaning script, please create one.\n")
     }
   }
-
+  
+  
   # Compile data list and validate measures
   data_list <- list(...)
   
@@ -108,15 +122,25 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
 # }
 
 processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
+  # Check if input is a dataframe
+  if (is.data.frame(measure)) {
+    # Get the name of the dataframe as a string
+    measure <- deparse(substitute(measure))
+  }
+  
+  # Ensure data_list is a character vector (in case it's a single string)
+  if (!is.character(measure)) {
+    measure <- as.character(measure)
+  }
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
-  
+
   result <- tryCatch({
     base::source(file_path)  # Execute the cleaning script for the measure
     # Ensure testSuite is sourced and then called
     base::source("api/testSuite.R")
-    
+
     # Call testSuite with super_key
     testSuite(measure, source, file_path, super_key)  
     
