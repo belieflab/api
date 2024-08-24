@@ -8,11 +8,11 @@
 
 
 
-dataParse <- function(qualtrics_alias){
+dataParse <- function(qualtrics_alias, label){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
   source("api/getSurvey.R")
-  df <- getSurvey(qualtrics_alias)
+  df <- getSurvey(qualtrics_alias, label = label)
   
   # Define potential identifiers
   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")

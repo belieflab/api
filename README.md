@@ -79,6 +79,7 @@ surveyIds[[ "survey_alias" ]]  <- "SV_"
 `getQualtrics.R`
 
 uses the **qualtRics** API library to create data frames directly from Qualtrics
+set argument label to TRUE if you want choice values. set to false if you want numeric values.
 
 `getRedcap.R`
 
