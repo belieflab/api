@@ -20,17 +20,22 @@ if (!require(config)) { install.packages("config") }; library(config)
 #' @examples
 #' results <- getTask("prl", "workerId", 1000)
 #' @export
-getMongo <- function(collection_name, db_name = NULL, identifier = "src_subject_id", chunk_size = 10000) {
+getMongo <- function(collection_name, db_name = NULL, chunk_size = 10000) {
   start_time <- Sys.time()
   
-  # # check to see if identifier is acceptable
-  # accepted_identifiers <- c("src_subject_id", "workerId", "PROLIFIC_PID", "participantId, rat_id")
-  # 
-  # # if identifer supplied by parameter is in the list of accepted identifiers, continue
-  # # guard clause
-  # if (identifier %!in% accepted_identifiers) {
-  #   stop(paste0(identifier, " is not an approved identifier."))
-  # }
+  # List of accepted identifiers
+  accepted_identifiers <- c("src_subject_id", "workerId", "PROLIFIC_PID", "participantId", "rat_id")
+  
+  # Find the first matching identifier in the column names of the dataframe
+  identifier_match <- intersect(accepted_identifiers, colnames(dataframe))
+  
+  # Guard clause: if no match is found, stop the function and return an error
+  if (length(identifier_match) == 0) {
+    stop("No approved identifier found in the dataframe.")
+  }
+  
+  # If a match is found, assign it to the identifier variable
+  identifier <- identifier_match[1]
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   Mongo <- Connect(collection_name, db_name)
@@ -139,7 +144,7 @@ Connect <- function(collection_name, db_name) {
 #' @examples
 #' df <- getData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
 #' @export
-getData <- function(Mongo, identifier = "src_subject_id", batch_info) {
+getData <- function(Mongo, identifier, batch_info) {
   query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
   
   result <- tryCatch({

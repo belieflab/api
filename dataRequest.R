@@ -143,7 +143,7 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
     base::source("api/testSuite.R")
 
     # Call testSuite with super_key
-    testSuite(measure, source, file_path, super_key)  
+    testSuite(measure, source, file_path, super_key)
     
     df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
     
