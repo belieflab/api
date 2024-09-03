@@ -27,7 +27,9 @@ createSpss <- function(df, df_name = NULL) {
   } else {
     deparse(substitute(df))
   }
-  
+  if (!dir.exists("tmp")) {
+    dir.create("tmp")
+  }
   # Construct the file path
   path <- paste0("./tmp/", filename, '.sav')
   

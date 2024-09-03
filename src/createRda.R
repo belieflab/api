@@ -26,7 +26,9 @@ createRda <- function(df, df_name = NULL) {
   } else {
     deparse(substitute(df))
   }
-  
+  if (!dir.exists("tmp")) {
+    dir.create("tmp")
+  }
   path <- paste0("./tmp/", filename, '.Rds')
   
   saveRDS(df, file = path)
