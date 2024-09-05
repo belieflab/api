@@ -11,13 +11,26 @@
 #' @export
 #' @examples
 #' survey_data <- getSurvey("rgpts")
-getQualtrics <- function(qualtrics_alias, identifier = "src_subject_id", label = FALSE) {
+getQualtrics <- function(qualtrics_alias, label = FALSE) {
   # Load required packages
   if (!require(config)) {install.packages("config"); library(config)}
   if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
   if (!require(dplyr)) {install.packages("dplyr"); library(dplyr)}
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  
+  config <- config::get()
+  
+  # Get super_keys from config
+  super_keys <- config$super_keys
+  if (is.null(super_keys) || super_keys == "") {
+    stop("No super_keys specified in the config file.")
+  }
+  
+  # Split super_keys if it's a comma-separated string
+  if (is.character(super_keys)) {
+    super_keys <- strsplit(super_keys, ",")[[1]]
+  }
   
   message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
   
@@ -31,11 +44,26 @@ getQualtrics <- function(qualtrics_alias, identifier = "src_subject_id", label =
     stop("Failed to fetch data from Qualtrics.")
   }
   
+  # Find the first valid identifier from super_keys
+  identifier <- NA
+  for (key in super_keys) {
+    key <- trimws(key)  # Remove any leading/trailing whitespace
+    if (key %in% names(df)) {
+      identifier <- key
+      break
+    }
+  }
+  
+  if (is.na(identifier)) {
+    stop("No valid identifier found in the Qualtrics data based on super_keys from config.")
+  }
+  
+  message(sprintf("Using identifier: %s", identifier))
+  
   clean_df <- dataHarmonization(df, identifier, qualtrics_alias)
   
   return(clean_df)
 }
-
 ### mkp dynamic identifier selection
 # # dynamically selects identifier from df; if none found, default is src_subject_id
 # getQualtrics <- function(qualtrics_alias, label = FALSE) {

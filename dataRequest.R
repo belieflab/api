@@ -21,33 +21,31 @@
 #' 
 
 
-dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifier = NULL) {
-  if (is.null(identifier)) {
-    identifier = "src_subject_id"
-  } else {
-    identifier = identifier
-  }
-  
+dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   base::source("api/testSuite.R")
   
   # Required Libraries Setup
   if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
+  if (!require("config")) {install.packages("config")}; library(config)
   
   # Prepare lists for REDCap, Qualtrics, and tasks
   redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
   qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
   task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
   
-  # Determine `super_key` based on configuration
-  config <- config::get()  # Assuming 'config' library is loaded or handled elsewhere
-  super_key <- if (config$study_alias == "capr") {
-    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm")
-  } else if (config$study_alias == "sing") {
-    c("src_subject_id", "subjectkey", "phenotype", "visit", "week", "sex", "site", "arm", "state", "PROLIFIC_PID", "participantId", "workerId", "rat_id")
-  } else {
-    c(config$super_key)
+  # Get super_keys from config
+  config <- config::get()
+  super_keys <- config$super_keys
+  if (is.null(super_keys) || super_keys == "") {
+    stop("No super_keys specified in the config file.")
   }
+  
+  # Split super_keys if it's a comma-separated string
+  if (is.character(super_keys)) {
+    super_keys <- strsplit(super_keys, ",")[[1]]
+  }
+  
   start_time <- Sys.time()
   
   # Source necessary R scripts from the 'api' directory
@@ -75,7 +73,6 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
     }
   }
   
-  
   # Compile data list and validate measures
   data_list <- list(...)
   
@@ -92,37 +89,15 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, identifie
   # Process each measure using processMeasure function
   for (measure in data_list) {
     sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "task"))
-    processMeasure(measure, sourceCategory, csv, rdata, spss, super_key)
+    processMeasure(measure, sourceCategory, csv, rdata, spss, super_keys)
   }
   
   # Clean up and record processing time
   # performCleanup()
   print(Sys.time() - start_time)  # Print time taken for processing
 }
-# 
-# processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
-#   # Construct the path to the measure's cleaning script
-#   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-#   message("\nProcessing ", measure, " from ", source, "...")
-#   
-#   result <- tryCatch({
-#     base::source(file_path)  # Execute the cleaning script for the measure
-#     # Ensure testSuite is sourced and then called
-#     base::source("api/testSuite.R")
-#     testSuite(measure, source, file_path, super_key)  # Call testSuite with super_key
-#     df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
-#     
-#     # Assuming createExtract is a function to create data extracts
-#     createExtract(get(df_name), df_name, csv, rdata, spss)  # Create data extracts
-#   }, error = function(e) {
-#     message("Error with ", measure, ": ", e$message)
-#     NULL  # Return NULL on error
-#   })
-#   
-#   return(result)
-# }
 
-processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
+processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   # Check if input is a dataframe
   if (is.data.frame(measure)) {
     # Get the name of the dataframe as a string
@@ -136,22 +111,20 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
   message("\nProcessing ", measure, " from ", source, "...")
-
   result <- tryCatch({
     base::source(file_path)  # Execute the cleaning script for the measure
     # Ensure testSuite is sourced and then called
     base::source("api/testSuite.R")
-
-    # Call testSuite with super_key
-    testSuite(measure, source, file_path, super_key)
+    # Call testSuite with super_keys
+    testSuite(measure, source, file_path, super_keys)
     
     df_name <- paste0(measure, "_clean")  # Construct the name of the cleaned data frame
     
     # Assuming createExtract is a function to create data extracts
     createExtract(get(df_name), df_name, csv, rdata, spss)  # Create data extracts
   }, error = function(e) {
-    # Check if super_key is valid (you can modify this logic based on your criteria)
-    if (length(super_key) == 0 || all(is.na(super_key))) {
+    # Check if super_keys is valid (you can modify this logic based on your criteria)
+    if (length(super_keys) == 0 || all(is.na(super_keys))) {
       message("An error occurred: ", e$message)  # General error message
     } else {
       message("Error with ", measure, ": ", e$message)  # Specific error message
@@ -161,10 +134,6 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_key) {
   
   return(result)  # Return the result of the processing
 }
-
-
-
-
 
 
 
