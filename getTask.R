@@ -13,6 +13,7 @@ if (!require(config)) { install.packages("config") }; library(config)
 #'
 #' @param collection_name The name of the MongoDB collection.
 #' @param db_name The name of the MongoDB database. Default is config$study_alias from config.yml.
+#' @param identifier If you want to specify identifiers explicitly at the getTask level instead of config.yml.
 #' @param chunk_size The number of records to fetch in each parallel batch.
 #' @param identifier Field to filter documents by existence and non-emptiness. 
 #'        Defaults to "src_subject_id".
@@ -99,22 +100,22 @@ if (!require(config)) { install.packages("config") }; library(config)
 # 
 # 
 
-getMongo <- function(collection_name, db_name = NULL, chunk_size = 10000) {
+getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = 10000) {
   start_time <- Sys.time()
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   config <- config::get()
   if (is.null(db_name)) {
-    db_name = config$study_alias
+    db_name <- config$study_alias
   }
   
   # Get super_keys from config
   super_keys <- config$super_keys
-  if (is.null(super_keys) || super_keys == "") {
+  if (is.null(super_keys) || any(super_keys == "")) {
     stop("No super_keys specified in the config file.")
   }
   
-  # Split super_keys if it's a comma-separated string
+  # Split super_keys if it's a comma-separated string (15/10/2024, CHECK THIS, IT MAY BE REMOVED)
   if (is.character(super_keys)) {
     super_keys <- strsplit(super_keys, ",")[[1]]
   }
@@ -122,13 +123,14 @@ getMongo <- function(collection_name, db_name = NULL, chunk_size = 10000) {
   Mongo <- Connect(collection_name, db_name)
   
   # Find the first valid identifier from super_keys
-  identifier <- NA
-  for (key in super_keys) {
-    key <- trimws(key)  # Remove any leading/trailing whitespace
-    count <- Mongo$count(sprintf('{"%s": {"$exists": true, "$ne": ""}}', key))
-    if (count > 0) {
-      identifier <- key
-      break
+  if (is.null(identifier)) {
+    for (key in super_keys) {
+      key <- trimws(key)  # Remove any leading/trailing whitespace
+      count <- Mongo$count(sprintf('{"%s": {"$exists": true, "$ne": ""}}', key))
+      if (count > 0) {
+        identifier <- key
+        break
+      }
     }
   }
   
