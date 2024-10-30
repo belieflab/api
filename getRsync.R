@@ -1,10 +1,31 @@
-getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfile = "~/.ssh/id_rsa") {
+getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfile = file.path(Sys.getenv("USERPROFILE"), ".ssh", "id_rsa")) {
   base::source("secrets.R")
+  
+  # Normalize the local directory path for Windows compatibility
+  local_dir <- normalize_rsync_path(local_dir)
+  
   # Create a unique subdirectory in the local_dir to avoid conflicts
   local_path <- file.path(local_dir, basename(tempfile()))
   dir.create(local_path, recursive = TRUE)
   
-  command <- sprintf("rsync -avz -e 'ssh -i %s' %s@%s:'%s' '%s'", keyfile, username, server, remote_path, local_path)
+  # Normalize local_path and keyfile paths for Windows
+  local_path <- normalize_rsync_path(local_path)
+  keyfile <- normalize_rsync_path(keyfile)
+  
+  # Convert local_path for cygwin-style path if on Windows
+   if (.Platform$OS.type == "windows") {
+    local_path <- gsub("^([A-Za-z]):", "/cygdrive/\\L\\1", local_path, perl = TRUE)
+   }
+  
+  # Remove 'localhost:' prefix, it's not needed
+  # Adjust command construction for Windows
+  if (.Platform$OS.type == "windows") {
+    command <- sprintf('rsync -avz -e "ssh -i %s" %s@%s:"%s" "%s"',
+                       keyfile, username, server, remote_path, local_path)
+  } else {
+    command <- sprintf("rsync -avz -e 'ssh -i %s' %s@%s:'%s' '%s'",
+                       keyfile, username, server, remote_path, local_path)
+  }
   
   cat("Executing command:", command, "\n")
   
@@ -18,15 +39,12 @@ getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfi
   
   # Check if the remote_path was a file or directory
   if (file.info(file.path(local_path, basename(remote_path)))$isdir) {
-    # It's a directory, so we'll process all files within it
     files <- list.files(file.path(local_path, basename(remote_path)), pattern = "\\.(txt|csv|log)$", full.names = TRUE, recursive = TRUE)
     
-    # Separate CSV files from other files
     csv_files <- files[grepl("\\.csv$", files, ignore.case = TRUE)]
     other_files <- files[!grepl("\\.csv$", files, ignore.case = TRUE)]
     
     if (length(csv_files) > 0) {
-      # Process CSV files
       csv_list <- lapply(csv_files, function(file) {
         tryCatch({
           read.csv(file, stringsAsFactors = FALSE)
@@ -38,17 +56,11 @@ getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfi
       })
       csv_list <- Filter(Negate(is.null), csv_list)
       
-      if (length(csv_list) > 0) {
-        # Combine all CSV files into a single dataframe
-        combined_csv <- do.call(rbind, csv_list)
-      } else {
-        combined_csv <- NULL
-      }
+      combined_csv <- if (length(csv_list) > 0) do.call(rbind, csv_list) else NULL
     } else {
       combined_csv <- NULL
     }
     
-    # Process other files
     other_result <- lapply(other_files, function(file) {
       tryCatch({
         readLines(file)
@@ -61,7 +73,6 @@ getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfi
     other_result <- Filter(Negate(is.null), other_result)
     other_result <- unlist(other_result)
     
-    # Return results
     if (!is.null(combined_csv) && length(other_result) > 0) {
       return(list(csv_data = combined_csv, other_data = other_result))
     } else if (!is.null(combined_csv)) {
@@ -73,7 +84,6 @@ getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfi
       return(NULL)
     }
   } else {
-    # It's a single file
     file_path <- file.path(local_path, basename(remote_path))
     if (!file.exists(file_path)) {
       cat("Error: Local file was not created. The remote file may not exist or you may not have permission to access it.\n")
@@ -92,4 +102,9 @@ getRsync <- function(server, username, remote_path, local_dir = tempdir(), keyfi
       return(NULL)
     })
   }
+}
+
+normalize_rsync_path <- function(path) {
+  # Use normalizePath with winslash = "/" to convert backslashes to slashes
+  return(normalizePath(path, winslash = "/", mustWork = FALSE))
 }
