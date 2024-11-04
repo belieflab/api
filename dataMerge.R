@@ -73,9 +73,9 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
     by <- by
     message("Using user-specified keys for merge: ", toString(by))
   }
-  
   # Perform the merging process
-  dfs <- Reduce(function(x, y) base::merge(x, y, by = by, all = all, no.dups = no.dups), data_list)
+  dfs <- Reduce(function(x, y) base::merge(x, y, by = by,
+                                            all = all, no.dups = no.dups), data_list)
   
   # Export merged data if requested
   if (csv) { createCsv(dfs, "merged_dfs.csv") }
