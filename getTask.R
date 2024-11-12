@@ -5,11 +5,80 @@ if (!require(future)) { install.packages("future") }; library(future)
 if (!require(future.apply)) { install.packages("future.apply") }; library(future.apply)
 if (!require(config)) { install.packages("config") }; library(config)
 
+#' Cross-platform memory check function
+#' @return Available memory in GB or NULL if unable to determine
+getAvailableMemory <- function() {
+  tryCatch({
+    if (.Platform$OS.type == "windows") {
+      # Windows
+      mem <- memory.limit()
+      if (!is.null(mem) && !is.na(mem) && mem > 0) {
+        return(mem)
+      }
+    } else if (Sys.info()["sysname"] == "Darwin") {
+      # macOS
+      mem_info <- system("sysctl hw.memsize", intern = TRUE)
+      if (length(mem_info) > 0) {
+        total_mem <- as.numeric(strsplit(mem_info, " ")[[1]][2])
+        return(total_mem / (1024^3)) # Convert to GB
+      }
+    } else {
+      # Linux
+      if (file.exists("/proc/meminfo")) {
+        mem_info <- readLines("/proc/meminfo")
+        mem_free <- grep("MemAvailable:", mem_info, value = TRUE)
+        if (length(mem_free) > 0) {
+          mem_kb <- as.numeric(strsplit(mem_free, "\\s+")[[1]][2])
+          return(mem_kb / (1024^2)) # Convert KB to GB
+        }
+      }
+    }
+  }, error = function(e) {
+    warning("Unable to determine available memory", immediate. = TRUE)
+    return(NULL)
+  })
+  return(NULL)
+}
+
+#' Memory check and chunk size adjustment
+#' @param chunk_size Current chunk size
+#' @return Adjusted chunk size and warning message if needed
+adjustChunkSize <- function(chunk_size) {
+  # Default to conservative chunk size if memory check fails
+  default_chunk_size <- 5000
+  
+  tryCatch({
+    available_mem <- getAvailableMemory()
+    
+    # If we got a valid memory reading
+    if (!is.null(available_mem) && !is.na(available_mem) && available_mem > 0) {
+      if (available_mem < 4) {
+        new_chunk_size <- min(default_chunk_size, chunk_size)
+        message(sprintf("Limited memory detected (%.1f GB). Reducing chunk size to %d", 
+                        available_mem, new_chunk_size))
+        return(new_chunk_size)
+      }
+    } else {
+      # If memory check failed, use conservative chunk size
+      new_chunk_size <- min(default_chunk_size, chunk_size)
+      message("Unable to determine memory. Using conservative chunk size: ", new_chunk_size)
+      return(new_chunk_size)
+    }
+  }, error = function(e) {
+    # If any error occurs, use conservative chunk size
+    message("Memory check failed. Using conservative chunk size: ", default_chunk_size)
+    return(default_chunk_size)
+  })
+  
+  # If all checks pass, return original chunk size
+  return(chunk_size)
+}
+
 #' Main Parallel Data Retrieval Function
 #'
 #' This function orchestrates the parallel retrieval of collections from MongoDB
 #' It computes the total records based on a query, divides the work into chunks, 
-#' and uses parallel processing to fetch the data.
+#' and uses parallel processing to fetch the data. With cross-platform memory check.
 #'
 #' @param collection_name The name of the MongoDB collection.
 #' @param db_name The name of the MongoDB database. Default is config$study_alias from config.yml.
@@ -57,15 +126,21 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   
   message(sprintf("Using identifier: %s", identifier))
   
-  # Optimize chunk size based on available memory
-  available_memory <- memory.limit()
-  if (available_memory < 4000) { # Less than 4GB
+  # Cross-platform memory check
+  available_mem <- getAvailableMemory()
+  if (!is.null(available_mem) && available_mem < 4) {
     chunk_size <- min(5000, chunk_size)
-    message(sprintf("Limited memory detected. Reducing chunk size to %d", chunk_size))
+    message(sprintf("Limited memory detected (%.1f GB). Reducing chunk size to %d", 
+                    available_mem, chunk_size))
   }
   
-  # Stream data using the new function
-  message("Starting data streaming...")
+  # Get total record count and display original style message
+  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
+  total_records <- Mongo$count(query_json)
+  message(sprintf("Importing %d records from %s/%s. Simplifying into dataframe...", 
+                  total_records, db_name, collection_name))
+  
+  # Stream data
   df <- streamMongoData(Mongo, identifier, chunk_size)
   
   # Harmonize the data
@@ -119,7 +194,7 @@ streamMongoData <- function(Mongo, identifier, chunk_size = 10000, max_retries =
   all_chunks <- vector("list", num_chunks)
   failed_chunks <- list()
   
-  # Simple progress tracking
+  # Progress bar setup
   pb <- txtProgressBar(min = 0, max = num_chunks, style = 3)
   
   # Process chunks with retry logic
@@ -180,6 +255,73 @@ streamMongoData <- function(Mongo, identifier, chunk_size = 10000, max_retries =
   }
   
   return(combined_df)
+}
+
+#' Improved getMongo function with better error handling
+#' @export
+getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = 10000) {
+  start_time <- Sys.time()
+  
+  # Source dependencies and configuration
+  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  config <- config::get()
+  if (is.null(db_name)) {
+    db_name <- config$study_alias
+  }
+  
+  # Validate and get identifier
+  super_keys <- config$super_keys
+  if (is.null(super_keys) || any(super_keys == "")) {
+    stop("No super_keys specified in the config file.")
+  }
+  
+  # Initialize MongoDB connection
+  Mongo <- Connect(collection_name, db_name)
+  
+  # Find valid identifier if not provided
+  if (is.null(identifier)) {
+    for (key in trimws(strsplit(super_keys, ",")[[1]])) {
+      count <- Mongo$count(sprintf('{"%s": {"$exists": true, "$ne": ""}}', key))
+      if (count > 0) {
+        identifier <- key
+        break
+      }
+    }
+  }
+  
+  if (is.null(identifier)) {
+    stop("No valid identifier found in the collection.")
+  }
+  
+  message(sprintf("Using identifier: %s", identifier))
+  
+  # Cross-platform memory check
+  available_mem <- getAvailableMemory()
+  if (!is.null(available_mem) && available_mem < 4) {
+    chunk_size <- min(5000, chunk_size)
+    message(sprintf("Limited memory detected (%.1f GB). Reducing chunk size to %d", 
+                    available_mem, chunk_size))
+  }
+  
+  # Get total record count and display original style message
+  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
+  total_records <- Mongo$count(query_json)
+  message(sprintf("Importing %d records from %s/%s. Simplifying into dataframe...", 
+                  total_records, db_name, collection_name))
+  
+  # Stream data
+  df <- streamMongoData(Mongo, identifier, chunk_size)
+  
+  # Harmonize the data
+  message("Harmonizing data...")
+  clean_df <- dataHarmonization(df, identifier, collection_name)
+  
+  # Report execution time
+  end_time <- Sys.time()
+  time_taken <- difftime(end_time, start_time, units = "mins")
+  message(sprintf("Data retrieval completed in %.2f minutes", as.numeric(time_taken)))
+  
+  return(clean_df)
 }
 
 # ################ #
@@ -299,6 +441,8 @@ dataHarmonization <- function(df, identifier, collection_name) {
   
   return(df)
 }
+
+
 
 getCollections <- function() {
   
