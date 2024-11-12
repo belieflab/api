@@ -227,7 +227,12 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   future_results <- vector("list", length(chunks))
   for (i in seq_along(chunks)) {
     future_results[[i]] <- future({
-      options(mongolite.quiet = TRUE)
+      temp <- tempfile()
+      sink(temp)
+      on.exit({
+        sink()
+        unlink(temp)
+      })
       Mongo <- Connect(collection_name, db_name)
       data_chunk <- getData(Mongo, identifier, chunks[[i]])
       data_chunk
@@ -273,17 +278,22 @@ Connect <- function(collection_name, db_name) {
   }
   options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
   
-  # Suppress MongoDB messages globally
-  options(mongolite.quiet = TRUE)
-  suppressMessages({
-    Mongo <- mongolite::mongo(
-      collection = collection_name, 
-      db = db_name, 
-      url = connectionString,
-      verbose = FALSE,
-      options = options
-    )
+  # The key is to use sink() to capture and discard the messages
+  temp <- tempfile()
+  sink(temp)
+  on.exit({
+    sink()
+    unlink(temp)
   })
+  
+  Mongo <- mongolite::mongo(
+    collection = collection_name, 
+    db = db_name, 
+    url = connectionString,
+    verbose = FALSE,
+    options = options
+  )
+  
   return(Mongo)
 }
 
