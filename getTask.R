@@ -85,8 +85,7 @@ calculateResourceParams <- function(total_records) {
     params$workers <- min(params$workers, 2)
   }
   
-  message(sprintf("System resources detected: %.1f GB RAM, %d cores", mem, cores))
-  message(sprintf("Using chunk size: %d, workers: %d", params$chunk_size, params$workers))
+  # Removed the duplicate messages from here
   
   return(params)
 }
@@ -182,18 +181,17 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     stop("No valid identifier found in the collection.")
   }
   
-  message(sprintf("Using identifier: %s", identifier))
+  # message(sprintf("Using identifier: %s", identifier))
   
   # Get total records
   query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
   total_records <- Mongo$count(query_json)
-  message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
   
   # Get and display system resources
   mem <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
   workers <- max(1, num_cores - 2)
-  message(sprintf("System resources detected: %.1f GB RAM, %d cores", mem, num_cores))
+  message(sprintf("System resources: %dGB RAM, %d-core CPU", mem, num_cores))
   
   # Adjust chunk size based on memory
   if (!is.null(mem) && mem < 4) {
@@ -206,7 +204,10 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     chunk_size <- min(5000, chunk_size)
   }
   
-  message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
+  #message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
+  if (workers > 1) {
+    message(sprintf("Processing in parallel with %d workers!", workers))
+  }
   
   # Setup chunks
   num_chunks <- ceiling(total_records / chunk_size)
@@ -217,8 +218,13 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Setup parallel processing with quiet connections
   plan(future::multisession, workers = workers)
   
+  
+  
   # Progress message
-  message("Retrieving data:")
+  #message("Retrieving data:")
+  #message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
+  message(sprintf("\nImporting %d records from %s/%s using %s. Simplifying into dataframe...", 
+                  total_records, db_name, collection_name, identifier))
   
   # Initialize custom progress bar
   pb <- initializeLoadingAnimation(num_chunks)
@@ -249,13 +255,16 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   completeLoadingAnimation(pb)
   
   # Harmonize data
-  message("Harmonizing data...")
+  message("Harmonizing data...", appendLF = FALSE)  # appendLF=FALSE prevents line feed
   clean_df <- dataHarmonization(df, identifier, collection_name)
+  Sys.sleep(0.5)  # Optional: small pause for visual effect
+  message("\rHarmonizing data...done.")
   
   # Report execution time
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
-  message(sprintf("Data retrieval completed in %s", formatDuration(duration)))
+  Sys.sleep(0.5)  # Optional: small pause for visual effect
+  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration-1))) # minus 1 to account for sleep
   
   return(clean_df)
 }
