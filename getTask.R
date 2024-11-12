@@ -221,7 +221,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   message("Retrieving data:")
   
   # Initialize custom progress bar
-  pb <- initializeLoadingAnimation(num_chunks + 1)
+  pb <- initializeLoadingAnimation(num_chunks)
   
   # Process chunks
   future_results <- vector("list", length(chunks))
@@ -244,9 +244,8 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   results <- lapply(future_results, value)
   
   # Combine results
-  message("\nCombining data chunks...")
+  # message("\nCombining data chunks...")
   df <- dplyr::bind_rows(results)
-  updateLoadingAnimation(pb, num_chunks + 1)
   completeLoadingAnimation(pb)
   
   # Harmonize data
