@@ -21,111 +21,28 @@ if (!require(config)) { install.packages("config") }; library(config)
 #' @examples
 #' results <- getTask("prl", "workerId", 1000)
 #' @export
-# getMongo <- function(collection_name, db_name = NULL, chunk_size = 10000) {
-#   start_time <- Sys.time()
-#   
-#   # List of accepted identifiers
-#   accepted_identifiers <- c("src_subject_id", "workerId", "PROLIFIC_PID", "participantId", "rat_id")
-#   
-#   # Find the first matching identifier in the column names of the dataframe
-#   identifier_match <- intersect(accepted_identifiers, colnames(dataframe))
-#   
-#   # Guard clause: if no match is found, stop the function and return an error
-#   if (length(identifier_match) == 0) {
-#     stop("No approved identifier found in the dataframe.")
-#   }
-#   
-#   # If a match is found, assign it to the identifier variable
-#   identifier <- identifier_match[1]
-#   
-#   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-#   Mongo <- Connect(collection_name, db_name)
-#   config <- config::get()
-#   if (is.null(db_name)) {
-#     db_name = config$study_alias
-#   }
-#   total_records <- Mongo$count(sprintf('{"%s": {"$ne": ""}}', identifier))
-#   message(sprintf("Imported %d records from %s/%s. Simplifying into dataframe...", total_records, db_name, collection_name))
-#   
-#   # Adjust the initialization of the progress bar to be conditional
-#   num_chunks <- ceiling(total_records / chunk_size)
-#   pb <- NULL  # Initialize pb as NULL indicating that the progress bar is not yet created
-#   
-#   chunks <- lapply(0:(num_chunks - 1), function(i) {
-#     list(start = i * chunk_size, size = chunk_size)
-#   })
-#   
-#   num_cores <- parallel::detectCores(logical = TRUE)
-#   plan(future::multisession, workers = max(1, num_cores - 2))
-#   if (num_cores > 2) {
-#     message(sprintf("Speeding up with %d cores!", num_cores - 2))
-#   }
-#   
-#   future_results <- vector("list", length(chunks))
-#   for (i in seq_along(chunks)) {
-#     if (is.null(pb)) {  # Initialize the progress bar when the first chunk starts processing
-#       pb <- initializeLoadingAnimation(num_chunks + 1)  # +1 for the data combination step
-#     }
-#     future_results[[i]] <- future({
-#       Mongo <- Connect(collection_name, db_name)
-#       data_chunk <- getData(Mongo, identifier, chunks[[i]])
-#       data_chunk  # Return the fetched data chunk
-#     })
-#     updateLoadingAnimation(pb, i)  # Update the progress bar after each chunk is scheduled
-#   }
-#   
-#   # Collect results and bind them into one dataframe
-#   results <- lapply(future_results, value)
-#   df <- dplyr::bind_rows(results)
-#   
-#   # Final step in data processing, update the progress bar accordingly
-#   updateLoadingAnimation(pb, num_chunks + 1)  # Reflect the data combination process
-#   
-#   clean_df <- dataHarmonization(df, identifier, collection_name)
-#   if (!is.null(pb)) {
-#     completeLoadingAnimation(pb)  # Close the progress bar if it has been created
-#   }
-#   cat("\n")  # Ensure the console output starts on a new line after the progress bar
-#   
-#   end_time <- Sys.time()
-#   time_taken <- end_time - start_time
-#   if (time_taken >= 60) {
-#     message(sprintf("Data retrieval completed in %.2f minutes", time_taken / 60))
-#   } else {
-#     message(sprintf("Data retrieval completed in %.2f seconds", time_taken))
-#   }
-#   
-#   return(clean_df)
-# }
-# 
-# 
-
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = 10000) {
   start_time <- Sys.time()
   
+  # Source dependencies and configuration
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   config <- config::get()
   if (is.null(db_name)) {
     db_name <- config$study_alias
   }
   
-  # Get super_keys from config
+  # Validate and get identifier
   super_keys <- config$super_keys
   if (is.null(super_keys) || any(super_keys == "")) {
     stop("No super_keys specified in the config file.")
   }
   
-  # Split super_keys if it's a comma-separated string (15/10/2024, CHECK THIS, IT MAY BE REMOVED)
-  if (is.character(super_keys)) {
-    super_keys <- strsplit(super_keys, ",")[[1]]
-  }
-  
+  # Initialize MongoDB connection
   Mongo <- Connect(collection_name, db_name)
   
-  # Find the first valid identifier from super_keys
+  # Find valid identifier if not provided
   if (is.null(identifier)) {
-    for (key in super_keys) {
-      key <- trimws(key)  # Remove any leading/trailing whitespace
+    for (key in trimws(strsplit(super_keys, ",")[[1]])) {
       count <- Mongo$count(sprintf('{"%s": {"$exists": true, "$ne": ""}}', key))
       if (count > 0) {
         identifier <- key
@@ -134,64 +51,137 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     }
   }
   
-  if (is.na(identifier)) {
-    stop("No valid identifier found in the collection based on super_keys from config.")
+  if (is.null(identifier)) {
+    stop("No valid identifier found in the collection.")
   }
   
   message(sprintf("Using identifier: %s", identifier))
   
-  total_records <- Mongo$count(sprintf('{"%s": {"$ne": ""}}', identifier))
-  message(sprintf("Importing %d records from %s/%s. Simplifying into dataframe...", total_records, db_name, collection_name))
-  
-  num_chunks <- ceiling(total_records / chunk_size)
-  pb <- NULL  # Initialize pb as NULL indicating that the progress bar is not yet created
-  
-  chunks <- lapply(0:(num_chunks - 1), function(i) {
-    list(start = i * chunk_size, size = chunk_size)
-  })
-  
-  num_cores <- parallel::detectCores(logical = TRUE)
-  plan(future::multisession, workers = max(1, num_cores - 2))
-  if (num_cores > 2) {
-    message(sprintf("Speeding up with %d cores!", num_cores - 2))
+  # Optimize chunk size based on available memory
+  available_memory <- memory.limit()
+  if (available_memory < 4000) { # Less than 4GB
+    chunk_size <- min(5000, chunk_size)
+    message(sprintf("Limited memory detected. Reducing chunk size to %d", chunk_size))
   }
   
-  future_results <- vector("list", length(chunks))
-  for (i in seq_along(chunks)) {
-    if (is.null(pb)) {  # Initialize the progress bar when the first chunk starts processing
-      pb <- initializeLoadingAnimation(num_chunks + 1)  # +1 for the data combination step
-    }
-    future_results[[i]] <- future({
-      Mongo <- Connect(collection_name, db_name)
-      data_chunk <- getData(Mongo, identifier, chunks[[i]])
-      data_chunk  # Return the fetched data chunk
-    })
-    updateLoadingAnimation(pb, i)  # Update the progress bar after each chunk is scheduled
-  }
+  # Stream data using the new function
+  message("Starting data streaming...")
+  df <- streamMongoData(Mongo, identifier, chunk_size)
   
-  # Collect results and bind them into one dataframe
-  results <- lapply(future_results, value)
-  df <- dplyr::bind_rows(results)
-  
-  # Final step in data processing, update the progress bar accordingly
-  updateLoadingAnimation(pb, num_chunks + 1)  # Reflect the data combination process
-  
+  # Harmonize the data
+  message("Harmonizing data...")
   clean_df <- dataHarmonization(df, identifier, collection_name)
-  if (!is.null(pb)) {
-    completeLoadingAnimation(pb)  # Close the progress bar if it has been created
-  }
-  cat("\n")  # Ensure the console output starts on a new line after the progress bar
   
+  # Report execution time
   end_time <- Sys.time()
-  time_taken <- end_time - start_time
-  if (time_taken >= 60) {
-    message(sprintf("Data retrieval completed in %.2f minutes", time_taken / 60))
-  } else {
-    message(sprintf("Data retrieval completed in %.2f seconds", time_taken))
-  }
+  time_taken <- difftime(end_time, start_time, units = "mins")
+  message(sprintf("Data retrieval completed in %.2f minutes", as.numeric(time_taken)))
   
   return(clean_df)
 }
+
+#' Memory-efficient data harmonization
+#' @param df Data frame to harmonize
+#' @param identifier Identifier field
+#' @param collection_name Collection name
+#' @return Harmonized data frame
+dataHarmonization <- function(df, identifier, collection_name) {
+  # Add visit column efficiently
+  if (!("visit" %in% colnames(df))) {
+    df$visit <- "bl"
+  } else {
+    df$visit[is.na(df$visit) | df$visit == ""] <- "bl"
+  }
+  
+  # Convert dates efficiently
+  if ("interview_date" %in% colnames(df)) {
+    df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
+  }
+  
+  # Add measure column
+  df$measure <- collection_name
+  
+  return(df)
+}
+
+#' Stream data from MongoDB in chunks
+#' @param Mongo MongoDB connection
+#' @param identifier Field to query by
+#' @param chunk_size Size of each chunk
+#' @param max_retries Number of retries for failed chunks
+#' @return Data frame with combined results
+streamMongoData <- function(Mongo, identifier, chunk_size = 10000, max_retries = 3) {
+  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
+  total_records <- Mongo$count(query_json)
+  
+  # Initialize an empty list to store chunk results
+  num_chunks <- ceiling(total_records / chunk_size)
+  all_chunks <- vector("list", num_chunks)
+  failed_chunks <- list()
+  
+  # Simple progress tracking
+  pb <- txtProgressBar(min = 0, max = num_chunks, style = 3)
+  
+  # Process chunks with retry logic
+  for (i in seq_along(all_chunks)) {
+    chunk_processed <- FALSE
+    retries <- 0
+    
+    while (!chunk_processed && retries < max_retries) {
+      tryCatch({
+        # Calculate chunk boundaries
+        skip <- (i - 1) * chunk_size
+        
+        # Fetch chunk with explicit sorting to ensure consistency
+        chunk <- Mongo$find(
+          query = query_json,
+          sort = sprintf('{"%s": 1}', identifier),
+          skip = skip,
+          limit = chunk_size
+        )
+        
+        # Validate chunk data
+        if (!is.null(chunk) && nrow(chunk) > 0) {
+          all_chunks[[i]] <- chunk
+          chunk_processed <- TRUE
+        } else {
+          warning(sprintf("Empty chunk received at offset %d", skip))
+        }
+        
+      }, error = function(e) {
+        warning(sprintf("Error processing chunk %d: %s", i, e$message))
+        retries <- retries + 1
+        if (retries >= max_retries) {
+          failed_chunks[[length(failed_chunks) + 1]] <- list(
+            index = i,
+            skip = skip,
+            error = e$message
+          )
+        }
+        Sys.sleep(1) # Wait before retry
+      })
+    }
+    setTxtProgressBar(pb, i)
+  }
+  close(pb)
+  
+  # Report any failed chunks
+  if (length(failed_chunks) > 0) {
+    warning(sprintf("Failed to process %d chunks", length(failed_chunks)))
+  }
+  
+  # Combine chunks efficiently
+  combined_df <- do.call(rbind, all_chunks)
+  
+  # Verify data integrity
+  actual_records <- nrow(combined_df)
+  if (actual_records < total_records) {
+    warning(sprintf("Expected %d records but got %d", total_records, actual_records))
+  }
+  
+  return(combined_df)
+}
+
 # ################ #
 # Helper Functions #
 # ################ #
@@ -315,7 +305,7 @@ getCollections <- function() {
   Mongo <- Connect("foo")
   collections <- Mongo$run('{"listCollections":1,"nameOnly":true}')
   print(collections$cursor$firstBatch$name) # lists collections in database
-
+  
   return(collections$cursor$firstBatch$name)
   
 }
