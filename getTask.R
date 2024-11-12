@@ -91,11 +91,41 @@ calculateResourceParams <- function(total_records) {
   return(params)
 }
 
-# (Previous code remains the same until the getMongo function)
+#' Initialize a clean loading animation
+#' @param steps Number of steps in the process
+#' @return Loading animation object
+initializeLoadingAnimation <- function(steps) {
+  list(
+    steps = steps,
+    current = 0,
+    width = 50,
+    start_time = Sys.time()
+  )
+}
 
-#' Format time duration in a human-friendly way
-#' @param duration Time difference object
-#' @return String with formatted duration
+#' Update the loading animation
+#' @param pb Loading animation object
+#' @param current Current step
+updateLoadingAnimation <- function(pb, current) {
+  pb$current <- current
+  percentage <- round(current / pb$steps * 100)
+  filled <- round(pb$width * current / pb$steps)
+  bar <- paste0(
+    strrep("=", filled),
+    strrep(" ", pb$width - filled)
+  )
+  cat(sprintf("\r  |%s| %3d%%", bar, percentage))
+  utils::flush.console()
+}
+
+#' Complete the loading animation
+#' @param pb Loading animation object
+completeLoadingAnimation <- function(pb) {
+  updateLoadingAnimation(pb, pb$steps)
+  cat("\n")
+}
+
+#' Format duration in a human-friendly way
 formatDuration <- function(duration) {
   secs <- as.numeric(duration, units = "secs")
   if (secs < 60) {
@@ -113,10 +143,12 @@ formatDuration <- function(duration) {
 
 #' Main data retrieval function
 #' @export
+# Previous helper functions remain the same...
+
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL) {
   start_time <- Sys.time()
   
-  # Suppress MongoDB messages
+  # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
   
   # Source dependencies and get config
@@ -157,55 +189,69 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   total_records <- Mongo$count(query_json)
   message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
   
-  # Calculate optimal parameters based on system resources
-  params <- calculateResourceParams(total_records)
-  if (!is.null(chunk_size)) {
-    params$chunk_size <- chunk_size  # Override with user-specified chunk size if provided
+  # Get and display system resources
+  mem <- getAvailableMemory()
+  num_cores <- parallel::detectCores(logical = TRUE)
+  workers <- max(1, num_cores - 2)
+  message(sprintf("System resources detected: %.1f GB RAM, %d cores", mem, num_cores))
+  
+  # Adjust chunk size based on memory
+  if (!is.null(mem) && mem < 4) {
+    chunk_size <- min(500, chunk_size)
+  } else if (!is.null(mem) && mem < 8) {
+    chunk_size <- min(1000, chunk_size)
+  } else if (!is.null(mem) && mem < 16) {
+    chunk_size <- min(2000, chunk_size)
+  } else {
+    chunk_size <- min(5000, chunk_size)
   }
   
+  message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
+  
   # Setup chunks
-  num_chunks <- ceiling(total_records / params$chunk_size)
+  num_chunks <- ceiling(total_records / chunk_size)
   chunks <- lapply(0:(num_chunks - 1), function(i) {
-    list(start = i * params$chunk_size, size = params$chunk_size)
+    list(start = i * chunk_size, size = chunk_size)
   })
   
-  # Setup parallel processing
-  plan(future::multisession, workers = params$workers)
+  # Setup parallel processing with quiet connections
+  plan(future::multisession, workers = workers)
   
-  # Initialize progress bar with cleaner output
-  message("\nRetrieving data:")
-  pb <- txtProgressBar(min = 0, max = num_chunks, style = 3, width = 50)
+  # Progress message
+  message("Retrieving data:")
+  
+  # Initialize custom progress bar
+  pb <- initializeLoadingAnimation(num_chunks + 1)
   
   # Process chunks
   future_results <- vector("list", length(chunks))
   for (i in seq_along(chunks)) {
     future_results[[i]] <- future({
-      suppressMessages({
-        Mongo <- Connect(collection_name, db_name)
-        data_chunk <- getData(Mongo, identifier, chunks[[i]])
-        setTxtProgressBar(pb, i)
-        data_chunk
-      })
+      options(mongolite.quiet = TRUE)
+      Mongo <- Connect(collection_name, db_name)
+      data_chunk <- getData(Mongo, identifier, chunks[[i]])
+      data_chunk
     })
+    updateLoadingAnimation(pb, i)
   }
   
   # Collect results
   results <- lapply(future_results, value)
-  setTxtProgressBar(pb, num_chunks)  # Ensure bar shows 100%
-  close(pb)
   
-  # Combine results using dplyr::bind_rows
+  # Combine results
   message("\nCombining data chunks...")
   df <- dplyr::bind_rows(results)
+  updateLoadingAnimation(pb, num_chunks + 1)
+  completeLoadingAnimation(pb)
   
   # Harmonize data
   message("Harmonizing data...")
   clean_df <- dataHarmonization(df, identifier, collection_name)
   
-  # Report execution time with better formatting
+  # Report execution time
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
-  message(sprintf("\nData retrieval completed in %s", formatDuration(duration)))
+  message(sprintf("Data retrieval completed in %s", formatDuration(duration)))
   
   return(clean_df)
 }
