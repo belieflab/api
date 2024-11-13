@@ -26,9 +26,20 @@ getAvailableMemory <- function() {
       })
       return(wmic_cmd)
     } else if (Sys.info()["sysname"] == "Darwin") {
-      # Mac detection remains the same...
+      mem_info <- system("sysctl hw.memsize", intern = TRUE)
+      if (length(mem_info) > 0) {
+        total_mem <- as.numeric(strsplit(mem_info, " ")[[1]][2])
+        return(total_mem / (1024^3))
+      }
     } else {
-      # Linux detection remains the same...
+      if (file.exists("/proc/meminfo")) {
+        mem_info <- readLines("/proc/meminfo")
+        mem_free <- grep("MemAvailable:", mem_info, value = TRUE)
+        if (length(mem_free) > 0) {
+          mem_kb <- as.numeric(strsplit(mem_free, "\\s+")[[1]][2])
+          return(mem_kb / (1024^2))
+        }
+      }
     }
   }, error = function(e) {
     return(NULL)
