@@ -39,7 +39,7 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
   
   show_loading_animation()
   
-  df <- getData(qualtrics_alias, label)
+  df <- getQualtricsData(qualtrics_alias, label)
   if (is.null(df)) {
     stop("Failed to fetch data from Qualtrics.")
   }
@@ -78,7 +78,7 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
 #   connect(qualtrics_alias)
 #   show_loading_animation()
 #   
-#   df <- getData(qualtrics_alias, label)
+#   df <- getQualtricsData(qualtrics_alias, label)
 #   
 #   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")
 #   selected_identifier <- intersect(super_keys, colnames(df))
@@ -155,7 +155,7 @@ connect <- function(qualtrics_alias) {
 #' @return Data frame containing survey data, or NULL in case of error.
 #' @importFrom qualtRics fetch_survey
 #' @noRd
-getData <- function(qualtrics_alias, label) {
+getQualtricsData <- function(qualtrics_alias, label) {
   tryCatch({
     config <- config::get()
     base::source(config$qualtrics$survey_ids)
@@ -172,7 +172,7 @@ getData <- function(qualtrics_alias, label) {
     }
     return(df)
   }, error = function(e) {
-    message("Error in getData: ", e$message)
+    message("Error in getQualtricsData: ", e$message)
     return(NULL)
   })
 }

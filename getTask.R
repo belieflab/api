@@ -330,7 +330,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
         Mongo <- Connect(collection_name, db_name)
         batch_info <- chunks[[i]]
         if (!is.null(batch_info) && !is.null(batch_info$start) && !is.null(batch_info$size)) {
-          data_chunk <- getData(Mongo, identifier, batch_info)
+          data_chunk <- getMongoData(Mongo, identifier, batch_info)
         } else {
           warning("Invalid batch info, skipping chunk")
           return(NULL)
@@ -435,9 +435,9 @@ Connect <- function(collection_name, db_name) {
 #' @param batch_info List containing 'start' and 'size' defining the batch to fetch.
 #' @return A data.frame with the filtered data or NULL if no valid data is found or in case of error.
 #' @examples
-#' df <- getData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
+#' df <- getMongoData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
 #' @export
-getData <- function(Mongo, identifier, batch_info) {
+getMongoData <- function(Mongo, identifier, batch_info) {
   query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
   
   result <- tryCatch({
