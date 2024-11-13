@@ -9,9 +9,12 @@ if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 getAvailableMemory <- function() {
   tryCatch({
     if (.Platform$OS.type == "windows") {
-      mem <- memory.limit()
-      if (!is.null(mem) && !is.na(mem) && mem > 0) {
-        return(as.numeric(mem))  # Ensure numeric
+      # For Windows, try to use alternate method
+      if (requireNamespace("ps", quietly = TRUE)) {
+        mem <- ps::ps_system_memory()
+        return(mem$available / (1024^3))  # Convert to GB
+      } else {
+        return(NULL)  # Quietly return NULL if ps package not available
       }
     } else if (Sys.info()["sysname"] == "Darwin") {
       mem_info <- system("sysctl hw.memsize", intern = TRUE)
@@ -30,8 +33,7 @@ getAvailableMemory <- function() {
       }
     }
   }, error = function(e) {
-    warning("Unable to determine available memory", immediate. = TRUE)
-    return(NULL)
+    return(NULL)  # Quietly return NULL on any error
   })
   return(NULL)
 }
@@ -48,7 +50,13 @@ calculateResourceParams <- function(total_records) {
   
   # Try to get system resources
   mem <- getAvailableMemory()
-  cores <- parallel::detectCores(logical = TRUE)
+  num_cores <- parallel::detectCores(logical = TRUE)
+  
+  if (!is.null(mem)) {
+    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", mem, num_cores))
+  } else {
+    message(sprintf("System resources: %d-core CPU.", num_cores))  # Skip RAM info if unavailable
+  }
   
   # If we can't detect resources, return defaults
   if (is.null(mem) || is.null(cores)) {
