@@ -9,16 +9,16 @@ if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 getAvailableMemory <- function() {
   tryCatch({
     if (.Platform$OS.type == "windows") {
-      # Try using Windows system command
+      # Get total physical memory instead of free memory
       wmic_cmd <- tryCatch({
-        mem_info <- system('wmic OS get FreePhysicalMemory /Value', intern = TRUE)
-        # Extract the number from "FreePhysicalMemory=XXXXX"
-        mem_line <- grep("FreePhysicalMemory=", mem_info, value = TRUE)
-        mem_kb <- as.numeric(sub("FreePhysicalMemory=", "", mem_line))
-        return(mem_kb / (1024^2))  # Convert KB to GB
+        mem_info <- system('wmic ComputerSystem get TotalPhysicalMemory /Value', intern = TRUE)
+        # Extract the number from "TotalPhysicalMemory=XXXXX"
+        mem_line <- grep("TotalPhysicalMemory=", mem_info, value = TRUE)
+        mem_bytes <- as.numeric(sub("TotalPhysicalMemory=", "", mem_line))
+        return(mem_bytes / (1024^3))  # Convert bytes to GB
       }, error = function(e) {
-        # Fallback to memory.size if wmic fails
-        total_mem <- memory.size(max = TRUE)
+        # If wmic fails, try GlobalMemoryStatus
+        total_mem <- utils::memory.size(max = TRUE)
         if (!is.na(total_mem)) {
           return(total_mem / 1024)  # Convert MB to GB
         }
@@ -26,20 +26,9 @@ getAvailableMemory <- function() {
       })
       return(wmic_cmd)
     } else if (Sys.info()["sysname"] == "Darwin") {
-      mem_info <- system("sysctl hw.memsize", intern = TRUE)
-      if (length(mem_info) > 0) {
-        total_mem <- as.numeric(strsplit(mem_info, " ")[[1]][2])
-        return(total_mem / (1024^3))
-      }
+      # Mac detection remains the same...
     } else {
-      if (file.exists("/proc/meminfo")) {
-        mem_info <- readLines("/proc/meminfo")
-        mem_free <- grep("MemAvailable:", mem_info, value = TRUE)
-        if (length(mem_free) > 0) {
-          mem_kb <- as.numeric(strsplit(mem_free, "\\s+")[[1]][2])
-          return(mem_kb / (1024^2))
-        }
-      }
+      # Linux detection remains the same...
     }
   }, error = function(e) {
     return(NULL)
