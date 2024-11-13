@@ -211,9 +211,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   
   # Setup chunks
   num_chunks <- ceiling(total_records / chunk_size)
-  chunks <- lapply(0:(num_chunks - 1), function(i) {
-    list(start = i * chunk_size, size = chunk_size)
-  })
+  chunks <- createChunks(total_records, chunk_size)
   
   # Setup parallel processing with quiet connections
   plan(future::multisession, workers = workers)
@@ -239,9 +237,21 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
         sink()
         unlink(temp)
       })
-      Mongo <- Connect(collection_name, db_name)
-      data_chunk <- getData(Mongo, identifier, chunks[[i]])
-      data_chunk
+      
+      tryCatch({
+        Mongo <- Connect(collection_name, db_name)
+        batch_info <- chunks[[i]]
+        if (!is.null(batch_info) && !is.null(batch_info$start) && !is.null(batch_info$size)) {
+          data_chunk <- getData(Mongo, identifier, batch_info)
+        } else {
+          warning("Invalid batch info, skipping chunk")
+          return(NULL)
+        }
+        data_chunk
+      }, error = function(e) {
+        warning(sprintf("Error processing chunk %d: %s", i, e$message))
+        NULL
+      })
     })
     updateLoadingAnimation(pb, i)
   }
@@ -272,6 +282,27 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
 # ################ #
 # Helper Functions #
 # ################ #
+
+createChunks <- function(total_records, chunk_size) {
+  tryCatch({
+    num_chunks <- ceiling(total_records / chunk_size)
+    chunks <- vector("list", num_chunks)
+    for (i in seq_len(num_chunks)) {
+      chunks[[i]] <- list(
+        start = (i - 1) * chunk_size,
+        size = if (i == num_chunks) {
+          min(chunk_size, total_records - ((i - 1) * chunk_size))
+        } else {
+          chunk_size
+        }
+      )
+    }
+    return(chunks)
+  }, error = function(e) {
+    warning("Error creating chunks, falling back to single chunk")
+    return(list(list(start = 0, size = total_records)))
+  })
+}
 
 #' Setup MongoDB connection with suppressed messages
 #' @param collection_name The name of the collection you want to connect to.
