@@ -9,13 +9,22 @@ if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 getAvailableMemory <- function() {
   tryCatch({
     if (.Platform$OS.type == "windows") {
-      # For Windows, try to use alternate method
-      if (requireNamespace("ps", quietly = TRUE)) {
-        mem <- ps::ps_system_memory()
-        return(mem$available / (1024^3))  # Convert to GB
-      } else {
-        return(NULL)  # Quietly return NULL if ps package not available
-      }
+      # Try using Windows system command
+      wmic_cmd <- tryCatch({
+        mem_info <- system('wmic OS get FreePhysicalMemory /Value', intern = TRUE)
+        # Extract the number from "FreePhysicalMemory=XXXXX"
+        mem_line <- grep("FreePhysicalMemory=", mem_info, value = TRUE)
+        mem_kb <- as.numeric(sub("FreePhysicalMemory=", "", mem_line))
+        return(mem_kb / (1024^2))  # Convert KB to GB
+      }, error = function(e) {
+        # Fallback to memory.size if wmic fails
+        total_mem <- memory.size(max = TRUE)
+        if (!is.na(total_mem)) {
+          return(total_mem / 1024)  # Convert MB to GB
+        }
+        return(NULL)
+      })
+      return(wmic_cmd)
     } else if (Sys.info()["sysname"] == "Darwin") {
       mem_info <- system("sysctl hw.memsize", intern = TRUE)
       if (length(mem_info) > 0) {
@@ -33,7 +42,7 @@ getAvailableMemory <- function() {
       }
     }
   }, error = function(e) {
-    return(NULL)  # Quietly return NULL on any error
+    return(NULL)
   })
   return(NULL)
 }
@@ -202,14 +211,19 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", mem, num_cores))
   
   # Adjust chunk size based on memory
-  if (!is.null(mem) && mem < 4) {
-    chunk_size <- min(500, chunk_size)
-  } else if (!is.null(mem) && mem < 8) {
-    chunk_size <- min(1000, chunk_size)
-  } else if (!is.null(mem) && mem < 16) {
-    chunk_size <- min(2000, chunk_size)
+  if (!is.null(mem)) {
+    if (mem < 4) {
+      chunk_size <- 500
+    } else if (mem < 8) {
+      chunk_size <- 1000
+    } else if (mem < 16) {
+      chunk_size <- 2000
+    } else {
+      chunk_size <- 5000
+    }
   } else {
-    chunk_size <- min(5000, chunk_size)
+    # Default if memory detection fails
+    chunk_size <- 1000  # Conservative default
   }
   
   #message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
