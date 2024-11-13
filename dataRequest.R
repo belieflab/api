@@ -110,7 +110,24 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   }
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  message("\nProcessing ", measure, " from ", source, "...")
+  message("\nProcessing ", measure, " from clean", source, "/ ...")
+  
+  # Setup cleanup on exit
+  on.exit({
+    if (exists("mongo_conn") && !is.null(mongo_conn)) {
+      tryCatch({
+        mongo_conn$disconnect()
+      }, error = function(e) {
+        warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
+      })
+    }
+    # Clear the mongo connection from memory
+    if (exists("mongo_conn")) {
+      rm(mongo_conn)
+    }
+    gc()  # Force garbage collection
+  })
+  
   result <- tryCatch({
     base::source(file_path)  # Execute the cleaning script for the measure
     # Ensure testSuite is sourced and then called
