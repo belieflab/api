@@ -7,42 +7,47 @@ if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 #' Cross-platform memory check function
 #' @return List containing total and available memory in GB
 getAvailableMemory <- function() {
-  tryCatch({
-    if (.Platform$OS.type == "windows") {
-      # Get total physical memory
-      total_mem <- tryCatch({
-        mem_info <- system('wmic ComputerSystem get TotalPhysicalMemory /Value', intern = TRUE)
-        mem_line <- grep("TotalPhysicalMemory=", mem_info, value = TRUE)
-        as.numeric(sub("TotalPhysicalMemory=", "", mem_line)) / (1024^3)  # To GB
-      }, error = function(e) NULL)
-      
-      # Get complete memory stats for available calculation
-      avail_mem <- tryCatch({
-        # Get free physical memory
-        free_info <- system('wmic OS get FreePhysicalMemory /Value', intern = TRUE)
-        free_line <- grep("FreePhysicalMemory=", free_info, value = TRUE)
-        free_mem <- as.numeric(sub("FreePhysicalMemory=", "", free_line)) / (1024^2)  # KB to GB
-        
-        # Get cached memory (Windows calls this "Standby List")
-        cache_info <- system('wmic OS get SizeStoredInPagingFiles /Value', intern = TRUE)
-        cache_line <- grep("SizeStoredInPagingFiles=", cache_info, value = TRUE)
-        cache_mem <- as.numeric(sub("SizeStoredInPagingFiles=", "", cache_line)) / (1024^2)  # KB to GB
-        
-        # Get available memory including cache that can be reclaimed
-        mem_info <- system('wmic OS get FreeVirtualMemory /Value', intern = TRUE)
-        mem_line <- grep("FreeVirtualMemory=", mem_info, value = TRUE)
-        virtual_mem <- as.numeric(sub("FreeVirtualMemory=", "", mem_line)) / (1024^2)  # KB to GB
-        
-        # Total available is: free physical + cached + available virtual that's readily accessible
-        total_available <- free_mem + (cache_mem * 0.7) + (virtual_mem * 0.3)  # Weight factors for conservative estimate
-        
-        return(total_available)
-      }, error = function(e) NULL)
-      
-      return(list(
-        total = total_mem,
-        available = avail_mem
-      ))
+      tryCatch({
+        if (.Platform$OS.type == "windows") {
+          # Windows-specific memory detection with better error handling
+          total_mem <- tryCatch({
+            mem_info <- system('wmic ComputerSystem get TotalPhysicalMemory /Value', intern = TRUE)
+            mem_line <- grep("TotalPhysicalMemory=", mem_info, value = TRUE)
+            if (length(mem_line) == 0) return(NULL)
+            total <- as.numeric(sub("TotalPhysicalMemory=", "", mem_line))
+            if (is.na(total)) return(NULL)
+            total / (1024^3)  # Convert to GB
+          }, error = function(e) NULL)
+          
+          avail_mem <- tryCatch({
+            # Get multiple memory metrics for better available memory calculation
+            mem_info <- system('wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value', intern = TRUE)
+            
+            # Extract free physical memory
+            free_line <- grep("FreePhysicalMemory=", mem_info, value = TRUE)
+            if (length(free_line) == 0) return(NULL)
+            free_mem <- as.numeric(sub("FreePhysicalMemory=", "", free_line))
+            if (is.na(free_mem)) return(NULL)
+            
+            # Get total visible memory for percentage calculation
+            total_line <- grep("TotalVisibleMemorySize=", mem_info, value = TRUE)
+            if (length(total_line) == 0) return(NULL)
+            total_visible <- as.numeric(sub("TotalVisibleMemorySize=", "", total_line))
+            if (is.na(total_visible)) return(NULL)
+            
+            # Convert KB to GB and add 20% buffer for cached memory
+            available <- (free_mem / (1024^2)) * 1.2
+            
+            # Sanity check - don't return more than 90% of total memory
+            max_available <- (total_visible / (1024^2)) * 0.9
+            min(available, max_available)
+          }, error = function(e) NULL)
+          
+          # Return both metrics, with NULL handling
+          return(list(
+            total = if (is.null(total_mem)) NULL else round(total_mem, 1),
+            available = if (is.null(avail_mem)) NULL else round(avail_mem, 1)
+          ))
     } else if (Sys.info()["sysname"] == "Darwin") {
       # MacOS
       total_mem <- tryCatch({
@@ -352,7 +357,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   clean_df <- dataHarmonization(df, identifier, collection_name)
   Sys.sleep(0.5)  # Optional: small pause for visual effect
   message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
-  
+  # "\u2713"
   
   # Report execution time
   end_time <- Sys.time()
