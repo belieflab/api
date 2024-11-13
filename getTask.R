@@ -121,62 +121,33 @@ getAvailableMemory <- function() {
 #' Calculate optimal resource parameters
 #' @param total_records Total number of records to process
 #' @return List containing optimal chunk size and number of workers
-calculateResourceParams <- function(total_records) {
-  # Default/fallback values
-  default_params <- list(
+calculateResourceParams <- function(total_records, mem_info, num_cores) {
+  # Default values
+  params <- list(
     chunk_size = 1000,
-    workers = 2
+    workers = num_cores  # Use all cores by default
   )
   
-  # Try to get system resources
-  mem_info <- getAvailableMemory()
-  num_cores <- parallel::detectCores(logical = TRUE)
-  
-  if (!is.null(mem_info$total)) {
-    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", 
-                    mem_info$total, num_cores))
-    message(sprintf("System available: %.0fGB RAM, %d-core CPU.", 
-                    mem_info$available, num_cores))
-  } else {
-    message(sprintf("System resources: %d-core CPU.", num_cores))
+  # Adjust chunk size based on available memory
+  if (!is.null(mem_info$available)) {
+    if (mem_info$available < 4) {
+      params$chunk_size <- 500
+    } else if (mem_info$available < 8) {
+      params$chunk_size <- 1000
+    } else if (mem_info$available < 16) {
+      params$chunk_size <- 2000
+    } else {
+      params$chunk_size <- 5000
+    }
   }
   
-  # If we can't detect resources, return defaults
-  if (is.null(mem) || is.null(cores)) {
-    warning("Unable to determine system resources. Using conservative defaults.")
-    return(default_params)
-  }
-  
-  # Calculate parameters based on available resources
-  params <- list()
-  
-  # Adjust chunk size based on memory
-  if (mem < 4) {
-    params$chunk_size <- 500  # Very conservative for low memory
-  } else if (mem < 8) {
-    params$chunk_size <- 1000  # Conservative for moderate memory
-  } else if (mem < 16) {
-    params$chunk_size <- 2000  # Moderate for good memory
-  } else {
-    params$chunk_size <- 5000  # Aggressive for high memory
-  }
-  
-  # Adjust workers based on cores
-  if (cores <= 2) {
-    params$workers <- 1  # Single worker for very limited cores
-  } else if (cores <= 4) {
-    params$workers <- cores - 1  # Leave 1 core for small systems
-  } else {
-    params$workers <- cores - 2  # Leave 2 cores for larger systems
-  }
-  
-  # Additional adjustments based on total records
+  # Adjust for very small datasets
   if (total_records < params$chunk_size * 2) {
     params$chunk_size <- max(500, floor(total_records / 2))
-    params$workers <- min(params$workers, 2)
   }
   
-  # Removed the duplicate messages from here
+  # Calculate resulting chunks
+  params$num_chunks <- ceiling(total_records / params$chunk_size)
   
   return(params)
 }
@@ -281,18 +252,21 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Get and display system resources
   mem_info <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
-  workers <- max(1, num_cores - 2)
-  # Display system resources
+  workers <- num_cores
+  
+  # Display system info
   if (!is.null(mem_info$total)) {
-    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", 
+    message(sprintf("System resources: %.0fGB RAM, %d-core CPU", 
                     mem_info$total, num_cores))
   } else {
     message(sprintf("System resources: %d-core CPU.", num_cores))
   }
   
-  if (!is.null(mem_info$available) && !is.null(mem_info$total) && 
-      abs(mem_info$available - mem_info$total) > 1) {  # If difference > 1GB
-    message(sprintf("Available memory: %.0fGB", mem_info$available))
+  # Calculate parameters once
+  params <- calculateResourceParams(total_records, mem_info, num_cores)
+  
+  if (!is.null(mem_info$available)) {
+    message(sprintf("Memory available: %.0fGB RAM", mem_info$available))
   }
   
   # Adjust chunk size based on memory
@@ -312,10 +286,8 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     }
   }
   
-  #message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
-  if (workers > 1) {
-    message(sprintf("Processing in parallel with %d workers!", workers))
-  }
+  message(sprintf("Processing: %d chunks × %d records in parallel (%d workers)", 
+                  params$num_chunks, params$chunk_size, params$workers))  
   
   # Setup chunks
   num_chunks <- ceiling(total_records / chunk_size)
@@ -329,8 +301,11 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Progress message
   #message("Retrieving data:")
   #message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
-  message(sprintf("\nImporting %d records from %s/%s using %s. Simplifying into dataframe...", 
-                  total_records, db_name, collection_name, identifier))
+  message(sprintf("\nImporting %s records from %s/%s into dataframe...", 
+                  formatC(total_records, format = "d", big.mark = ","), 
+                  db_name, collection_name))
+  
+  
   
   # Initialize custom progress bar
   pb <- initializeLoadingAnimation(num_chunks)
@@ -373,10 +348,11 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   completeLoadingAnimation(pb)
   
   # Harmonize data
-  message("Harmonizing data...", appendLF = FALSE)  # appendLF=FALSE prevents line feed
+  message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)  # Prevents line feed
   clean_df <- dataHarmonization(df, identifier, collection_name)
   Sys.sleep(0.5)  # Optional: small pause for visual effect
-  message("\rHarmonizing data...done.")
+  message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
+  
   
   # Report execution time
   end_time <- Sys.time()
