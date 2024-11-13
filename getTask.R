@@ -128,33 +128,35 @@ getAvailableMemory <- function() {
 #' @return List containing optimal chunk size and number of workers
 calculateResourceParams <- function(total_records, mem_info, num_cores) {
   # Default values
-  params <- list(
-    chunk_size = 1000,
-    workers = num_cores  # Use all cores by default
-  )
+  chunk_size <- 1000
+  workers <- num_cores
   
   # Adjust chunk size based on available memory
   if (!is.null(mem_info$available)) {
-    if (mem_info$available < 4) {
-      params$chunk_size <- 500
+    chunk_size <- if (mem_info$available < 4) {
+      500
     } else if (mem_info$available < 8) {
-      params$chunk_size <- 1000
+      1000
     } else if (mem_info$available < 16) {
-      params$chunk_size <- 2000
+      2000
     } else {
-      params$chunk_size <- 5000
+      5000
     }
   }
   
   # Adjust for very small datasets
-  if (total_records < params$chunk_size * 2) {
-    params$chunk_size <- max(500, floor(total_records / 2))
+  if (total_records < chunk_size * 2) {
+    chunk_size <- max(500, floor(total_records / 2))
   }
   
-  # Calculate resulting chunks
-  params$num_chunks <- ceiling(total_records / params$chunk_size)
+  # Calculate number of chunks
+  num_chunks <- ceiling(total_records / chunk_size)
   
-  return(params)
+  return(list(
+    chunk_size = chunk_size,
+    workers = workers,
+    num_chunks = num_chunks
+  ))
 }
 
 #' Initialize a clean loading animation
@@ -248,8 +250,6 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     stop("No valid identifier found in the collection.")
   }
   
-  # message(sprintf("Using identifier: %s", identifier))
-  
   # Get total records
   query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
   total_records <- Mongo$count(query_json)
@@ -257,7 +257,6 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Get and display system resources
   mem_info <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
-  workers <- num_cores
   
   # Display system info
   if (!is.null(mem_info$total)) {
@@ -267,56 +266,37 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     message(sprintf("System resources: %d-core CPU.", num_cores))
   }
   
-  # Calculate parameters once
-  params <- calculateResourceParams(total_records, mem_info, num_cores)
-  
   if (!is.null(mem_info$available)) {
     message(sprintf("Memory available: %.0fGB RAM", mem_info$available))
   }
   
-  # Adjust chunk size based on memory
-  if (is.null(chunk_size)) {  # Only if not manually specified
-    if (!is.null(mem_info$available)) {
-      if (mem_info$available < 4) {
-        chunk_size <- 500
-      } else if (mem_info$available < 8) {
-        chunk_size <- 1000
-      } else if (mem_info$available < 16) {
-        chunk_size <- 2000
-      } else {
-        chunk_size <- 5000
-      }
-    } else {
-      chunk_size <- 1000  # Conservative default
-    }
+  # Calculate all resource parameters at once
+  params <- if (is.null(chunk_size)) {
+    # Use automatic calculation
+    calculateResourceParams(total_records, mem_info, num_cores)
+  } else {
+    # Use manually specified chunk size
+    list(
+      chunk_size = chunk_size,
+      workers = num_cores,
+      num_chunks = ceiling(total_records / chunk_size)
+    )
   }
   
   message(sprintf("Processing: %d chunks × %d records in parallel (%d workers)", 
-                  params$num_chunks, params$chunk_size, params$workers))  
+                  params$num_chunks, params$chunk_size, params$workers))
   
-  # Setup chunks
-  num_chunks <- ceiling(total_records / chunk_size)
-  chunks <- createChunks(total_records, chunk_size)
+  # Create chunks using params
+  chunks <- createChunks(total_records, params$chunk_size)
   
-  # Setup parallel processing with quiet connections
-  plan(future::multisession, workers = workers)
+  # Setup parallel processing with params$workers
+  plan(future::multisession, workers = params$workers)
   
-  
-  
-  # Progress message
-  #message("Retrieving data:")
-  #message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
-  message(sprintf("\nImporting %s records from %s/%s into dataframe...", 
-                  formatC(total_records, format = "d", big.mark = ","), 
-                  db_name, collection_name))
-  
-  
-  
-  # Initialize custom progress bar
-  pb <- initializeLoadingAnimation(num_chunks)
+  # Initialize progress bar with correct number of chunks
+  pb <- initializeLoadingAnimation(params$num_chunks)
   
   # Process chunks
-  future_results <- vector("list", length(chunks))
+  future_results <- vector("list", params$num_chunks)
   for (i in seq_along(chunks)) {
     future_results[[i]] <- future({
       temp <- tempfile()
@@ -348,22 +328,20 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   results <- lapply(future_results, value)
   
   # Combine results
-  # message("\nCombining data chunks...")
   df <- dplyr::bind_rows(results)
   completeLoadingAnimation(pb)
   
   # Harmonize data
-  message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)  # Prevents line feed
+  message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)
   clean_df <- dataHarmonization(df, identifier, collection_name)
-  Sys.sleep(0.5)  # Optional: small pause for visual effect
-  message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
-  # "\u2713"
+  Sys.sleep(0.5)
+  message(sprintf("\rHarmonizing data on %s...done.", identifier))
   
   # Report execution time
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
-  Sys.sleep(0.5)  # Optional: small pause for visual effect
-  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration-1))) # minus 1 to account for sleep
+  Sys.sleep(0.5)
+  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration-1)))
   
   return(clean_df)
 }
