@@ -215,6 +215,12 @@ formatDuration <- function(duration) {
 
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL) {
   start_time <- Sys.time()
+  Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
+  
+  # Setup cleanup on exit
+  on.exit({
+    disconnectMongo(Mongo)
+  })
   
   # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
@@ -301,16 +307,19 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     future_results[[i]] <- future({
       temp <- tempfile()
       sink(temp)
+      chunk_mongo <- NULL  # Initialize connection variable
+      
       on.exit({
         sink()
         unlink(temp)
+        disconnectMongo(chunk_mongo)  # Cleanup connection in worker
       })
       
       tryCatch({
-        Mongo <- Connect(collection_name, db_name)
+        chunk_mongo <- Connect(collection_name, db_name)
         batch_info <- chunks[[i]]
         if (!is.null(batch_info) && !is.null(batch_info$start) && !is.null(batch_info$size)) {
-          data_chunk <- getMongoData(Mongo, identifier, batch_info)
+          data_chunk <- getMongoData(chunk_mongo, identifier, batch_info)
         } else {
           warning("Invalid batch info, skipping chunk")
           return(NULL)
@@ -403,6 +412,19 @@ Connect <- function(collection_name, db_name) {
   return(Mongo)
 }
 
+#' Safely close MongoDB connection
+#' @param mongo A mongolite::mongo connection object
+#' @noRd
+disconnectMongo <- function(mongo) {
+  if (!is.null(mongo)) {
+    tryCatch({
+      mongo$disconnect()
+    }, error = function(e) {
+      warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
+    })
+  }
+}
+
 #' Retrieve Task Data
 #'
 #' Retrieves data from MongoDB based on the specified batch information and query criteria. 
@@ -492,6 +514,12 @@ dataHarmonization <- function(df, identifier, collection_name) {
 
 
 getCollections <- function() {
+  
+  Mongo <- NULL
+  
+  on.exit({
+    disconnectMongo(Mongo)
+  })
   
   Mongo <- Connect("foo")
   collections <- Mongo$run('{"listCollections":1,"nameOnly":true}')
