@@ -22,6 +22,24 @@
 
 
 dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
+  
+  # Set up cleanup for any MongoDB connections that might persist
+  on.exit({
+    # Find and cleanup any mongo connections in the global environment
+    mongo_objects <- ls(envir = .GlobalEnv, pattern = "^Mongo|_mongo$|^mongo", all.names = TRUE)
+    for (obj in mongo_objects) {
+      if (exists(obj, envir = .GlobalEnv)) {
+        conn <- get(obj, envir = .GlobalEnv)
+        if (is.environment(conn) && exists("disconnect", envir = conn)) {
+          tryCatch({
+            conn$disconnect()
+          }, error = function(e) NULL)
+        }
+      }
+    }
+    gc()  # Force garbage collection
+  })
+  
   base::source("api/testSuite.R")
   
   # Required Libraries Setup
@@ -110,7 +128,7 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   }
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  message("\nProcessing ", measure, " from clean", source, "/ ...")
+  message("\nProcessing ", measure, " from clean/", source, "/ ...")
   
   # Setup cleanup on exit
   on.exit({
@@ -155,7 +173,17 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
 
 
 
-
+# Add helper function for MongoDB cleanup
+disconnectMongo <- function(mongo) {
+  if (!is.null(mongo)) {
+    tryCatch({
+      mongo$disconnect()
+      rm(list = deparse(substitute(mongo)), envir = parent.frame())
+    }, error = function(e) {
+      warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
+    })
+  }
+}
 
 
 # Cleanup Function
