@@ -5,46 +5,117 @@ if (!require(config)) { install.packages("config") }; library(config)
 if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 
 #' Cross-platform memory check function
-#' @return Available memory in GB or NULL if unable to determine
+#' @return List containing total and available memory in GB
 getAvailableMemory <- function() {
   tryCatch({
     if (.Platform$OS.type == "windows") {
-      # Get total physical memory instead of free memory
-      wmic_cmd <- tryCatch({
+      # Get total physical memory
+      total_mem <- tryCatch({
         mem_info <- system('wmic ComputerSystem get TotalPhysicalMemory /Value', intern = TRUE)
-        # Extract the number from "TotalPhysicalMemory=XXXXX"
         mem_line <- grep("TotalPhysicalMemory=", mem_info, value = TRUE)
-        mem_bytes <- as.numeric(sub("TotalPhysicalMemory=", "", mem_line))
-        return(mem_bytes / (1024^3))  # Convert bytes to GB
-      }, error = function(e) {
-        # If wmic fails, try GlobalMemoryStatus
-        total_mem <- utils::memory.size(max = TRUE)
-        if (!is.na(total_mem)) {
-          return(total_mem / 1024)  # Convert MB to GB
-        }
-        return(NULL)
-      })
-      return(wmic_cmd)
+        as.numeric(sub("TotalPhysicalMemory=", "", mem_line)) / (1024^3)  # To GB
+      }, error = function(e) NULL)
+      
+      # Get complete memory stats for available calculation
+      avail_mem <- tryCatch({
+        # Get free physical memory
+        free_info <- system('wmic OS get FreePhysicalMemory /Value', intern = TRUE)
+        free_line <- grep("FreePhysicalMemory=", free_info, value = TRUE)
+        free_mem <- as.numeric(sub("FreePhysicalMemory=", "", free_line)) / (1024^2)  # KB to GB
+        
+        # Get cached memory (Windows calls this "Standby List")
+        cache_info <- system('wmic OS get SizeStoredInPagingFiles /Value', intern = TRUE)
+        cache_line <- grep("SizeStoredInPagingFiles=", cache_info, value = TRUE)
+        cache_mem <- as.numeric(sub("SizeStoredInPagingFiles=", "", cache_line)) / (1024^2)  # KB to GB
+        
+        # Get available memory including cache that can be reclaimed
+        mem_info <- system('wmic OS get FreeVirtualMemory /Value', intern = TRUE)
+        mem_line <- grep("FreeVirtualMemory=", mem_info, value = TRUE)
+        virtual_mem <- as.numeric(sub("FreeVirtualMemory=", "", mem_line)) / (1024^2)  # KB to GB
+        
+        # Total available is: free physical + cached + available virtual that's readily accessible
+        total_available <- free_mem + (cache_mem * 0.7) + (virtual_mem * 0.3)  # Weight factors for conservative estimate
+        
+        return(total_available)
+      }, error = function(e) NULL)
+      
+      return(list(
+        total = total_mem,
+        available = avail_mem
+      ))
     } else if (Sys.info()["sysname"] == "Darwin") {
-      mem_info <- system("sysctl hw.memsize", intern = TRUE)
-      if (length(mem_info) > 0) {
-        total_mem <- as.numeric(strsplit(mem_info, " ")[[1]][2])
-        return(total_mem / (1024^3))
-      }
+      # MacOS
+      total_mem <- tryCatch({
+        mem_info <- system("sysctl hw.memsize", intern = TRUE)
+        as.numeric(strsplit(mem_info, " ")[[1]][2]) / (1024^3)
+      }, error = function(e) NULL)
+      
+      # More accurate available memory detection for Mac
+      avail_mem <- tryCatch({
+        vm_stat <- system("vm_stat", intern = TRUE)
+        page_size <- 4096  # Default page size for Mac
+        
+        # Extract different memory stats
+        get_pages <- function(pattern) {
+          line <- grep(pattern, vm_stat, value = TRUE)
+          as.numeric(sub(".*: *(\\d+).*", "\\1", line))
+        }
+        
+        free_pages <- get_pages("Pages free:")
+        inactive_pages <- get_pages("Pages inactive:")
+        purgeable_pages <- get_pages("Pages purgeable:")
+        cached_pages <- get_pages("File-backed pages:")
+        
+        # Calculate available memory including cache and purgeable
+        total_available_pages <- free_pages + inactive_pages + purgeable_pages + cached_pages
+        (total_available_pages * page_size) / (1024^3)  # Convert to GB
+      }, error = function(e) NULL)
+      
+      return(list(
+        total = total_mem,
+        available = avail_mem
+      ))
     } else {
+      # Linux
       if (file.exists("/proc/meminfo")) {
         mem_info <- readLines("/proc/meminfo")
-        mem_free <- grep("MemAvailable:", mem_info, value = TRUE)
-        if (length(mem_free) > 0) {
-          mem_kb <- as.numeric(strsplit(mem_free, "\\s+")[[1]][2])
-          return(mem_kb / (1024^2))
+        
+        # Helper function to extract memory values
+        get_mem_value <- function(pattern) {
+          line <- grep(pattern, mem_info, value = TRUE)
+          value <- as.numeric(strsplit(line, "\\s+")[[1]][2])  # Get the number
+          value / (1024^2)  # Convert KB to GB
         }
+        
+        # Get all relevant memory metrics
+        total_mem <- get_mem_value("MemTotal:")
+        free_mem <- get_mem_value("MemFree:")
+        available_mem <- get_mem_value("MemAvailable:")  # Modern Linux kernels provide this
+        cached_mem <- get_mem_value("Cached:")
+        buffers_mem <- get_mem_value("Buffers:")
+        slab_mem <- get_mem_value("SReclaimable:")  # Reclaimable kernel memory
+        
+        # Calculate true available memory
+        # MemAvailable is already calculated by kernel using a sophisticated algorithm
+        # But we can fall back to our own calculation if needed
+        if (!is.na(available_mem)) {
+          avail_mem <- available_mem
+        } else {
+          # Similar to how the kernel calculates it:
+          # free + ((cached + buffers + slab) * 0.8)
+          avail_mem <- free_mem + ((cached_mem + buffers_mem + slab_mem) * 0.8)
+        }
+        
+        return(list(
+          total = total_mem,
+          available = avail_mem
+        ))
       }
     }
   }, error = function(e) {
-    return(NULL)
+    return(list(total = NULL, available = NULL))
   })
-  return(NULL)
+  return(list(total = NULL, available = NULL))
 }
 
 #' Calculate optimal resource parameters
@@ -58,13 +129,16 @@ calculateResourceParams <- function(total_records) {
   )
   
   # Try to get system resources
-  mem <- getAvailableMemory()
+  mem_info <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
   
-  if (!is.null(mem)) {
-    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", mem, num_cores))
+  if (!is.null(mem_info$total)) {
+    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", 
+                    mem_info$total, num_cores))
+    message(sprintf("System available: %.0fGB RAM, %d-core CPU.", 
+                    mem_info$available, num_cores))
   } else {
-    message(sprintf("System resources: %d-core CPU.", num_cores))  # Skip RAM info if unavailable
+    message(sprintf("System resources: %d-core CPU.", num_cores))
   }
   
   # If we can't detect resources, return defaults
@@ -205,25 +279,37 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   total_records <- Mongo$count(query_json)
   
   # Get and display system resources
-  mem <- getAvailableMemory()
+  mem_info <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
   workers <- max(1, num_cores - 2)
-  message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", mem, num_cores))
+  # Display system resources
+  if (!is.null(mem_info$total)) {
+    message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", 
+                    mem_info$total, num_cores))
+  } else {
+    message(sprintf("System resources: %d-core CPU.", num_cores))
+  }
+  
+  if (!is.null(mem_info$available) && !is.null(mem_info$total) && 
+      abs(mem_info$available - mem_info$total) > 1) {  # If difference > 1GB
+    message(sprintf("Available memory: %.0fGB", mem_info$available))
+  }
   
   # Adjust chunk size based on memory
-  if (!is.null(mem)) {
-    if (mem < 4) {
-      chunk_size <- 500
-    } else if (mem < 8) {
-      chunk_size <- 1000
-    } else if (mem < 16) {
-      chunk_size <- 2000
+  if (is.null(chunk_size)) {  # Only if not manually specified
+    if (!is.null(mem_info$available)) {
+      if (mem_info$available < 4) {
+        chunk_size <- 500
+      } else if (mem_info$available < 8) {
+        chunk_size <- 1000
+      } else if (mem_info$available < 16) {
+        chunk_size <- 2000
+      } else {
+        chunk_size <- 5000
+      }
     } else {
-      chunk_size <- 5000
+      chunk_size <- 1000  # Conservative default
     }
-  } else {
-    # Default if memory detection fails
-    chunk_size <- 1000  # Conservative default
   }
   
   #message(sprintf("Using chunk size: %d, workers: %d", chunk_size, workers))
