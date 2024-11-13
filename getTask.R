@@ -298,6 +298,10 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Setup parallel processing with params$workers
   plan(future::multisession, workers = params$workers)
   
+  message(sprintf("\nImporting %s records from %s/%s into dataframe...", 
+                  formatC(total_records, format = "d", big.mark = ","), 
+                  db_name, collection_name))
+  
   # Initialize progress bar with correct number of chunks
   pb <- initializeLoadingAnimation(params$num_chunks)
   
