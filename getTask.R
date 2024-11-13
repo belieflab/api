@@ -11,7 +11,7 @@ getAvailableMemory <- function() {
     if (.Platform$OS.type == "windows") {
       mem <- memory.limit()
       if (!is.null(mem) && !is.na(mem) && mem > 0) {
-        return(mem)
+        return(as.numeric(mem))  # Ensure numeric
       }
     } else if (Sys.info()["sysname"] == "Darwin") {
       mem_info <- system("sysctl hw.memsize", intern = TRUE)
@@ -191,7 +191,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   mem <- getAvailableMemory()
   num_cores <- parallel::detectCores(logical = TRUE)
   workers <- max(1, num_cores - 2)
-  message(sprintf("System resources: %dGB RAM, %d-core CPU", mem, num_cores))
+  message(sprintf("System resources: %.0fGB RAM, %d-core CPU.", mem, num_cores))
   
   # Adjust chunk size based on memory
   if (!is.null(mem) && mem < 4) {
