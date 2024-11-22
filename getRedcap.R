@@ -195,6 +195,8 @@ getRedcap <- function(instrument_name) {
 }
 
 getForms <- function() {
+  # check to see if secrets.R exists; if it does not, create it
+  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
   forms <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
   # createCsv(forms)
   View(forms)
@@ -202,6 +204,8 @@ getForms <- function() {
 }
 
 getDictionary <- function(instrument_name) {
+  # check to see if secrets.R exists; if it does not, create it
+  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
   dictionary <- metadata[metadata$form_name == instrument_name, ]
   # View(dictionary)
