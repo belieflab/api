@@ -113,7 +113,7 @@ getRedcap <- function(instrument_name) {
   df <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
-    forms = c("nda_study_intake", instrument_name),
+    forms = c(config$combine_forms),
     batch_size = 1000,
     verbose = TRUE
   )$data
