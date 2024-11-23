@@ -158,7 +158,7 @@ getRedcap <- function(instrument_name) {
     group_by(src_subject_id) %>%  
     dplyr::mutate(baseline_pheno = first(phenotype)) %>% 
     dplyr::mutate(phenotype = baseline_pheno) %>% 
-    select(-baseline_pheno) 
+    dplyr::select(-baseline_pheno) 
   
   # Remove rows where phenotype is NA
   #but first print warning and say how many folks are getting removed
