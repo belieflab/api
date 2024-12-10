@@ -108,12 +108,11 @@ getRedcap <- function(instrument_name) {
 
   show_loading_animation()
 
-
   # establish redcap connection
   df <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
-    forms = c(config$combine_forms),
+    forms = c(config$redcap$super_keys, instrument_name),
     batch_size = 1000,
     verbose = TRUE
   )$data
