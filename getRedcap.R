@@ -131,8 +131,6 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
     )$data
   }
   
-  completeLoadingAnimation(pb)
-  
   # Add measure column to track source
   df$measure <- instrument_name
   
