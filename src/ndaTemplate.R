@@ -18,5 +18,5 @@ ndaTemplate <- function(df) {
   write.table(template, path, row.names = FALSE, col.names = TRUE, append = TRUE, 
               quote = FALSE, sep = ",", na = "")
   
-  cat(paste0("Upload Template created at ", path))
+  cat(paste0("Upload Template created at ", path,"\n"))
 }
