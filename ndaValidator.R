@@ -234,7 +234,7 @@ find_and_rename_fields <- function(df, elements, structure_name) {
   return(renamed)
 }
 
-# Helper function to get violating values
+# Helper function to get violating values with type conversion
 get_violations <- function(value, range_str) {
   if (is.null(range_str) || is.na(range_str) || range_str == "") return(character(0))
   
@@ -243,6 +243,12 @@ get_violations <- function(value, range_str) {
   if (grepl("::", range_str)) {
     # Numeric range check
     range <- as.numeric(strsplit(range_str, "::")[[1]])
+    
+    # Convert value to numeric if it's character
+    if (is.character(value)) {
+      value <- as.numeric(value)
+    }
+    
     invalid_mask <- value < range[1] | value > range[2]
     invalid_mask[is.na(invalid_mask)] <- FALSE
     return(sort(unique(value[invalid_mask])))
@@ -398,6 +404,17 @@ ndaValidator <- function(measure_name,
     if (length(validation_results$unknown_fields) > 0) {
       cat("\nUnknown Fields (not in NDA structure):\n")
       cat(paste("-", validation_results$unknown_fields), sep = "\n")
+    }
+    
+    # Drop unknown fields from dataframe
+    if (length(validation_results$unknown_fields) > 0) {
+      cat("\nDropping unknown fields from dataframe...\n")
+      df <- df[, !(names(df) %in% validation_results$unknown_fields)]
+      assign(measure_name, df, envir = .GlobalEnv)
+
+      # Show final column names
+      cat("\nFinal column names:\n")
+      cat(paste(names(df), collapse = " "), "\n")
     }
     
     return(validation_results)
