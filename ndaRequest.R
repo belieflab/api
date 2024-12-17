@@ -25,17 +25,6 @@ ndaRequest <- function(df, structure_name,
     }
   }
   
-  # Helper function to convert NDA type to R type
-  nda_to_r_type <- function(nda_type) {
-    switch(nda_type,
-           "GUID" = "character",
-           "String" = "character",
-           "Integer" = "integer",
-           "Float" = "numeric",
-           "Date" = "Date",
-           nda_type)
-  }
-  
   # Helper function to fetch structure elements
   fetch_structure_elements <- function(structure_name) {
     url <- sprintf("%s/datastructure/%s", api_base_url, structure_name)
@@ -52,32 +41,7 @@ ndaRequest <- function(df, structure_name,
     }
     
     elements <- content$dataElements
-    cat("Element columns found:", paste(names(elements), collapse=", "), "\n")
-    
     return(elements)
-  }
-  
-  # Helper function to validate data types
-  validate_data_type <- function(value, expected_type) {
-    if (is.null(value) || length(value) == 0) return(TRUE)
-    
-    actual_type <- class(value)[1]
-    r_type <- nda_to_r_type(expected_type)
-    
-    type_map <- list(
-      "character" = c("character", "factor"),
-      "integer" = c("integer", "numeric"),
-      "numeric" = c("numeric", "double", "integer"),
-      "Date" = c("Date", "POSIXct", "POSIXt", "character"),
-      "logical" = c("logical")
-    )
-    
-    valid_types <- type_map[[r_type]]
-    if (is.null(valid_types)) {
-      return(TRUE)  # Unknown type, assume valid
-    }
-    
-    return(actual_type %in% valid_types)
   }
   
   # Helper function to validate value ranges
@@ -107,47 +71,34 @@ ndaRequest <- function(df, structure_name,
     results <- list(
       valid = TRUE,
       missing_required = character(0),
-      type_mismatches = list(),
       value_range_violations = list(),
-      extra_columns = character(0),
-      missing_columns = character(0)
+      unknown_fields = character(0)
     )
     
-    # Check for required fields
+    # Get required fields and all valid fields
     required_fields <- elements$name[elements$required == "Required"]
-    results$required_fields <- required_fields  # Store for later use
+    valid_fields <- elements$name
     
+    # Check for unknown fields
+    df_cols <- names(df)
+    results$unknown_fields <- setdiff(df_cols, valid_fields)
+    if (length(results$unknown_fields) > 0) {
+      results$valid <- FALSE
+    }
+    
+    # Check for required fields
     if (length(required_fields) > 0) {
-      missing_required <- required_fields[!required_fields %in% names(df)]
+      missing_required <- required_fields[!required_fields %in% df_cols]
       if (length(missing_required) > 0) {
         results$valid <- FALSE
         results$missing_required <- missing_required
       }
     }
     
-    # Check column presence
-    df_cols <- names(df)
-    element_cols <- elements$name
-    
-    results$extra_columns <- setdiff(df_cols, element_cols)
-    results$missing_columns <- setdiff(element_cols, df_cols)
-    
-    # Check data types and value ranges
-    common_cols <- intersect(df_cols, element_cols)
-    for (col in common_cols) {
+    # Check value ranges for all present valid columns
+    for (col in intersect(df_cols, valid_fields)) {
       element <- elements[elements$name == col, ]
-      
-      # Type validation
-      if (!validate_data_type(df[[col]], element$type)) {
-        results$valid <- FALSE
-        results$type_mismatches[[col]] <- list(
-          expected = element$type,
-          actual = class(df[[col]])[1]
-        )
-      }
-      
-      # Value range validation
-      if (!is.null(element$valueRange) && !is.na(element$valueRange) && 
+      if (nrow(element) > 0 && !is.null(element$valueRange) && !is.na(element$valueRange) && 
           element$valueRange != "" && !validate_value_range(df[[col]], element$valueRange)) {
         results$valid <- FALSE
         results$value_range_violations[[col]] <- list(
@@ -163,7 +114,7 @@ ndaRequest <- function(df, structure_name,
   # Main execution
   tryCatch({
     # Fetch elements
-    cat("Fetching structure elements for", structure_name, "...\n")
+    cat("Fetching NDA Data Structure for", structure_name, "...\n")
     elements <- fetch_structure_elements(structure_name)
     if (is.null(elements) || nrow(elements) == 0) {
       stop("No elements found in the structure definition")
@@ -182,15 +133,6 @@ ndaRequest <- function(df, structure_name,
       cat(paste("-", validation_results$missing_required), sep = "\n")
     }
     
-    if (length(validation_results$type_mismatches) > 0) {
-      cat("\nType Mismatches:\n")
-      for (col in names(validation_results$type_mismatches)) {
-        mismatch <- validation_results$type_mismatches[[col]]
-        cat(sprintf("- %s: expected %s, got %s\n", 
-                    col, mismatch$expected, mismatch$actual))
-      }
-    }
-    
     if (length(validation_results$value_range_violations) > 0) {
       cat("\nValue Range Violations:\n")
       for (col in names(validation_results$value_range_violations)) {
@@ -200,18 +142,9 @@ ndaRequest <- function(df, structure_name,
       }
     }
     
-    if (length(validation_results$extra_columns) > 0) {
-      cat("\nExtra Columns:\n")
-      cat(paste("-", validation_results$extra_columns), sep = "\n")
-    }
-    
-    if (length(validation_results$missing_columns) > 0) {
-      cat("\nMissing Columns (Required fields marked with *):\n")
-      missing_cols <- validation_results$missing_columns
-      required_missing <- missing_cols %in% validation_results$required_fields
-      cat(paste0("-", 
-                 ifelse(required_missing, "* ", "  "),
-                 missing_cols), sep = "\n")
+    if (length(validation_results$unknown_fields) > 0) {
+      cat("\nUnknown Fields (not in NDA structure):\n")
+      cat(paste("-", validation_results$unknown_fields), sep = "\n")
     }
     
     return(validation_results)
