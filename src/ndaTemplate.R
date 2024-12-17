@@ -1,13 +1,22 @@
-ndaTemplate <- function(df, nda_prefix) {
-  # Create the file path using file.path for platform independence
-  path <- file.path('nda', paste0(nda_prefix, '01_template.csv'))
+ndaTemplate <- function(df) {
+  if (!dir.exists("nda")) {
+    dir.create("nda")
+  }
   
-  # Write the first line to the CSV as text
-  first_line <- nda_prefix
-  write(first_line, path, append = FALSE)
+  structure_name <- paste0(df, "01")
   
-  # Append the data frame to the CSV
-  write.table(df, path, row.names = FALSE, append = TRUE, quote = FALSE, sep=",")
+  # Create the file path
+  path <- file.path('nda', paste0(structure_name, '_template.csv'))
   
-  cat(paste0("Extract created at ", path))
+  # Get the dataframe
+  template <- base::get(df, envir = .GlobalEnv)
+  
+  # Write structure name as first line
+  write(structure_name, path, append = FALSE)
+  
+  # Write column headers and data separately
+  write.table(template, path, row.names = FALSE, col.names = TRUE, append = TRUE, 
+              quote = FALSE, sep = ",", na = "")
+  
+  cat(paste0("Upload Template created at ", path))
 }
