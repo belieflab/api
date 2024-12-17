@@ -7,75 +7,60 @@
 # base::source all files using lapply()
 lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
 
-# instrument_name                            instrument_label
-
-# nda_study_intake                           NDA Study Intake
-# demographics_overview                      Demographics + Overview
-# demographics_overview_2                    Demographics 12M
-# sips_p_items                               Sips P Items
-# nsipr_pins                                 NSI-PR (PINS)
-# sips_n_items                               Sips N Items
-# sips_d_items                               Sips D Items
-# sips_g_items                               Sips G Items
-# family_interview_for_genetic_studies_figs  FIGS
-# medication_log                             Medication Log
-# life_events_scale                          Life Events Scale
-# ctas                                       CTAS
-# wrat                                       WRAT
-# bacs                                       BACS
-# hvlt                                       HVLT
-# gaf_spd_criteria                           GAF + SPD Criteria
-# sips_scoresheet                            SIPS Scoresheet
-# gfs_social_and_role_score_sheets           GFS Social And Role Score Sheets
-# scid_scoresheet                            SCID Scoresheet
-# icd_scoresheet                             ICD Scoresheet
-# conversion_tracker                         Conversion Tracking Form
-# audit_checklist                            Audit Checklist
-
-# variable assignment
-
-# demographics_overview <- getRedcap("demographics_overview")
-# demographics_overview_2 <- getRedcap("demographics_overview_2")
-# sips_p <- getRedcap("sips_p_items")
-# nsipr_pins <- getRedcap("nsipr_pins")
-# sips_n <- getRedcap("sips_n_items")
-# sips_d_items <- getRedcap("sips_d_items")
-# sips_g_items <- getRedcap("sips_g_items")
-# family_interview_for_genetic_studies_figs <- getRedcap("family_interview_for_genetic_studies_figs")
-# medication_log <- getRedcap("medication_log")
-# lec <- getRedcap("life_events_scale")
-# ctas <- getRedcap("ctas")
-# wrat <- getRedcap("wrat")
-# bacs <- getRedcap("bacs")
-# hvlt <- getRedcap("hvlt")
-# gaf_spd_criteria <- getRedcap("gaf_spd_criteria")
-# sips_scoresheet <- getRedcap("sips_scoresheet")
-# gfs_social_and_role_score_sheets <- getRedcap("gfs_social_and_role_score_sheets")
-# scid_scoresheet <- getRedcap("scid_scoresheet")
-# icd_scoresheet <- getRedcap("icd_scoresheet")
-# conversion_tracker <- getRedcap("conversion_tracker")
-# audit_checklist <- getRedcap("audit_checklist")
-# figs <- getRedcap("figs")
-
-# Define the loading animation function
-show_loading_animation <- function() {
-  cat("Loading ")
-  pb <- txtProgressBar(min = 0, max = 20, style = 3)
-
-  for (i in 1:20) {
-    Sys.sleep(0.1) # Simulate some computation time
-    setTxtProgressBar(pb, i)
-  }
-
-  close(pb)
+# Initialize functions needed for the progress bar
+initializeLoadingAnimation <- function(steps) {
+  # Get console width
+  width <- tryCatch({
+    if (requireNamespace("cli", quietly = TRUE)) {
+      cli::console_width() - 10  # Leave some margin
+    } else {
+      getOption("width", 80) - 10  # Fallback to R's width setting
+    }
+  }, error = function(e) 80)  # Default if all else fails
+  
+  list(
+    steps = steps,
+    current = 0,
+    width = width,
+    start_time = Sys.time()
+  )
 }
 
-# Define the progress callback function
-progress_callback <- function(count, total) {
-  setTxtProgressBar(pb, count) # Update the loading animation
+updateLoadingAnimation <- function(pb, current) {
+  pb$current <- current
+  percentage <- round(current / pb$steps * 100)
+  filled <- round(pb$width * current / pb$steps)
+  bar <- paste0(
+    strrep("=", filled),
+    strrep(" ", pb$width - filled)
+  )
+  cat(sprintf("\r|%s| %3d%%", bar, percentage))  # Removed extra spaces before bar
+  utils::flush.console()
+}
+
+completeLoadingAnimation <- function(pb) {
+  updateLoadingAnimation(pb, pb$steps)
+  cat("\n")
+}
+
+formatDuration <- function(duration) {
+  secs <- as.numeric(duration, units = "secs")
+  if (secs < 60) {
+    return(sprintf("%.1f seconds", secs))
+  } else {
+    mins <- floor(secs / 60)
+    remaining_secs <- round(secs %% 60, 1)
+    if (remaining_secs > 0) {
+      return(sprintf("%d minutes and %.1f seconds", mins, remaining_secs))
+    } else {
+      return(sprintf("%d minutes", mins))
+    }
+  }
 }
 
 getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size = 1000, records = NULL, fields = NULL) {
+  start_time <- Sys.time()  # Add this at the start
+  
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
@@ -105,7 +90,18 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
   
   base::source("secrets.R")
   
-  show_loading_animation()
+  # Initialize progress bar
+  pb <- initializeLoadingAnimation(20)
+  message(sprintf("\nImporting records from REDCap form: %s", instrument_name))
+  
+  # Update progress before data retrieval
+  for (i in 1:20) {
+    updateLoadingAnimation(pb, i)
+    Sys.sleep(0.1)
+  }
+  completeLoadingAnimation(pb)
+  message("")  # Add blank line before REDCap messages
+  
   
   # Get data based on whether specific fields were provided
   if (!is.null(fields)) {
@@ -135,6 +131,8 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
     )$data
   }
   
+  completeLoadingAnimation(pb)
+  
   # Add measure column to track source
   df$measure <- instrument_name
   
@@ -148,6 +146,11 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
     base::source("api/redcap/capr-logic.R")
     df <- processCaprData(df, instrument_name)  # New function to process CAPR data
   }
+  
+  # At the end, add duration message without repeating progress bar
+  end_time <- Sys.time()
+  duration <- difftime(end_time, start_time, units = "secs")
+  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration)))
   
   return(df)
 }
