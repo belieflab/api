@@ -146,6 +146,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
   # CAPR-specific processing only happens if study_alias is "capr"
   if (config$study_alias == "capr") {
     base::source("api/redcap/capr-logic.R")
+    df <- processCaprData(df, instrument_name)  # New function to process CAPR data
   }
   
   return(df)
