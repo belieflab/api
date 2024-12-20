@@ -30,7 +30,7 @@ createCsv <- function(df, df_name = NULL) {
   path <- paste0('./tmp/', filename, '.csv')
   
   # Write the DataFrame to a CSV file
-  write.csv(df, path, row.names = FALSE, quote = FALSE)
+  write.csv(df, path, row.names = FALSE, quote = TRUE)
   
   # Notify user of file creation
   message(paste0("Extract created at ", path, "\n"))

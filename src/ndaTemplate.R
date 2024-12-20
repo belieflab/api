@@ -3,20 +3,21 @@ ndaTemplate <- function(df) {
     dir.create("nda")
   }
   
-  structure_name <- paste0(df, "01")
+  # Define structure_name explicitly
+  structure_name <- df  # No additional formatting here, assuming '01' is static
   
   # Create the file path
-  path <- file.path('nda', paste0(structure_name, '_template.csv'))
+  path <- file.path('nda', paste0(df, '_template.csv'))
   
   # Get the dataframe
   template <- base::get(df, envir = .GlobalEnv)
   
-  # Write structure name as first line
-  write(structure_name, path, append = FALSE)
+  # Write the first line with "structure_name, 01"
+  write(paste0(structure_name, ", 01"), path, append = FALSE)
   
-  # Write column headers and data separately
+  # Write column headers and data below
   write.table(template, path, row.names = FALSE, col.names = TRUE, append = TRUE, 
-              quote = FALSE, sep = ",", na = "")
+              quote = TRUE, sep = ",", na = "")
   
-  cat(paste0("Upload Template created at ", path,"\n"))
+  cat(paste0("Upload Template created at ", path, "\n"))
 }
