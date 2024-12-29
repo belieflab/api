@@ -11,6 +11,43 @@
 #' @import jsonlite
 #' @import dplyr
 
+
+# Extract mapping rules from Notes field
+get_mapping_rules <- function(notes) {
+  if (is.null(notes) || is.na(notes) || notes == "") return(NULL)
+  
+  rules <- list()
+  
+  # Handle array notation like "1=(0.9, 0.5, 0.1)"
+  if (grepl("=\\(.*\\)", notes)) {
+    pattern_matches <- gregexpr("(\\d+)=\\(([^)]+)\\)", notes)
+    if (pattern_matches[[1]][1] != -1) {
+      matches <- regmatches(notes, pattern_matches)[[1]]
+      for (match in matches) {
+        code_match <- regexec("(\\d+)=\\(([^)]+)\\)", match)
+        parts <- regmatches(match, code_match)[[1]]
+        code <- parts[2]
+        values <- sprintf("[%s]", parts[3])  # Reconstruct array format
+        rules[[values]] <- code
+      }
+    }
+  }
+  # Handle simple mappings like "1=Red"
+  else if (grepl("\\d+=\\w+", notes)) {
+    patterns <- strsplit(notes, ";\\s*")[[1]]
+    for (pattern in patterns) {
+      if (grepl("=", pattern)) {
+        parts <- strsplit(pattern, "=")[[1]]
+        code <- trimws(parts[1])
+        value <- trimws(parts[2])
+        rules[[value]] <- code
+      }
+    }
+  }
+  
+  return(rules)
+}
+
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
   # Convert to lowercase
@@ -106,26 +143,76 @@ standardize_binary <- function(value) {
   return(mapped_values)
 }
 
+# Parse array-like strings to vectors
+parse_array_string <- function(value) {
+  if (is.null(value) || is.na(value)) return(NULL)
+  
+  # Handle string arrays
+  if (is.character(value)) {
+    # Remove unicode prefix, brackets, and quotes
+    clean_str <- gsub("\\[|\\]|u'|'", "", value)
+    values <- strsplit(clean_str, ",\\s*")[[1]]
+    return(tolower(trimws(values)))
+  }
+  
+  # Handle numeric arrays
+  if (is.numeric(value) && length(value) > 1) {
+    return(sprintf("%.1f", value))
+  }
+  
+  return(tolower(trimws(value)))
+}
+
 # Transform values based on NDA structure requirements
 transform_value_ranges <- function(df, elements) {
-  # Transform handedness specifically
+  # Keep existing handedness transformation
   if ("handedness" %in% names(df)) {
     cat("\nChecking handedness format...")
     df$handedness <- standardize_handedness(df$handedness)
   }
   
-  # Identify fields with "0;1" valueRange
-  binary_fields <- elements$name[elements$valueRange == "0;1"]
+  # Keep existing binary field transformation
+  binary_fields <- elements$name[!is.na(elements$valueRange) & elements$valueRange == "0;1"]
+  if (length(binary_fields) > 0) {
+    for (field in binary_fields) {
+      if (field %in% names(df)) {
+        values <- as.character(df[[field]])
+        potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
+        if (any(values %in% potential_booleans, na.rm = TRUE)) {
+          cat(sprintf("\nChecking %s format (0;1)...", field))
+          df[[field]] <- standardize_binary(df[[field]])
+        }
+      }
+    }
+  }
   
-  # Transform any binary fields found in the data
-  for (field in binary_fields) {
-    if (field %in% names(df)) {
-      # Check if the field contains any boolean-like values
-      values <- as.character(df[[field]])
-      potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
-      if (any(values %in% potential_booleans)) {
-        cat(sprintf("\nChecking %s format (0;1)...", field))
-        df[[field]] <- standardize_binary(df[[field]])
+  # Process fields that have mapping rules in Notes
+  for (i in 1:nrow(elements)) {
+    field_name <- elements$name[i]
+    notes <- elements$notes[i]
+    
+    if (field_name %in% names(df) && !is.na(notes) && notes != "") {
+      rules <- get_mapping_rules(notes)
+      
+      if (!is.null(rules) && length(rules) > 0) {
+        cat(sprintf("\nStandardizing %s...", field_name))
+        
+        # Direct value mapping
+        current_values <- as.character(df[[field_name]])
+        n_transformed <- 0
+        
+        for (value in names(rules)) {
+          matches <- current_values == value
+          if (any(matches, na.rm = TRUE)) {
+            df[[field_name]][matches] <- as.integer(rules[[value]])
+            n_transformed <- n_transformed + sum(matches, na.rm = TRUE)
+          }
+        }
+        
+        if (n_transformed > 0) {
+          cat(sprintf("\nTransformed %d values in %s to NDA standard format\n", 
+                      n_transformed, field_name))
+        }
       }
     }
   }
@@ -263,8 +350,8 @@ get_violations <- function(value, range_str) {
   return(character(0))
 }
 
-# Main validation logic function with binary standardization
-validate_structure <- function(df, elements, measure_name) {  # Add measure_name parameter
+# Main validation logic function
+validate_structure <- function(df, elements, measure_name) {
   results <- list(
     valid = TRUE,
     missing_required = character(0),
@@ -381,7 +468,7 @@ ndaValidator <- function(measure_name,
     }
     
     # Continue with validation using renamed dataframe
-    validation_results <- validate_structure(df, elements, measure_name)  # Pass measure_name
+    validation_results <- validate_structure(df, elements, measure_name)
     
     # Print results
     cat("\nValidation Results:\n")
@@ -411,7 +498,7 @@ ndaValidator <- function(measure_name,
       cat("\nDropping unknown fields from dataframe...\n")
       df <- df[, !(names(df) %in% validation_results$unknown_fields)]
       assign(measure_name, df, envir = .GlobalEnv)
-
+      
       # Show final column names
       cat("\nFinal column names:\n")
       cat(paste(names(df), collapse = " "), "\n")
