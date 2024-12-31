@@ -166,6 +166,16 @@ parse_array_string <- function(value) {
 # Transform values based on NDA structure requirements
 # Add case mapping standardization to transform_value_ranges (e.g. eefrt01 e, h)
 transform_value_ranges <- function(df, elements) {
+  # Check which columns are required
+  required_fields <- elements$name[elements$required == "Required"]
+  
+  # Only check non-required columns for emptiness e.g."rt" on eefrt
+  empty_cols <- sapply(df[, !names(df) %in% required_fields], function(col) all(is.na(col) | col == ""))
+  if (any(empty_cols)) {
+    df <- df[, !names(df) %in% names(empty_cols)[empty_cols], drop=FALSE]
+    cat("\nDropped empty columns:", paste(names(empty_cols)[empty_cols], collapse=", "), "\n")
+  }
+  
   # Keep existing binary field transformation
   binary_fields <- elements$name[!is.na(elements$valueRange) & elements$valueRange == "0;1"]
   if (length(binary_fields) > 0) {
@@ -199,6 +209,7 @@ transform_value_ranges <- function(df, elements) {
       }
     }
   }
+  
   return(df)
 }
 
