@@ -493,9 +493,36 @@ ndaValidator <- function(measure_name, source,
     
     if (length(validation_results$missing_required) > 0) {
       message("\nWARNING: Submission Template not created!")
-      message("\nAdd the missing required fields (even if you must add null values) then re-run ndaRequest:")
-      cat("\nMissing Required Fields:\n")
-      cat(paste("-", validation_results$missing_required), sep = "\n")
+      message("\nAuto-adding missing required fields with null values:")
+      
+      for (field in validation_results$missing_required) {
+        element <- elements[elements$name == field, ]
+        # Add debug line
+        cat("\nNotes for", field, ":", element$notes, "\n")
+        # First check if there's a numeric null value specified in notes
+        null_value <- if (!is.na(element$notes) && grepl("\\d+\\s*=\\s*Missing", element$notes)) {
+        missing_val <- gsub(".*?([-]?\\d+)\\s*=\\s*Missing.*", "\\1", element$notes)
+        if (element$type == "Float" || element$type == "Integer") {
+          as.numeric(paste0("-", abs(as.numeric(missing_val))))  # Ensure negative
+        } else {
+          paste0("-", abs(as.numeric(missing_val)))
+        }
+      } else {
+        "NULL"
+      }
+        
+        df[[field]] <- null_value
+        cat(sprintf("- %s: added with null value '%s'\n", field, null_value))
+        
+      }
+      # Clear missing_required after processing
+      validation_results$missing_required <- character(0)
+      assign(measure_name, df, envir = .GlobalEnv)
+      
+      # Confirm reset
+      if (length(validation_results$missing_required) == 0) {
+        message("\nAll missing required fields have been addressed.")
+      }
     }
     
     if (length(validation_results$value_range_violations) > 0) {
