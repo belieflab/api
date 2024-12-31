@@ -20,6 +20,8 @@
 #' 
 #' 
 
+start_time <- Sys.time()
+
 ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   base::source("api/getRedcap.R")
@@ -49,11 +51,12 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
   if (!require("config")) {install.packages("config")}; library(config)
+  if (!require("beepr")) {install.packages("beepr")}; library(beepr)
   
   # Prepare lists for REDCap, Qualtrics, and tasks
-  redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
-  qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
-  task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
+  redcap_list <- tools::file_path_sans_ext(list.files("./nda/redcap"))
+  qualtrics_list <- tools::file_path_sans_ext(list.files("./nda/qualtrics"))
+  task_list <- tools::file_path_sans_ext(list.files("./nda/mongo"))
   
   # Get super_keys from config
   config <- config::get()
@@ -66,8 +69,6 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   if (is.character(super_keys)) {
     super_keys <- strsplit(super_keys, ",")[[1]]
   }
-  
-  start_time <- Sys.time()
   
   # Source necessary R scripts from the 'api' directory
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
@@ -109,16 +110,16 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   # Process each measure using processMeasure function
   for (measure in data_list) {
-    sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "task"))
-    processMeasure(measure, sourceCategory, csv, rdata, spss, super_keys)
+    api <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
+    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time)
   }
   
   # Clean up and record processing time
   # performCleanup()
-  print(Sys.time() - start_time)  # Print time taken for processing
+  # print(Sys.time() - start_time)  # Print time taken for processing
 }
 
-processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
+processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time) {
   # Check if input is a dataframe
   if (is.data.frame(measure)) {
     # Get the name of the dataframe as a string
@@ -133,8 +134,8 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   }
   
   # Construct the path to the measure's cleaning script
-  file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  message("\nProcessing ", measure, " from clean/", source, "/", measure)
+  file_path <- sprintf("./nda/%s/%s.R", api, measure)
+  message("\nFetching ", measure, " with nda/", api, "/", measure,".R\n")
   
   # Setup cleanup on exit
   on.exit({
@@ -167,11 +168,13 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
     
     # Run validation
     base::source("api/ndaValidator.R")
-    validation_results <- ndaValidator(measure)  # Now just passing measure name
-    # Create data upload template if test passses
+    validation_results <- ndaValidator(measure, api)
+    # Create data upload template if test passes
     if (validation_results$valid == FALSE) {
       base::source("api/src/ndaTemplate.R")
       ndaTemplate(measure)
+      beepr::beep("mario")
+      formatElapsedTime(start_time)
     }
     
   }, error = function(e) {
@@ -218,85 +221,16 @@ preserveDateFormat <- function(df) {
   return(df)
 }
 
-
-### trying to store results from unit tests - work in progress (mkp)
-
-# dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, id = NULL) {
-#   base::source("api/ndaValidator.R")
-#   
-#   # Load necessary libraries
-#   if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
-#   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
-#   
-#   # Prepare lists for REDCap, Qualtrics, and tasks
-#   redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
-#   qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
-#   task_list <- tools::file_path_sans_ext(list.files("./clean/task"))
-#   
-#   start_time <- Sys.time()
-#   
-#   # Source necessary R scripts from the 'api' directory
-#   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-#   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
-#   
-#   # Compile data list and validate measures
-#   data_list <- list(...)
-#   validateMeasures <- function(data_list) {
-#     invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, task_list), data_list)
-#     if (length(invalid_list) > 0) {
-#       stop(paste(invalid_list, collapse = ", "), " do not have a cleaning script, please create one!\n")
-#     }
-#   }
-#   validateMeasures(data_list)
-#   
-#   # Initialize variable to store aggregated results
-#   all_test_results <- NULL
-#   
-#   # Process each measure using processMeasure function and collect results
-#   for (measure in data_list) {
-#     sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "task"))
-#     test_results <- processMeasure(measure, sourceCategory, csv, rdata, spss)
-#     all_test_results <- rbind(all_test_results, test_results)
-#   }
-#   
-#   # Always create a CSV with all results
-#   if (!is.null(all_test_results)) {
-#     source("api/src/createCsv.R")
-#     createCsv(all_test_results, paste0("combined_test_results_", format(Sys.Date(), "%Y%m%d")))  # Use custom function to create a single CSV
-#     View(all_test_results)
-#   }
-#   
-#   performCleanup()
-#   print(Sys.time() - start_time)
-# }
-# 
-# # Helper function for processMeasure is assumed to handle the unit tests and aggregate results as needed
-# 
-# 
-# 
-# 
-# # Process Individual Measure Function
-# processMeasure <- function(measure, source, csv, rdata, spss) {
-#   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-#   message("\nProcessing ", measure, " from ", source, "...")
-#   result <- tryCatch({
-#     base::source(file_path)
-#     base::source("api/ndaValidator.R")
-#     test_results <- ndaValidator(measure, source, file_path)  # Gather test results
-#     if (is.null(test_results)) {
-#       test_results <- data.frame(Measure = measure, Test = "Test Suite Execution", Status = "Fail", Message = "No result returned from test suite")
-#     }
-#     test_results
-#   }, error = function(e) {
-#     message("Error with ", measure, ": ", e$message)
-#     data.frame(Measure = measure, Test = "Error during processing", Status = "Fail", Message = e$message)
-#   })
-#   return(result)
-# }
-# 
-# 
-# # Cleanup Function
-# performCleanup <- function() {
-#   # Placeholder for cleanup operations, like disconnecting from databases
-#   suppressWarnings(source("api/env/cleanup.R"))
-# }
+# Helper function to display time savings.
+formatElapsedTime <- function(start_time) {
+  time_diff <- Sys.time() - start_time
+  units <- attr(time_diff, "units")
+  
+  formatted_time <- switch(units,
+                           "secs" = sprintf("%.1f seconds", time_diff),
+                           "mins" = sprintf("%.1f minutes", time_diff),
+                           sprintf("%.1f %s", time_diff, units)
+  )
+  
+  message("Formatted for NDA in ", formatted_time, ".")
+}

@@ -164,13 +164,8 @@ parse_array_string <- function(value) {
 }
 
 # Transform values based on NDA structure requirements
+# Add case mapping standardization to transform_value_ranges (e.g. eefrt01 e, h)
 transform_value_ranges <- function(df, elements) {
-  # Keep existing handedness transformation
-  if ("handedness" %in% names(df)) {
-    cat("\nChecking handedness format...")
-    df$handedness <- standardize_handedness(df$handedness)
-  }
-  
   # Keep existing binary field transformation
   binary_fields <- elements$name[!is.na(elements$valueRange) & elements$valueRange == "0;1"]
   if (length(binary_fields) > 0) {
@@ -186,37 +181,24 @@ transform_value_ranges <- function(df, elements) {
     }
   }
   
-  # Process fields that have mapping rules in Notes
+  # Process fields that have value range rules
   for (i in 1:nrow(elements)) {
     field_name <- elements$name[i]
-    notes <- elements$notes[i]
+    value_range <- elements$valueRange[i]
     
-    if (field_name %in% names(df) && !is.na(notes) && notes != "") {
-      rules <- get_mapping_rules(notes)
+    if (field_name %in% names(df) && !is.na(value_range) && grepl(";", value_range)) {
+      expected_values <- trimws(unlist(strsplit(value_range, ";")))
+      current_values <- df[[field_name]]
       
-      if (!is.null(rules) && length(rules) > 0) {
-        cat(sprintf("\nStandardizing %s...", field_name))
-        
-        # Direct value mapping
-        current_values <- as.character(df[[field_name]])
-        n_transformed <- 0
-        
-        for (value in names(rules)) {
-          matches <- current_values == value
-          if (any(matches, na.rm = TRUE)) {
-            df[[field_name]][matches] <- as.integer(rules[[value]])
-            n_transformed <- n_transformed + sum(matches, na.rm = TRUE)
-          }
-        }
-        
-        if (n_transformed > 0) {
-          cat(sprintf("\nTransformed %d values in %s to NDA standard format\n", 
-                      n_transformed, field_name))
+      # Map case-insensitive matches to expected case
+      for (exp_val in expected_values) {
+        matches <- tolower(current_values) == tolower(exp_val)
+        if (any(matches)) {
+          df[[field_name]][matches] <- exp_val
         }
       }
     }
   }
-  
   return(df)
 }
 
@@ -413,7 +395,7 @@ validate_structure <- function(df, elements, measure_name) {
 }
 
 #' @export
-ndaValidator <- function(measure_name, 
+ndaValidator <- function(measure_name, source, 
                          api_base_url = "https://nda.nih.gov/api/datadictionary/v2") {
   
   # Get the dataframe from the global environment
@@ -423,7 +405,7 @@ ndaValidator <- function(measure_name,
   structure_name <- paste0(measure_name, "01")
   
   # Required packages
-  required_packages <- c("httr", "jsonlite", "dplyr")
+  required_packages <- c("httr", "jsonlite", "dplyr", "beepr")
   for(pkg in required_packages) {
     if (!require(pkg, character.only = TRUE)) {
       install.packages(pkg)
@@ -431,20 +413,23 @@ ndaValidator <- function(measure_name,
     }
   }
   
-  # Transform handedness if present
-  if ("handedness" %in% names(df)) {
-    cat("\nChecking handedness format...")
-    df$handedness <- standardize_handedness(df$handedness)
-    # Save back to global environment after handedness transformation
-    assign(measure_name, df, envir = .GlobalEnv)
-  }
   
   tryCatch({
     # Fetch elements first to get structure
-    cat("Fetching NDA Data Structure for", structure_name, "...\n")
+    message("\nFetching ", structure_name, " Data Structure from NDA API...")
+    message("\nPreparing ", structure_name, " Submission Template...")
+    Sys.sleep(2)
     elements <- fetch_structure_elements(structure_name, api_base_url)
     if (is.null(elements) || nrow(elements) == 0) {
       stop("No elements found in the structure definition")
+    }
+    
+    # Transform handedness if present
+    if ("handedness" %in% names(df)) {
+      cat("\nChecking handedness format...")
+      df$handedness <- standardize_handedness(df$handedness)
+      # Save back to global environment after handedness transformation
+      assign(measure_name, df, envir = .GlobalEnv)
     }
     
     # Transform values based on structure requirements
@@ -470,24 +455,6 @@ ndaValidator <- function(measure_name,
     # Continue with validation using renamed dataframe
     validation_results <- validate_structure(df, elements, measure_name)
     
-    # Print results
-    cat("\nValidation Results:\n")
-    cat("Valid:", validation_results$valid, "\n")
-    
-    if (length(validation_results$missing_required) > 0) {
-      cat("\nMissing Required Fields:\n")
-      cat(paste("-", validation_results$missing_required), sep = "\n")
-    }
-    
-    if (length(validation_results$value_range_violations) > 0) {
-      cat("\nValue Range Violations:\n")
-      for (col in names(validation_results$value_range_violations)) {
-        violation <- validation_results$value_range_violations[[col]]
-        cat(sprintf("- %s: expected range %s, got values: %s\n",
-                    col, violation$expected, violation$actual))
-      }
-    }
-    
     if (length(validation_results$unknown_fields) > 0) {
       cat("\nUnknown Fields (not in NDA structure):\n")
       cat(paste("-", validation_results$unknown_fields), sep = "\n")
@@ -502,6 +469,38 @@ ndaValidator <- function(measure_name,
       # Show final column names
       cat("\nFinal column names:\n")
       cat(paste(names(df), collapse = " "), "\n")
+    }
+    
+    # Print results
+    message("\nValidation Results: ", validation_results$valid)
+    
+    if (length(validation_results$value_range_violations) > 0) {
+      beepr::beep("wilhelm")  # Different sound
+      message("\nWARNING: Submission Template not created!")
+      message("\nFix the following range violations in the ", source, " database, then re-run ndaRequest:")
+    }
+    
+    if (length(validation_results$missing_required) > 0) {
+      message("\nWARNING: Submission Template not created!")
+      message("\nAdd the missing required fields (even if you must add null values) then re-run ndaRequest:")
+      cat("\nMissing Required Fields:\n")
+      cat(paste("-", validation_results$missing_required), sep = "\n")
+    }
+    
+    if (length(validation_results$value_range_violations) > 0) {
+      cat("\nValue Range Violations:\n")
+      for (col in names(validation_results$value_range_violations)) {
+        violation <- validation_results$value_range_violations[[col]]
+        bad_values <- strsplit(violation$actual, ", ")[[1]]
+        
+        violations_text <- sapply(bad_values, function(val) {
+          subjects <- unique(df$src_subject_id[df[[col]] == val])
+          sprintf("%s (src_subject_id: %s)", val, paste(subjects, collapse=", "))
+        })
+        
+        cat(sprintf("- %s: expected %s, got %s\n",
+                    col, violation$expected, paste(violations_text, collapse=", ")))
+      }
     }
     
     return(validation_results)
