@@ -61,32 +61,30 @@ apply_null_transformations <- function(df, elements) {
       # Extract transformation rules from Notes
       rules <- get_mapping_rules(notes)
       
-      if (!is.null(rules) && "-1" %in% names(rules)) {
-        null_placeholder <- as.numeric(rules[["-1"]])
+      if (!is.null(rules)) {
+        cat(sprintf("\nRules for field '%s':\n", field_name))
+        print(rules)  # Debug print
         
-        # Identify null equivalents explicitly
-        null_equivalents <- c("null", "NaN", "", NA, NULL)
+        # For "-1 = NaN", rules is list("NaN" = "-1"), so we want rules[[1]]
+        null_placeholder <- as.numeric(rules[[1]])  # Changed from names(rules)[1]
         
-        cat(sprintf("\nProcessing field: '%s'\n", field_name))
-        cat(sprintf("Null equivalents before transformation: %s\n", 
-                    paste(unique(df[[field_name]]), collapse = ", ")))
+        cat(sprintf("Using placeholder value: %s\n", null_placeholder))
         
-        # Explicit transformation: Loop over rows
-        df[[field_name]] <- sapply(df[[field_name]], function(x) {
-          if (is.null(x) || is.na(x) || x %in% null_equivalents) {
-            return(null_placeholder)
-          }
-          return(as.character(x))  # Ensure values stay consistent
-        })
+        # Convert column to character first for consistent handling
+        df[[field_name]] <- as.character(df[[field_name]])
         
-        # Ensure numeric type if specified
+        # Replace null equivalents with placeholder
+        null_mask <- df[[field_name]] %in% c("null", "NaN", "") | is.na(df[[field_name]])
+        df[[field_name]][null_mask] <- null_placeholder
+        
+        # Convert to appropriate type
         if (type == "Integer") {
           df[[field_name]] <- as.integer(df[[field_name]])
         } else if (type == "Float") {
           df[[field_name]] <- as.numeric(df[[field_name]])
         }
         
-        cat(sprintf("Null equivalents after transformation: %s\n", 
+        cat(sprintf("Values after transformation: %s\n", 
                     paste(unique(df[[field_name]]), collapse = ", ")))
       }
     }
