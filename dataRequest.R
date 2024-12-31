@@ -128,7 +128,7 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   }
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  message("\nProcessing ", measure, " from clean/", source, "/ ...")
+  message("\nProcessing ", measure, " from clean/", source, "/", measure)
   
   # Setup cleanup on exit
   on.exit({

@@ -16,7 +16,7 @@ ndaTemplate <- function(df) {
   con <- file(path, "w")
   
   # Write the first line with "structure_name, 01"
-  writeLines(paste0(structure_name, ", 01"), con)
+  writeLines(paste0(structure_name, ",01"), con)
   
   # Write column headers manually
   writeLines(paste(names(template), collapse = ","), con)
@@ -26,7 +26,7 @@ ndaTemplate <- function(df) {
   
   # Append the data without column headers
   write.table(template, path, row.names = FALSE, col.names = FALSE, append = TRUE, 
-              quote = TRUE, sep = ",", na = "")
+              quote = FALSE, sep = ",", na = "")
   
   message(paste0("Submission Template created at: ", path, "\n"))
 }

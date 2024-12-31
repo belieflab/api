@@ -20,7 +20,6 @@
 #' 
 #' 
 
-
 ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   base::source("api/getRedcap.R")
@@ -135,7 +134,7 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./clean/%s/%s.R", source, measure)
-  message("\nProcessing ", measure, " from clean/", source, "/ ...")
+  message("\nProcessing ", measure, " from clean/", source, "/", measure)
   
   # Setup cleanup on exit
   on.exit({
@@ -155,6 +154,17 @@ processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
   
   result <- tryCatch({
     base::source(file_path)  # Execute the cleaning script for the measure
+    # Apply date format preservation after processing
+    # Get the data frame from global environment
+    df <- get0(measure, envir = .GlobalEnv)
+    
+    # Only process if df exists and is a data frame
+    if (!is.null(df) && is.data.frame(df)) {
+      df <- preserveDateFormat(df)
+      # Reassign the processed data frame
+      assign(measure, df, envir = .GlobalEnv)
+    }
+    
     # Run validation
     base::source("api/ndaValidator.R")
     validation_results <- ndaValidator(measure)  # Now just passing measure name
@@ -197,6 +207,15 @@ disconnectMongo <- function(mongo) {
 performCleanup <- function() {
   # Placeholder for cleanup operations, like disconnecting from databases
   suppressWarnings(source("api/env/cleanup.R"))
+}
+
+# Helper function to preserve MM/DD/YYYY format
+preserveDateFormat <- function(df) {
+  if ("interview_date" %in% names(df)) {
+    df <- df %>%
+      dplyr::mutate(interview_date = format(as.Date(interview_date), "%m/%d/%Y"))
+  }
+  return(df)
 }
 
 
