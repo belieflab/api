@@ -26,7 +26,7 @@ ndaTemplate <- function(df) {
   
   # Append the data without column headers
   write.table(template, path, row.names = FALSE, col.names = FALSE, append = TRUE, 
-              quote = FALSE, sep = ",", na = "")
+              quote = TRUE, sep = ",", na = "")
   
-  message(paste0("Submission Template created at: ", path, "\n"))
+  message(paste0("\nSubmission Template created at: ", path, "\n"))
 }
