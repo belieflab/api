@@ -11,6 +11,7 @@
 #' @import jsonlite
 #' @import dplyr
 
+# todo: check type field (integers. floats)
 
 # Extract mapping rules from Notes field
 get_mapping_rules <- function(notes) {
@@ -32,21 +33,67 @@ get_mapping_rules <- function(notes) {
       }
     }
   }
-  # Handle simple mappings like "1=Red"
-  else if (grepl("\\d+=\\w+", notes)) {
+  
+  # Handle simple mappings like "1=Red" and "NaN=-1"
+  if (grepl("[^=]+=[^;]+", notes)) {
     patterns <- strsplit(notes, ";\\s*")[[1]]
     for (pattern in patterns) {
       if (grepl("=", pattern)) {
         parts <- strsplit(pattern, "=")[[1]]
-        code <- trimws(parts[1])
-        value <- trimws(parts[2])
-        rules[[value]] <- code
+        value <- trimws(parts[1])
+        code <- trimws(parts[2])
+        rules[[code]] <- value
       }
     }
   }
   
   return(rules)
 }
+
+# semi-generalizable e.g. handle mooney rt null
+apply_null_transformations <- function(df, elements) {
+  for (i in 1:nrow(elements)) {
+    field_name <- elements$name[i]
+    type <- elements$type[i]
+    notes <- elements$notes[i]
+    
+    if (field_name %in% names(df) && !is.null(notes)) {
+      # Extract transformation rules from Notes
+      rules <- get_mapping_rules(notes)
+      
+      if (!is.null(rules) && "-1" %in% names(rules)) {
+        null_placeholder <- as.numeric(rules[["-1"]])
+        
+        # Identify null equivalents explicitly
+        null_equivalents <- c("null", "NaN", "", NA, NULL)
+        
+        cat(sprintf("\nProcessing field: '%s'\n", field_name))
+        cat(sprintf("Null equivalents before transformation: %s\n", 
+                    paste(unique(df[[field_name]]), collapse = ", ")))
+        
+        # Explicit transformation: Loop over rows
+        df[[field_name]] <- sapply(df[[field_name]], function(x) {
+          if (is.null(x) || is.na(x) || x %in% null_equivalents) {
+            return(null_placeholder)
+          }
+          return(as.character(x))  # Ensure values stay consistent
+        })
+        
+        # Ensure numeric type if specified
+        if (type == "Integer") {
+          df[[field_name]] <- as.integer(df[[field_name]])
+        } else if (type == "Float") {
+          df[[field_name]] <- as.numeric(df[[field_name]])
+        }
+        
+        cat(sprintf("Null equivalents after transformation: %s\n", 
+                    paste(unique(df[[field_name]]), collapse = ", ")))
+      }
+    }
+  }
+  return(df)
+}
+
 
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
@@ -443,6 +490,11 @@ ndaValidator <- function(measure_name, source,
       assign(measure_name, df, envir = .GlobalEnv)
     }
     
+    # Apply null value transformations based on Notes
+    cat("\nApplying null value transformations based on Notes...\n")
+    df <- apply_null_transformations(df, elements)
+    assign(measure_name, df, envir = .GlobalEnv)
+
     # Transform values based on structure requirements
     df <- transform_value_ranges(df, elements)
     assign(measure_name, df, envir = .GlobalEnv)
@@ -508,7 +560,7 @@ ndaValidator <- function(measure_name, source,
           paste0("-", abs(as.numeric(missing_val)))
         }
       } else {
-        "NULL"
+        ""
       }
         
         df[[field]] <- null_value
