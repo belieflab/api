@@ -13,6 +13,66 @@
 
 # todo: check type field (integers. floats)
 
+
+# Helper function for EEFRT specific transformations
+transform_eefrt_values <- function(df, measure_name) {
+  if (measure_name == "eefrt") {
+    cat("\nApplying EEFRT-specific transformations...")
+    
+    # Rename 'index' to 'trial' if it exists, only for positive values
+    if ("index" %in% names(df)) {
+      # Convert index to numeric if it's not already
+      df$index <- as.numeric(df$index)
+      
+      # Create trial column maintaining the same length as the dataframe
+      df$trial <- df$index
+      # Set non-positive values to NA or appropriate missing value
+      df$trial[df$index <= 0] <- NA
+      
+      # Count the transformations
+      total_rows <- length(df$index)
+      positive_rows <- sum(df$index > 0, na.rm = TRUE)
+      
+      # Remove the original index column
+      df$index <- NULL
+      
+      cat(sprintf("\nRenamed 'index' to 'trial' for EEFRT task (kept %d positive values out of %d total rows)", 
+                  positive_rows, total_rows))
+    }
+    
+    # Transform reward_hard decimals if field exists
+    if ("reward_hard" %in% names(df)) {
+      # Convert to numeric first in case it's character
+      df$reward_hard <- as.numeric(df$reward_hard)
+      
+      # Store original values for logging
+      original_values <- head(df$reward_hard)
+      
+      # Function to check if a number has decimals
+      has_decimals <- function(x) {
+        !is.na(x) && abs(x - floor(x)) > 0
+      }
+      
+      # Only transform values that have decimals
+      decimal_mask <- sapply(df$reward_hard, has_decimals)
+      if(any(decimal_mask)) {
+        df$reward_hard[decimal_mask] <- round(df$reward_hard[decimal_mask] * 100)
+        
+        cat("\nTransformed decimal reward_hard values only")
+        cat("\nBefore:", paste(original_values[1:3], collapse=", "))
+        cat("\nAfter:", paste(head(df$reward_hard)[1:3], collapse=", "))
+        cat(sprintf("\nModified %d decimal values out of %d total values", 
+                    sum(decimal_mask), length(decimal_mask)))
+      } else {
+        cat("\nNo decimal values found in reward_hard - no transformations needed")
+      }
+    }
+    
+    cat("\nEEFRT transformations complete\n")
+  }
+  return(df)
+}
+
 # Extract mapping rules from Notes field
 get_mapping_rules <- function(notes) {
   if (is.null(notes) || is.na(notes) || notes == "") return(NULL)
@@ -61,27 +121,46 @@ apply_null_transformations <- function(df, elements) {
       # Extract transformation rules from Notes
       rules <- get_mapping_rules(notes)
       
-      if (!is.null(rules)) {
+      if (!is.null(rules) && length(rules) > 0) {
         cat(sprintf("\nRules for field '%s':\n", field_name))
-        print(rules)  # Debug print
+        print(rules)
         
-        # For "-1 = NaN", rules is list("NaN" = "-1"), so we want rules[[1]]
-        null_placeholder <- as.numeric(rules[[1]])  # Changed from names(rules)[1]
+        null_placeholder <- as.numeric(rules[[1]])
         
         cat(sprintf("Using placeholder value: %s\n", null_placeholder))
         
-        # Convert column to character first for consistent handling
+        # Add debugging before conversion
+        cat(sprintf("\nUnique values before conversion in %s:\n", field_name))
+        print(unique(df[[field_name]]))
+        
         df[[field_name]] <- as.character(df[[field_name]])
         
-        # Replace null equivalents with placeholder
         null_mask <- df[[field_name]] %in% c("null", "NaN", "") | is.na(df[[field_name]])
         df[[field_name]][null_mask] <- null_placeholder
         
-        # Convert to appropriate type
-        if (type == "Integer") {
-          df[[field_name]] <- as.integer(df[[field_name]])
-        } else if (type == "Float") {
-          df[[field_name]] <- as.numeric(df[[field_name]])
+        # Add debugging for type conversion
+        if (type == "Integer" || type == "Float") {
+          cat(sprintf("\nConverting %s to %s\n", field_name, type))
+          # Check for problematic values before conversion
+          non_numeric <- df[[field_name]][!grepl("^-?\\d*\\.?\\d+$", df[[field_name]])]
+          if (length(non_numeric) > 0) {
+            cat(sprintf("Warning: Non-numeric values found in %s:\n", field_name))
+            print(unique(non_numeric))
+          }
+          
+          if (type == "Integer") {
+            df[[field_name]] <- as.integer(df[[field_name]])
+          } else if (type == "Float") {
+            df[[field_name]] <- as.numeric(df[[field_name]])
+          }
+          
+          # Check for NAs after conversion
+          new_nas <- is.na(df[[field_name]])
+          if (any(new_nas)) {
+            cat(sprintf("\nWarning: %d NAs introduced in %s\n", sum(new_nas), field_name))
+            cat("Sample of values that became NA:\n")
+            print(head(df[[field_name]][new_nas]))
+          }
         }
         
         cat(sprintf("Values after transformation: %s\n", 
@@ -487,6 +566,10 @@ ndaValidator <- function(measure_name, source,
       # Save back to global environment after handedness transformation
       assign(measure_name, df, envir = .GlobalEnv)
     }
+    
+    # Apply EEFRT01 specific transformations
+    df <- transform_eefrt_values(df, measure_name)
+    assign(measure_name, df, envir = .GlobalEnv)
     
     # Apply null value transformations based on Notes
     cat("\nApplying null value transformations based on Notes...\n")
