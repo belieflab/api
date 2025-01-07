@@ -171,6 +171,39 @@ apply_null_transformations <- function(df, elements) {
   return(df)
 }
 
+# Convert fields to their proper type based on NDA definition
+apply_type_conversions <- function(df, elements) {
+  for (i in 1:nrow(elements)) {
+    field_name <- elements$name[i]
+    type <- elements$type[i]
+    
+    if (field_name %in% names(df) && !is.null(type)) {
+      # Handle numeric types
+      if (type == "Integer") {
+        df[[field_name]] <- as.numeric(df[[field_name]])
+        float_mask <- !is.na(df[[field_name]]) & abs(df[[field_name]] - floor(df[[field_name]])) > 0
+        
+        if (any(float_mask)) {
+          float_examples <- head(df[[field_name]][float_mask])
+          rounded_examples <- round(float_examples)
+          cat(sprintf("\nRounding float values in %s to integers\n", field_name))
+          cat("Example conversions:\n")
+          for (i in seq_along(float_examples)) {
+            cat(sprintf("  %.2f -> %d\n", float_examples[i], rounded_examples[i]))
+          }
+          cat(sprintf("Total float values rounded: %d\n", sum(float_mask)))
+          df[[field_name]] <- round(df[[field_name]])
+        }
+        df[[field_name]] <- as.integer(df[[field_name]])
+      }
+      else if (type == "Float") {
+        df[[field_name]] <- as.numeric(df[[field_name]])
+      }
+    }
+  }
+  return(df)
+}
+
 
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
@@ -569,6 +602,10 @@ ndaValidator <- function(measure_name, source,
     
     # Apply EEFRT01 specific transformations
     df <- transform_eefrt_values(df, measure_name)
+    assign(measure_name, df, envir = .GlobalEnv)
+    
+    # Apply type conversion e.g. eefrt01 taps that are floats when they should be ints
+    df <- apply_type_conversions(df, elements)
     assign(measure_name, df, envir = .GlobalEnv)
     
     # Apply null value transformations based on Notes
