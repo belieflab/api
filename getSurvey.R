@@ -110,10 +110,9 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
 #' @noRd
 connect <- function(qualtrics_alias) {
   if (!file.exists("secrets.R")) {
-    stop("secrets.R file not found. Please create it and add apiKey and baseUrl.")
+    stop("secrets.R file not found. Please create it and add apiKeys and baseUrls arrays.")
   }
-  base::source("secrets.R")  # Load API key and base URL from secrets
-  
+  base::source("secrets.R")  # Load API keys and base URLs from secrets
   
   config <- config::get()
   
@@ -128,10 +127,48 @@ connect <- function(qualtrics_alias) {
     stop("Provided qualtrics_alias does not match any survey IDs.")
   }
   
-  # Set the API key and base URL based on whether the alias is for an NU survey
-  qualtrics_api_key <- ifelse(surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys, apiKey2, apiKey)
-  qualtrics_base_url <- ifelse(surveyIds[qualtrics_alias] %in% config$qualtrics$nu_surveys, baseUrl2, baseUrl)
+  # Validate arrays exist and have matching lengths
+  if (!exists("apiKeys") || !exists("baseUrls")) {
+    stop("apiKeys and/or baseUrls arrays not found in secrets.R")
+  }
+  if (length(apiKeys) != length(baseUrls)) {
+    stop("apiKeys and baseUrls arrays must have the same length")
+  }
   
+  # Validate credential_mappings exists
+  if (!exists("credential_mappings")) {
+    stop("credential_mappings not found in secrets.R")
+  }
+  
+  # Find the appropriate credential index for this survey
+  survey_id <- surveyIds[qualtrics_alias]
+  selected_index <- NULL
+  
+  # Look through credential mappings to find which group this survey belongs to
+  for (i in seq_along(credential_mappings)) {
+    if (survey_id %in% credential_mappings[[i]]) {
+      selected_index <- i
+      break
+    }
+  }
+  
+  # If no mapping found, use default (first) credentials
+  if (is.null(selected_index)) {
+    selected_index <- 1
+    warning(sprintf("No credential mapping found for survey %s, using default credentials", qualtrics_alias))
+  }
+  
+  # Validate selected index
+  if (selected_index > length(apiKeys)) {
+    stop(sprintf("Invalid credential index %d - exceeds number of available credential pairs", selected_index))
+  }
+  
+  qualtrics_api_key <- apiKeys[selected_index]
+  qualtrics_base_url <- baseUrls[selected_index]
+  
+  if (is.na(qualtrics_api_key) || is.na(qualtrics_base_url)) {
+    stop(sprintf("Invalid or missing credentials at index %d", selected_index))
+  }
   
   qualtRics::qualtrics_api_credentials(
     api_key = qualtrics_api_key,
