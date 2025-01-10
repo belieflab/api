@@ -112,22 +112,19 @@ connect <- function(qualtrics_alias) {
   if (!file.exists("secrets.R")) {
     stop("secrets.R file not found. Please create it and add apiKeys and baseUrls arrays.")
   }
-  base::source("secrets.R")  # Load API keys and base URLs from secrets
+  base::source("secrets.R")
   
   config <- config::get()
   
-  # Guard clause
   if (is.null(config$qualtrics$survey_ids)) {
     stop("Survey IDs configuration not found.")
   }
   base::source(config$qualtrics$survey_ids)
   
-  # Ensure that qualtrics_alias is valid
   if (!(qualtrics_alias %in% names(surveyIds))) {
     stop("Provided qualtrics_alias does not match any survey IDs.")
   }
   
-  # Validate arrays exist and have matching lengths
   if (!exists("apiKeys") || !exists("baseUrls")) {
     stop("apiKeys and/or baseUrls arrays not found in secrets.R")
   }
@@ -135,51 +132,21 @@ connect <- function(qualtrics_alias) {
     stop("apiKeys and baseUrls arrays must have the same length")
   }
   
-  # Validate credential_mappings exists
-  if (!exists("credential_mappings")) {
-    stop("credential_mappings not found in secrets.R")
+  for (i in seq_along(apiKeys)) {
+    tryCatch({
+      qualtRics::qualtrics_api_credentials(
+        api_key = apiKeys[i],
+        base_url = baseUrls[i],
+        install = TRUE,
+        overwrite = TRUE
+      )
+      return(TRUE)
+    }, error = function(e) {
+      if (i == length(apiKeys)) {
+        stop("Failed to connect with any credentials")
+      }
+    })
   }
-  
-  # Find the appropriate credential index for this survey
-  survey_id <- surveyIds[qualtrics_alias]
-  selected_index <- NULL
-  
-  # Look through credential mappings to find which group this survey belongs to
-  for (i in seq_along(credential_mappings)) {
-    if (survey_id %in% credential_mappings[[i]]) {
-      selected_index <- i
-      break
-    }
-  }
-  
-  # If no mapping found, use default (first) credentials
-  if (is.null(selected_index)) {
-    selected_index <- 1
-    warning(sprintf("No credential mapping found for survey %s, using default credentials", qualtrics_alias))
-  }
-  
-  # Validate selected index
-  if (selected_index > length(apiKeys)) {
-    stop(sprintf("Invalid credential index %d - exceeds number of available credential pairs", selected_index))
-  }
-  
-  qualtrics_api_key <- apiKeys[selected_index]
-  qualtrics_base_url <- baseUrls[selected_index]
-  
-  if (is.na(qualtrics_api_key) || is.na(qualtrics_base_url)) {
-    stop(sprintf("Invalid or missing credentials at index %d", selected_index))
-  }
-  
-  qualtRics::qualtrics_api_credentials(
-    api_key = qualtrics_api_key,
-    base_url = qualtrics_base_url,
-    install = TRUE,
-    overwrite = TRUE
-  )
-  
-  # After setting credentials, manually update the environment variables to ensure they're current
-  Sys.setenv(QUALTRICS_API_KEY = qualtrics_api_key)
-  Sys.setenv(QUALTRICS_BASE_URL = qualtrics_base_url)
 }
 
 #' Retrieve Data from Qualtrics
