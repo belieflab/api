@@ -113,7 +113,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
       batch_size = batch_size,
       records = records,
       raw_or_label = raw_or_label,    # Added this parameter
-      raw_or_label_headers = raw_or_label,
+      raw_or_label_headers = "raw",
       # guess_type = FALSE,      # Prevent type guessing issues
       verbose = TRUE
     )$data
@@ -125,7 +125,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
       batch_size = batch_size,
       records = records,
       raw_or_label = raw_or_label,    # Added this parameter
-      raw_or_label_headers = raw_or_label,
+      raw_or_label_headers = "raw",
       # guess_type = FALSE,      # Prevent type guessing issues
       verbose = TRUE
     )$data
@@ -135,9 +135,13 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
   df$measure <- instrument_name
   
   # Return the raw dataframe if not CAPR study
+  # Return the raw dataframe if not CAPR study
   if (config$study_alias == "impact-mh") {
-    df <- subset(df, select = -dob)
+    if ("dob" %in% colnames(df)) {
+      df <- subset(df, select = -dob)
+    }
   }
+  
   
   # CAPR-specific processing only happens if study_alias is "capr"
   if (config$study_alias == "capr") {
