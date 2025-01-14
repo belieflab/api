@@ -187,58 +187,173 @@ apply_null_transformations <- function(df, elements) {
 
 # Convert fields to their proper type based on NDA definition
 # Modify the apply_type_conversions function to be more robust
-apply_type_conversions <- function(df, elements) {
+# Convert fields to proper type based on NDA definition
+apply_type_conversions <- function(df, elements, verbose = FALSE) {
+  if(verbose) cat("\nApplying type conversions...")
+  conversion_summary <- list()
+  
   for (i in 1:nrow(elements)) {
     field_name <- elements$name[i]
     type <- elements$type[i]
     
     if (field_name %in% names(df) && !is.null(type)) {
       tryCatch({
-        # Handle numeric types
         if (type %in% c("Integer", "Float")) {
-          # First convert to character to handle any unexpected formats
+          if(verbose) cat(sprintf("\n\nField: %s", field_name))
+          if(verbose) cat(sprintf("\n  Target type: %s", type))
+          
+          # Store original values for comparison
+          orig_values <- head(df[[field_name]], 3)
+          
+          # First convert to character
           df[[field_name]] <- as.character(df[[field_name]])
           
-          # Remove any currency symbols, commas, etc
+          # Remove currency symbols, commas, etc
           df[[field_name]] <- gsub("[^0-9.-]", "", df[[field_name]])
           
           if (type == "Integer") {
             # Convert to numeric first to handle decimals
             df[[field_name]] <- as.numeric(df[[field_name]])
             
+            # Check for decimal values
             float_mask <- !is.na(df[[field_name]]) & 
               abs(df[[field_name]] - floor(df[[field_name]])) > 0
             
             if (any(float_mask)) {
-              float_examples <- head(df[[field_name]][float_mask])
-              rounded_examples <- round(float_examples)
-              cat(sprintf("\nRounding float values in %s to integers\n", field_name))
-              cat("Example conversions:\n")
-              for (i in seq_along(float_examples)) {
-                cat(sprintf("  %.2f -> %d\n", float_examples[i], rounded_examples[i]))
+              float_count <- sum(float_mask)
+              if(verbose) {
+                cat(sprintf("\n  Found %d decimal values to round", float_count))
+                cat("\n  Sample conversions:")
+                float_examples <- head(df[[field_name]][float_mask])
+                rounded_examples <- round(float_examples)
+                for(j in seq_along(float_examples)) {
+                  cat(sprintf("\n    %.2f → %d", 
+                              float_examples[j], 
+                              rounded_examples[j]))
+                }
               }
-              cat(sprintf("Total float values rounded: %d\n", sum(float_mask)))
               df[[field_name]] <- round(df[[field_name]])
             }
             
             df[[field_name]] <- as.integer(df[[field_name]])
-          }
-          else if (type == "Float") {
+            
+          } else if (type == "Float") {
             df[[field_name]] <- as.numeric(df[[field_name]])
           }
           
-          # Report any NAs introduced
+          # Check for NAs after conversion
           na_count <- sum(is.na(df[[field_name]]))
-          if (na_count > 0) {
-            cat(sprintf("\nWarning: %d NA values in %s after type conversion\n", 
-                        na_count, field_name))
+          if (na_count > 0 && verbose) {
+            cat(sprintf("\n  Warning: %d NA values introduced", na_count))
+            cat("\n  Sample values that became NA:")
+            na_mask <- is.na(df[[field_name]])
+            cat(sprintf("\n    Original: %s", 
+                        paste(head(orig_values[na_mask]), collapse=", ")))
           }
+          
+          # Store summary for this field
+          conversion_summary[[field_name]] <- list(
+            type = type,
+            nas_introduced = na_count,
+            sample_before = head(orig_values),
+            sample_after = head(df[[field_name]])
+          )
         }
       }, error = function(e) {
-        warning(sprintf("Error converting %s to %s: %s", field_name, type, e$message))
+        if(verbose) {
+          cat(sprintf("\n\nError converting %s to %s:", field_name, type))
+          cat(sprintf("\n  %s", e$message))
+        }
       })
     }
   }
+  
+  if(verbose && length(conversion_summary) > 0) {
+    cat("\n\nType conversion summary:")
+    for(field in names(conversion_summary)) {
+      cat(sprintf("\n- %s → %s", field, conversion_summary[[field]]$type))
+      if(conversion_summary[[field]]$nas_introduced > 0) {
+        cat(sprintf(" (%d NAs)", conversion_summary[[field]]$nas_introduced))
+      }
+    }
+    cat("\n")
+  }
+  
+  return(df)
+}
+
+# Demonstrate with standardize_dates as well
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FALSE) {
+  if(verbose) cat("\nStandardizing date formats...")
+  date_summary <- list()
+  
+  for (col in date_cols) {
+    if (col %in% names(df)) {
+      tryCatch({
+        if(verbose) cat(sprintf("\n\nField: %s", col))
+        
+        # Store original values
+        orig_dates <- head(df[[col]], 3)
+        
+        # Remove timezone information
+        dates <- gsub("\\s+\\d{2}:\\d{2}:\\d{2}.*$", "", df[[col]])
+        
+        # Try different date formats
+        date_formats <- c(
+          "%Y-%m-%d",    # 2023-12-31
+          "%m/%d/%Y",    # 12/31/2023
+          "%Y/%m/%d",    # 2023/12/31
+          "%d-%m-%Y",    # 31-12-2023
+          "%m-%d-%Y"     # 12-31-2023
+        )
+        
+        success <- FALSE
+        for (format in date_formats) {
+          parsed_dates <- tryCatch({
+            as.Date(dates, format = format)
+          }, error = function(e) NULL)
+          
+          if (!is.null(parsed_dates) && !all(is.na(parsed_dates))) {
+            if(verbose) cat(sprintf("\n  Detected format: %s", format))
+            df[[col]] <- format(parsed_dates, "%Y-%m-%d")
+            success <- TRUE
+            
+            date_summary[[col]] <- list(
+              original_format = format,
+              sample_before = orig_dates,
+              sample_after = head(df[[col]], 3)
+            )
+            break
+          }
+        }
+        
+        if(!success && verbose) {
+          cat(sprintf("\n  Warning: Could not determine date format"))
+          cat(sprintf("\n  Sample values: %s", 
+                      paste(head(dates), collapse=", ")))
+        }
+        
+      }, error = function(e) {
+        if(verbose) {
+          cat(sprintf("\n\nError processing dates in %s:", col))
+          cat(sprintf("\n  %s", e$message))
+        }
+      })
+    }
+  }
+  
+  if(verbose && length(date_summary) > 0) {
+    cat("\n\nDate standardization summary:")
+    for(field in names(date_summary)) {
+      cat(sprintf("\n- %s", field))
+      cat(sprintf("\n  Before: %s", 
+                  paste(date_summary[[field]]$sample_before, collapse=", ")))
+      cat(sprintf("\n  After:  %s", 
+                  paste(date_summary[[field]]$sample_after, collapse=", ")))
+    }
+    cat("\n")
+  }
+  
   return(df)
 }
 
@@ -427,50 +542,74 @@ fetch_structure_elements <- function(structure_name, api_base_url) {
   return(elements)
 }
 
-# Find similar fields and handle renaming
-find_and_rename_fields <- function(df, elements, structure_name) {
+# Calculate similarity with more accurate prefix handling
+find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE) {
   renamed <- list(
     df = df,
     renames = character(),
-    columns_to_drop = character()
+    columns_to_drop = character(),
+    similarity_scores = list()
   )
   
   # Get dataframe column names
   df_cols <- names(df)
   valid_fields <- elements$name
   
-  # Get structure short name (e.g., "deldisk" from "deldisk01")
+  # Get structure short name (e.g., "mft" from "mft01")
   structure_prefix <- sub("01$", "", structure_name)
   
   # Find unknown fields
   unknown_fields <- setdiff(df_cols, valid_fields)
   
   if (length(unknown_fields) > 0) {
-    cat("\nChecking for similar field names...\n")
+    if(verbose) cat("\nAnalyzing field name similarities...\n")
     
     for (field in unknown_fields) {
-      # Try with structure prefix first
-      prefixed_field <- paste0(structure_prefix, "_", field)
+      # Try matching both with and without prefix
+      base_field <- sub(paste0("^", structure_prefix, "_"), "", field)
       
-      # Calculate similarity with all valid fields
+      # Calculate similarity scores considering prefix variations
       similarities <- sapply(valid_fields, function(name) {
-        max(
-          calculate_similarity(field, name),
-          calculate_similarity(prefixed_field, name)
+        # Remove prefix from target field if it exists
+        target_base <- sub(paste0("^", structure_prefix, "_"), "", name)
+        
+        # Calculate similarities considering various combinations
+        sims <- c(
+          calculate_similarity(field, name),  # Direct match
+          calculate_similarity(base_field, target_base),  # Base names
+          calculate_similarity(paste0(structure_prefix, "_", field), name),  # With prefix
+          calculate_similarity(field, target_base)  # Mixed comparison
         )
+        max(sims)
       })
+      
+      # Store all similarity scores for this field
+      renamed$similarity_scores[[field]] <- sort(similarities, decreasing = TRUE)
+      
+      if(verbose) {
+        cat(sprintf("\nField: %s\n", field))
+        cat("Top matches:\n")
+        top_matches <- head(sort(similarities, decreasing = TRUE), 3)
+        for(i in seq_along(top_matches)) {
+          cat(sprintf("%d. %s (%.2f%% match)\n", 
+                      i, 
+                      names(top_matches)[i], 
+                      top_matches[i] * 100))
+        }
+      }
       
       # Remove any NA values
       similarities <- similarities[!is.na(similarities)]
       
       if (length(similarities) > 0) {
-        # Find best match if similarity > 0.7 (lowered threshold)
         best_match <- names(similarities)[which.max(similarities)]
         best_score <- max(similarities)
         
-        if (best_score > 0.7 && !best_match %in% df_cols) {
-          cat(sprintf("Renaming '%s' to '%s' (similarity: %.2f)\n", 
-                      field, best_match, best_score))
+        if (best_score > 0.7) {
+          if(verbose) {
+            message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
+                        field, best_match, best_score * 100))
+          }
           
           # Add the new column with renamed data
           renamed$df[[best_match]] <- renamed$df[[field]]
@@ -479,30 +618,28 @@ find_and_rename_fields <- function(df, elements, structure_name) {
           renamed$columns_to_drop <- c(renamed$columns_to_drop, field)
           
           # Store the rename operation
-          renamed$renames <- c(renamed$renames, 
-                               sprintf("%s -> %s", field, best_match))
-        } else {
-          # Show possible matches if any are above 0.5
-          top_matches <- names(sort(similarities[similarities > 0.5], decreasing = TRUE))[1:3]
-          if (length(top_matches) > 0) {
-            cat(sprintf("\nPossible matches for '%s':\n", field))
-            for (match in top_matches) {
-              cat(sprintf("  - %s (similarity: %.2f)\n", match, similarities[match]))
-            }
-          } else {
-            cat(sprintf("\nNo close matches found for '%s'\n", field))
-          }
+          renamed$renames <- c(renamed$renames,
+                               sprintf("%s -> %s (%.2f%%)", 
+                                       field, best_match, best_score * 100))
+        } else if(verbose) {
+          cat(sprintf("No automatic rename - best match below 70%% threshold\n"))
         }
-      } else {
-        cat(sprintf("\nNo valid matches found for '%s'\n", field))
       }
     }
     
-    # Drop original columns after all renaming is done
-    if (length(renamed$columns_to_drop) > 0) {
+    # Actually drop the original columns after all renames are complete
+    if(length(renamed$columns_to_drop) > 0) {
+      if(verbose) {
+        cat("\nDropping original columns:")
+        cat(sprintf("\n  %s", paste(renamed$columns_to_drop, collapse=", ")))
+      }
       renamed$df <- renamed$df[, !names(renamed$df) %in% renamed$columns_to_drop]
-      cat("\nDropped original columns after renaming:\n")
-      cat(paste("-", renamed$columns_to_drop), sep = "\n")
+    }
+    
+    if(verbose && length(renamed$renames) > 0) {
+      cat("\n\nRename operations completed:")
+      cat(paste("\n-", renamed$renames), sep = "")
+      cat("\n")
     }
   }
   
@@ -540,160 +677,175 @@ get_violations <- function(value, range_str) {
 
 # Main validation logic function
 # Modified validate_structure function with better error handling
-validate_structure <- function(df, elements, measure_name) {
+validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
+  if(verbose) cat("\nValidating data structure...")
+  
   results <- list(
     valid = TRUE,
     missing_required = character(0),
     value_range_violations = list(),
     unknown_fields = character(0),
-    warnings = character(0)  # New field for tracking warnings
+    warnings = character(0)
   )
   
   tryCatch({
-    # Get required fields and all valid fields
+    # Get field lists
     required_fields <- elements$name[elements$required == "Required"]
     valid_fields <- elements$name
+    df_cols <- names(df)
     
     # Check for unknown fields
-    df_cols <- names(df)
     results$unknown_fields <- setdiff(df_cols, valid_fields)
-    if (length(results$unknown_fields) > 0) {
+    if(length(results$unknown_fields) > 0) {
       results$valid <- FALSE
-      results$warnings <- c(results$warnings, 
-                            sprintf("Found %d unknown fields", length(results$unknown_fields)))
+      if(verbose) {
+        cat("\n\nUnknown fields detected:")
+        cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
+      }
     }
     
-    # Check for required fields with more detailed logging
-    if (length(required_fields) > 0) {
+    # Check required fields
+    if(length(required_fields) > 0) {
       missing_required <- required_fields[!required_fields %in% df_cols]
-      if (length(missing_required) > 0) {
+      if(length(missing_required) > 0) {
         results$valid <- FALSE
         results$missing_required <- missing_required
-        results$warnings <- c(results$warnings, 
-                              sprintf("Missing %d required fields: %s", 
-                                      length(missing_required),
-                                      paste(missing_required, collapse=", ")))
+        if(verbose) {
+          cat("\n\nMissing required fields:")
+          cat(sprintf("\n  %s", paste(missing_required, collapse=", ")))
+        }
+      } else if(verbose) {
+        cat("\n\nAll required fields present")
       }
     }
     
-    # Check value ranges with better error handling
-    for (col in intersect(df_cols, valid_fields)) {
+    # Check value ranges
+    if(verbose) cat("\n\nChecking value ranges...")
+    
+    for(col in intersect(df_cols, valid_fields)) {
       element <- elements[elements$name == col, ]
       
-      if (nrow(element) > 0 && !is.null(element$valueRange) && 
-          !is.na(element$valueRange) && element$valueRange != "") {
+      if(nrow(element) > 0 && 
+         !is.null(element$valueRange) && 
+         !is.na(element$valueRange) && 
+         element$valueRange != "") {
         
-        tryCatch({
-          # If it's a 0;1 range field, standardize boolean values first
-          if (element$valueRange == "0;1") {
-            values <- as.character(df[[col]])
-            if (any(tolower(values) %in% c("true", "false"))) {
-              cat(sprintf("\nStandardizing boolean values in %s...\n", col))
-              df[[col]] <- standardize_binary(values)
-              assign(measure_name, df, envir = .GlobalEnv)
+        if(verbose) {
+          cat(sprintf("\n\nField: %s", col))
+          cat(sprintf("\n  Expected range: %s", element$valueRange))
+        }
+        
+        # Handle binary fields
+        if(element$valueRange == "0;1") {
+          values <- as.character(df[[col]])
+          if(any(tolower(values) %in% c("true", "false"))) {
+            if(verbose) cat("\n  Converting boolean values to 0/1")
+            df[[col]] <- standardize_binary(values)
+            assign(measure_name, df, envir = .GlobalEnv)
+          }
+        }
+        
+        # Check for violations
+        violating_values <- tryCatch({
+          get_violations(df[[col]], element$valueRange)
+        }, error = function(e) {
+          results$warnings <- c(
+            results$warnings,
+            sprintf("Error checking %s: %s", col, e$message)
+          )
+          character(0)
+        })
+        
+        if(length(violating_values) > 0) {
+          results$valid <- FALSE
+          results$value_range_violations[[col]] <- list(
+            expected = element$valueRange,
+            actual = violating_values
+          )
+          
+          if(verbose) {
+            cat("\n  Value range violations found:")
+            cat(sprintf("\n    Invalid values: %s", 
+                        paste(head(violating_values, 5), collapse=", ")))
+            if(length(violating_values) > 5) {
+              cat(sprintf(" (and %d more...)", 
+                          length(violating_values) - 5))
             }
           }
-          
-          # Get the violating values with error handling
-          violating_values <- tryCatch({
-            get_violations(df[[col]], element$valueRange)
-          }, error = function(e) {
-            results$warnings <- c(results$warnings,
-                                  sprintf("Error checking violations for %s: %s", 
-                                          col, e$message))
-            return(character(0))
-          })
-          
-          if (length(violating_values) > 0) {
-            results$valid <- FALSE
-            results$value_range_violations[[col]] <- list(
-              expected = element$valueRange,
-              actual = paste(violating_values, collapse = ", ")
-            )
-          }
-        }, error = function(e) {
-          results$warnings <- c(results$warnings,
-                                sprintf("Error processing column %s: %s", col, e$message))
-        })
+        } else if(verbose) {
+          cat("\n  All values within expected range")
+        }
       }
+    }
+    
+    # Final summary
+    if(verbose) {
+      cat("\n\nValidation Summary:")
+      cat(sprintf("\n- Status: %s", 
+                  if(results$valid) "PASSED" else "FAILED"))
+      
+      if(length(results$unknown_fields) > 0) {
+        cat(sprintf("\n- Unknown fields: %d", 
+                    length(results$unknown_fields)))
+      }
+      
+      if(length(results$missing_required) > 0) {
+        cat(sprintf("\n- Missing required fields: %d", 
+                    length(results$missing_required)))
+      }
+      
+      if(length(results$value_range_violations) > 0) {
+        cat(sprintf("\n- Fields with range violations: %d", 
+                    length(results$value_range_violations)))
+      }
+      
+      if(length(results$warnings) > 0) {
+        cat("\n\nWarnings:")
+        for(warning in results$warnings) {
+          cat(sprintf("\n- %s", warning))
+        }
+      }
+      cat("\n")
     }
     
   }, error = function(e) {
     results$valid <- FALSE
-    results$warnings <- c(results$warnings,
-                          sprintf("Critical validation error: %s", e$message))
+    results$warnings <- c(
+      results$warnings,
+      sprintf("Critical validation error: %s", e$message)
+    )
+    
+    if(verbose) {
+      cat("\n\nCritical Validation Error:")
+      cat(sprintf("\n  %s", e$message))
+    }
   })
   
   return(results)
 }
 
-# Add this function to handle date standardization
-standardize_dates <- function(df, date_cols = c("interview_date")) {
-  for (col in date_cols) {
-    if (col %in% names(df)) {
-      tryCatch({
-        # First try to identify the date format
-        dates <- df[[col]]
-        
-        # Remove any timezone information
-        dates <- gsub("\\s+\\d{2}:\\d{2}:\\d{2}.*$", "", dates)
-        
-        # Try different date formats
-        parsed_dates <- NULL
-        date_formats <- c(
-          "%Y-%m-%d",    # 2023-12-31
-          "%m/%d/%Y",    # 12/31/2023
-          "%Y/%m/%d",    # 2023/12/31
-          "%d-%m-%Y",    # 31-12-2023
-          "%m-%d-%Y"     # 12-31-2023
-        )
-        
-        for (format in date_formats) {
-          parsed_dates <- tryCatch({
-            as.Date(dates, format = format)
-          }, error = function(e) NULL)
-          
-          if (!is.null(parsed_dates) && !all(is.na(parsed_dates))) {
-            break  # Found a working format
-          }
-        }
-        
-        if (is.null(parsed_dates) || all(is.na(parsed_dates))) {
-          warning(sprintf("Could not parse dates in column %s. Sample values: %s", 
-                          col, paste(head(dates), collapse=", ")))
-          next
-        }
-        
-        # Convert to YYYY-MM-DD format
-        df[[col]] <- format(parsed_dates, "%Y-%m-%d")
-        
-        cat(sprintf("\nStandardized dates in column %s to YYYY-MM-DD format\n", col))
-        cat("Sample values:", paste(head(df[[col]]), collapse=", "), "\n")
-        
-      }, error = function(e) {
-        warning(sprintf("Error processing dates in column %s: %s", col, e$message))
-      })
-    }
-  }
-  return(df)
-}
 
 # Modify the main validation function to include date standardization
 # Add enhanced debug logging
-debug_print <- function(msg, df = NULL, sample_size = 5) {
-  cat("\nDEBUG:", msg, "\n")
-  if (!is.null(df)) {
-    cat("Dataframe info:\n")
-    cat("- Dimensions:", paste(dim(df), collapse=" x "), "\n")
-    cat("- Column names:", paste(names(df), collapse=", "), "\n")
-    cat("- First", sample_size, "rows of data:\n")
-    print(head(df, sample_size))
+debug_print <- function(msg, df = NULL, sample_size = 5, debug = FALSE) {
+  if(debug) {
+    cat("\nDEBUG:", msg, "\n")
+    if (!is.null(df)) {
+      cat("Dataframe info:\n")
+      cat("- Dimensions:", paste(dim(df), collapse=" x "), "\n")
+      cat("- Column names:", paste(names(df), collapse=", "), "\n")
+      cat("- First", sample_size, "rows of data:\n")
+      print(head(df, sample_size))
+    }
   }
 }
 
+
 # Modified ndaValidator with enhanced error handling
 # Helper function to standardize column names
-standardize_column_names <- function(df, structure_name) {
+standardize_column_names <- function(df, structure_name, verbose = FALSE) {
+  if(verbose) cat("\nStandardizing column names...")
+  
   # Get structure prefix (e.g., "ahrs" from "ahrs01")
   prefix <- sub("01$", "", structure_name)
   
@@ -717,12 +869,14 @@ standardize_column_names <- function(df, structure_name) {
   
   # Report changes
   changed <- old_names != new_names
-  if (any(changed)) {
-    cat("\nStandardizing column names:")
+  if (any(changed) && verbose) {
+    cat("\n\nColumn name changes:")
     for (i in which(changed)) {
-      cat(sprintf("\n  %s -> %s", old_names[i], new_names[i]))
+      cat(sprintf("\n  %s → %s", old_names[i], new_names[i]))
     }
-    cat("\n")
+    
+    # Add summary
+    cat(sprintf("\n\nSummary: %d names standardized\n", sum(changed)))
   }
   
   # Apply new names
@@ -731,79 +885,173 @@ standardize_column_names <- function(df, structure_name) {
 }
 
 # Modify transform_value_ranges to be more robust
-transform_value_ranges <- function(df, elements) {
+transform_value_ranges <- function(df, elements, verbose = FALSE) {
+  if(verbose) cat("\nChecking and transforming value ranges...")
+  range_summary <- list()
+  
   tryCatch({
-    # Check which columns are required
+    # Get required fields
     required_fields <- elements$name[elements$required == "Required"]
     
-    # Only check non-required columns for emptiness
-    empty_cols <- sapply(df[, !names(df) %in% required_fields], function(col) {
-      all(is.na(col) | col == "")
-    })
-    if (any(empty_cols)) {
-      df <- df[, !names(df) %in% names(empty_cols)[empty_cols], drop=FALSE]
-      cat("\nDropped empty columns:", paste(names(empty_cols)[empty_cols], collapse=", "), "\n")
+    # Check for empty non-required columns
+    non_required_cols <- names(df)[!names(df) %in% required_fields]
+    if(length(non_required_cols) > 0) {
+      empty_cols <- sapply(df[non_required_cols], function(col) {
+        all(is.na(col) | col == "")
+      })
+      
+      if(any(empty_cols)) {
+        empty_col_names <- names(empty_cols)[empty_cols]
+        if(verbose) {
+          cat("\n\nEmpty columns detected:")
+          cat(sprintf("\n  Dropping: %s", paste(empty_col_names, collapse=", ")))
+        }
+        df <- df[, !names(df) %in% empty_col_names, drop=FALSE]
+      }
     }
     
-    # Process fields that have value range rules
-    for (i in 1:nrow(elements)) {
-      field_name <- elements$name[i]
-      value_range <- elements$valueRange[i]
+    # Process binary fields first
+    binary_fields <- elements$name[!is.na(elements$valueRange) & 
+                                     elements$valueRange == "0;1"]
+    
+    if(length(binary_fields) > 0) {
+      if(verbose) cat("\n\nProcessing binary fields (0;1)...")
       
-      if (field_name %in% names(df) && !is.na(value_range) && value_range != "") {
-        cat(sprintf("\nProcessing value range for %s: %s\n", field_name, value_range))
-        
-        # Handle binary fields (0;1)
-        if (value_range == "0;1") {
-          values <- as.character(df[[field_name]])
-          if (any(tolower(values) %in% c("true", "false", "t", "f"))) {
-            df[[field_name]] <- standardize_binary(values)
-          }
-        }
-        
-        # Handle other value ranges
-        else if (grepl(";", value_range)) {
-          expected_values <- trimws(unlist(strsplit(value_range, ";")))
-          current_values <- df[[field_name]]
+      for(field in binary_fields) {
+        if(field %in% names(df)) {
+          values <- as.character(df[[field]])
+          potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
           
-          # Map case-insensitive matches to expected case
-          for (exp_val in expected_values) {
-            matches <- tolower(current_values) == tolower(exp_val)
-            if (any(matches)) {
-              df[[field_name]][matches] <- exp_val
+          boolean_mask <- values %in% potential_booleans
+          if(any(boolean_mask)) {
+            if(verbose) {
+              cat(sprintf("\n\nField: %s", field))
+              cat("\n  Converting boolean values to 0/1")
+            }
+            
+            # Store original values
+            orig_values <- unique(values)
+            
+            # Transform values
+            df[[field]] <- standardize_binary(values)
+            
+            # Store summary
+            range_summary[[field]] <- list(
+              type = "binary",
+              values_transformed = sum(boolean_mask),
+              orig_values = orig_values,
+              new_values = unique(df[[field]])
+            )
+            
+            if(verbose) {
+              cat("\n  Value mapping:")
+              cat(sprintf("\n    Before: %s", 
+                          paste(head(orig_values), collapse=", ")))
+              cat(sprintf("\n    After:  %s", 
+                          paste(head(unique(df[[field]])), collapse=", ")))
             }
           }
         }
       }
     }
     
+    # Process other value ranges
+    for(i in 1:nrow(elements)) {
+      field_name <- elements$name[i]
+      value_range <- elements$valueRange[i]
+      
+      if(field_name %in% names(df) && 
+         !is.na(value_range) && 
+         value_range != "" && 
+         value_range != "0;1" && 
+         grepl(";", value_range)) {
+        
+        if(verbose) {
+          cat(sprintf("\n\nField: %s", field_name))
+          cat(sprintf("\n  Expected values: %s", value_range))
+        }
+        
+        # Store original values
+        orig_values <- unique(df[[field_name]])
+        
+        # Get expected values and standardize
+        expected_values <- trimws(unlist(strsplit(value_range, ";")))
+        current_values <- df[[field_name]]
+        transformed_count <- 0
+        
+        # Map case-insensitive matches
+        for(exp_val in expected_values) {
+          matches <- tolower(current_values) == tolower(exp_val)
+          if(any(matches)) {
+            transformed_count <- transformed_count + sum(matches)
+            df[[field_name]][matches] <- exp_val
+          }
+        }
+        
+        # Store summary
+        range_summary[[field_name]] <- list(
+          type = "categorical",
+          values_transformed = transformed_count,
+          orig_values = orig_values,
+          new_values = unique(df[[field_name]])
+        )
+        
+        if(verbose && transformed_count > 0) {
+          cat(sprintf("\n  Transformed %d values", transformed_count))
+          cat("\n  Value comparison:")
+          cat(sprintf("\n    Before: %s", 
+                      paste(head(orig_values), collapse=", ")))
+          cat(sprintf("\n    After:  %s", 
+                      paste(head(unique(df[[field_name]])), collapse=", ")))
+        }
+      }
+    }
+    
+    # Print summary if needed
+    if(verbose && length(range_summary) > 0) {
+      cat("\n\nValue range transformation summary:")
+      for(field in names(range_summary)) {
+        cat(sprintf("\n- %s", field))
+        if(range_summary[[field]]$values_transformed > 0) {
+          cat(sprintf(" (%d values standardized)", 
+                      range_summary[[field]]$values_transformed))
+        }
+      }
+      cat("\n")
+    }
+    
     return(df)
     
   }, error = function(e) {
-    cat("\nError in transform_value_ranges:", e$message, "\n")
-    return(df)  # Return unchanged dataframe on error
+    if(verbose) {
+      cat("\n\nError in transform_value_ranges:")
+      cat(sprintf("\n  %s", e$message))
+    }
+    return(df)
   })
 }
-
 # Modified ndaValidator to include column name standardization
-ndaValidator <- function(measure_name, source,
-                         api_base_url = "https://nda.nih.gov/api/datadictionary/v2") {
+ndaValidator <- function(measure_name,
+                         source,
+                         api_base_url = "https://nda.nih.gov/api/datadictionary/v2",
+                         verbose = TRUE,
+                         debug = FALSE) {
   
   tryCatch({
     # Get the dataframe from the global environment
     df <- base::get(measure_name, envir = .GlobalEnv)
-    debug_print("Initial dataframe loaded", df)
-    
-    # Add explicit date standardization step
-    df <- standardize_dates(df)
-    debug_print("After date standardization", df)
+    debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
     structure_name <- paste0(measure_name, "01")
     
+    # Add explicit date standardization step
+    df <- standardize_dates(df, verbose = verbose)
+    debug_print("After date standardization", df, debug = debug)
+    
     # Standardize column names based on structure
-    df <- standardize_column_names(df, structure_name)
-    debug_print("After column name standardization", df)
+    df <- standardize_column_names(df, structure_name, verbose = verbose)
+    debug_print("After column name standardization", df, debug = debug)
     
     # Save standardized dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
@@ -816,16 +1064,20 @@ ndaValidator <- function(measure_name, source,
       stop("No elements found in the structure definition")
     }
     
+    # Perform field renaming
+    renamed_results <- find_and_rename_fields(df, elements, structure_name, verbose)
+    df <- renamed_results$df
+    
     # Process the dataframe with additional error handling
     df <- tryCatch({
       # Apply type conversions
-      df <- apply_type_conversions(df, elements)
+      df <- apply_type_conversions(df, elements, verbose = verbose)
       
       # Apply null transformations
-      df <- apply_null_transformations(df, elements)
+      df <- apply_null_transformations(df, elements, verbose = verbose)
       
       # Transform value ranges
-      df <- transform_value_ranges(df, elements)
+      df <- transform_value_ranges(df, elements, verbose = verbose)
       
       df
     }, error = function(e) {
@@ -836,7 +1088,7 @@ ndaValidator <- function(measure_name, source,
     assign(measure_name, df, envir = .GlobalEnv)
     
     # Validate structure
-    validation_results <- validate_structure(df, elements, measure_name)
+    validation_results <- validate_structure(df, elements, measure_name, verbose = verbose)
     
     return(validation_results)
     
@@ -847,7 +1099,10 @@ ndaValidator <- function(measure_name, source,
 }
 
 # Modified apply_null_transformations with better error handling
-apply_null_transformations <- function(df, elements) {
+apply_null_transformations <- function(df, elements, verbose = FALSE) {
+  if(verbose) cat("\nApplying null value transformations...")
+  transform_summary <- list()
+  
   for (i in 1:nrow(elements)) {
     field_name <- elements$name[i]
     type <- elements$type[i]
@@ -855,41 +1110,49 @@ apply_null_transformations <- function(df, elements) {
     
     if (field_name %in% names(df) && !is.null(notes)) {
       tryCatch({
-        cat(sprintf("\nProcessing field: %s\n", field_name))
-        
         # Extract transformation rules from Notes
         rules <- get_mapping_rules(notes)
         
         if (!is.null(rules) && length(rules) > 0) {
-          cat(sprintf("Rules found for field '%s':\n", field_name))
-          print(rules)
+          if(verbose) {
+            cat(sprintf("\n\nField: %s", field_name))
+            cat("\n  Rules found:")
+            for(rule_name in names(rules)) {
+              cat(sprintf("\n    %s → %s", rule_name, rules[[rule_name]]))
+            }
+          }
           
           # Get placeholder value safely
           null_placeholder <- tryCatch({
             as.numeric(rules[[1]])
           }, error = function(e) {
-            warning(sprintf("Could not convert placeholder to numeric for %s: %s", 
-                            field_name, e$message))
+            if(verbose) {
+              cat(sprintf("\n  Warning: Could not convert placeholder to numeric"))
+              cat(sprintf("\n    Error: %s", e$message))
+            }
             NA
           })
           
-          cat(sprintf("Using placeholder value: %s\n", 
-                      if(is.na(null_placeholder)) "NA" else null_placeholder))
+          if(verbose) {
+            cat(sprintf("\n  Using placeholder: %s", 
+                        if(is.na(null_placeholder)) "NA" else null_placeholder))
+          }
           
-          # Show current values
-          cat(sprintf("Unique values before conversion in %s:\n", field_name))
-          print(unique(df[[field_name]]))
+          # Store original values
+          orig_values <- unique(df[[field_name]])
           
           # Convert field to character first
           df[[field_name]] <- as.character(df[[field_name]])
           
           # Apply null transformations
           null_mask <- df[[field_name]] %in% c("null", "NaN", "") | is.na(df[[field_name]])
+          null_count <- sum(null_mask)
           df[[field_name]][null_mask] <- null_placeholder
           
           # Apply type conversion if needed
           if (type %in% c("Integer", "Float")) {
-            cat(sprintf("Converting %s to %s\n", field_name, type))
+            if(verbose) cat(sprintf("\n  Converting to %s", type))
+            
             if (type == "Integer") {
               df[[field_name]] <- as.integer(df[[field_name]])
             } else {
@@ -897,13 +1160,43 @@ apply_null_transformations <- function(df, elements) {
             }
           }
           
-          cat(sprintf("Values after transformation: %s\n",
-                      paste(unique(df[[field_name]]), collapse = ", ")))
+          # Store transformation summary
+          transform_summary[[field_name]] <- list(
+            type = type,
+            nulls_transformed = null_count,
+            values_before = orig_values,
+            values_after = unique(df[[field_name]])
+          )
+          
+          if(verbose && null_count > 0) {
+            cat(sprintf("\n  Transformed %d null values", null_count))
+            cat("\n  Value comparison:")
+            cat(sprintf("\n    Before: %s", 
+                        paste(head(orig_values), collapse=", ")))
+            cat(sprintf("\n    After:  %s", 
+                        paste(head(unique(df[[field_name]])), collapse=", ")))
+          }
         }
       }, error = function(e) {
-        warning(sprintf("Error processing field %s: %s", field_name, e$message))
+        if(verbose) {
+          cat(sprintf("\n\nError processing field %s:", field_name))
+          cat(sprintf("\n  %s", e$message))
+        }
       })
     }
   }
+  
+  if(verbose && length(transform_summary) > 0) {
+    cat("\n\nNull transformation summary:")
+    for(field in names(transform_summary)) {
+      cat(sprintf("\n- %s", field))
+      if(transform_summary[[field]]$nulls_transformed > 0) {
+        cat(sprintf(" (%d nulls transformed)", 
+                    transform_summary[[field]]$nulls_transformed))
+      }
+    }
+    cat("\n")
+  }
+  
   return(df)
 }
