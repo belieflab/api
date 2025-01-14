@@ -7,7 +7,7 @@ ndaTemplate <- function(df) {
   structure_name <- df  # Assuming '01' is static
   
   # Create the file path
-  path <- file.path('nda', paste0(df, '01_template.csv'))
+  path <- file.path('nda/tmp', paste0(df, '01_template.csv'))
   
   # Get the dataframe
   template <- base::get(df, envir = .GlobalEnv)
