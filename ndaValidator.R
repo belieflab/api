@@ -14,62 +14,126 @@
 # todo: check type field (integers. floats)
 
 
-# Helper function for EEFRT specific transformations
-transform_eefrt_values <- function(df, measure_name) {
-  if (measure_name == "eefrt") {
-    cat("\nApplying EEFRT-specific transformations...")
+# Generic function for measure-specific transformations
+apply_measure_transformations <- function(df, measure_name, verbose = FALSE) {
+  if(verbose) cat(sprintf("\nApplying %s-specific transformations...", measure_name))
+  
+  transformations <- list()
+  
+  # EEFRT-specific transformations
+  if (measure_name == "eefrt" && "reward_hard" %in% names(df)) {
+    if(verbose) cat("\n\nProcessing EEFRT 'reward_hard' decimal conversion...")
     
-    # Rename 'index' to 'trial' if it exists, only for positive values
-    if ("index" %in% names(df)) {
-      # Convert index to numeric if it's not already
-      df$index <- as.numeric(df$index)
-      
-      # Create trial column maintaining the same length as the dataframe
-      df$trial <- df$index
-      # Set non-positive values to NA or appropriate missing value
-      df$trial[df$index <= 0] <- NA
-      
-      # Count the transformations
-      total_rows <- length(df$index)
-      positive_rows <- sum(df$index > 0, na.rm = TRUE)
-      
-      # Remove the original index column
-      df$index <- NULL
-      
-      cat(sprintf("\nRenamed 'index' to 'trial' for EEFRT task (kept %d positive values out of %d total rows)", 
-                  positive_rows, total_rows))
-    }
+    # Store original values
+    orig_values <- head(df$reward_hard, 3)
     
-    # Transform reward_hard decimals if field exists
-    if ("reward_hard" %in% names(df)) {
-      # Convert to numeric first in case it's character
-      df$reward_hard <- as.numeric(df$reward_hard)
+    # Convert to numeric and multiply decimals by 100
+    df$reward_hard <- as.numeric(df$reward_hard)
+    decimal_mask <- !is.na(df$reward_hard) & abs(df$reward_hard - floor(df$reward_hard)) > 0
+    
+    if(any(decimal_mask)) {
+      df$reward_hard[decimal_mask] <- round(df$reward_hard[decimal_mask] * 100)
       
-      # Store original values for logging
-      original_values <- head(df$reward_hard)
+      transformations[["reward_hard"]] <- list(
+        field = "reward_hard",
+        total = length(decimal_mask),
+        modified = sum(decimal_mask),
+        sample_before = orig_values,
+        sample_after = head(df$reward_hard, 3)
+      )
       
-      # Function to check if a number has decimals
-      has_decimals <- function(x) {
-        !is.na(x) && abs(x - floor(x)) > 0
-      }
-      
-      # Only transform values that have decimals
-      decimal_mask <- sapply(df$reward_hard, has_decimals)
-      if(any(decimal_mask)) {
-        df$reward_hard[decimal_mask] <- round(df$reward_hard[decimal_mask] * 100)
-        
-        cat("\nTransformed decimal reward_hard values only")
-        cat("\nBefore:", paste(original_values[1:3], collapse=", "))
-        cat("\nAfter:", paste(head(df$reward_hard)[1:3], collapse=", "))
-        cat(sprintf("\nModified %d decimal values out of %d total values", 
-                    sum(decimal_mask), length(decimal_mask)))
-      } else {
-        cat("\nNo decimal values found in reward_hard - no transformations needed")
+      if(verbose) {
+        cat(sprintf("\n  Transformed %d decimal values to whole numbers", sum(decimal_mask)))
+        cat("\n  Sample transformations:")
+        cat(sprintf("\n    Before: %s", paste(orig_values, collapse=", ")))
+        cat(sprintf("\n    After:  %s", paste(head(df$reward_hard, 3), collapse=", ")))
       }
     }
-    
-    cat("\nEEFRT transformations complete\n")
   }
+  
+  # Print summary
+  if(verbose && length(transformations) > 0) {
+    cat("\n\nMeasure-specific transformation summary:")
+    for(transform in transformations) {
+      cat(sprintf("\n- %s: modified %d of %d values",
+                  transform$field, transform$modified, transform$total))
+    }
+    cat("\n")
+  }
+  
+  return(df)
+}
+
+
+# Generic function for field standardization
+standardize_field_names <- function(df, measure_name, verbose = FALSE) {
+  if(verbose) cat("\nStandardizing common field names...")
+  
+  # Track all transformations for summary
+  transformations <- list()
+  
+  # Handle index -> trial conversion
+  if ("index" %in% names(df)) {
+    if(verbose) cat("\n\nProcessing 'index' to 'trial' conversion...")
+    
+    # Store original state for summary
+    orig_values <- head(df$index, 3)
+    
+    # Convert to numeric if not already
+    df$index <- as.numeric(df$index)
+    
+    # Create trial column
+    df$trial <- df$index
+    
+    # Set non-positive values to NA
+    df$trial[df$index <= 0] <- NA
+    
+    # Count transformations
+    total_rows <- length(df$index)
+    positive_rows <- sum(df$index > 0, na.rm = TRUE)
+    
+    # Store transformation summary
+    transformations[["index_to_trial"]] <- list(
+      from = "index",
+      to = "trial",
+      total = total_rows,
+      valid = positive_rows,
+      sample_before = orig_values,
+      sample_after = head(df$trial, 3)
+    )
+    
+    if(verbose) {
+      cat(sprintf("\n  Total rows: %d", total_rows))
+      cat(sprintf("\n  Valid rows: %d", positive_rows))
+      cat("\n  Sample values:")
+      cat(sprintf("\n    Before: %s", paste(orig_values, collapse=", ")))
+      cat(sprintf("\n    After:  %s", paste(head(df$trial, 3), collapse=", ")))
+    }
+    
+    # Remove original column
+    df$index <- NULL
+  }
+  
+  # Handle other common field standardizations here...
+  # Example pattern for future field transformations:
+  # if ("old_name" %in% names(df)) {
+  #   if(verbose) cat("\n\nProcessing 'old_name' to 'new_name' conversion...")
+  #   # Transformation logic
+  #   # Store in transformations list
+  # }
+  
+  # Print summary if any transformations occurred
+  if(verbose && length(transformations) > 0) {
+    cat("\n\nField standardization summary:")
+    for(transform_name in names(transformations)) {
+      transform <- transformations[[transform_name]]
+      cat(sprintf("\n- %s → %s", transform$from, transform$to))
+      cat(sprintf("\n  Processed %d rows (%d valid)", 
+                  transform$total, transform$valid))
+    }
+    cat("\n")
+  }
+  
   return(df)
 }
 
@@ -1052,6 +1116,14 @@ ndaValidator <- function(measure_name,
     # Standardize column names based on structure
     df <- standardize_column_names(df, structure_name, verbose = verbose)
     debug_print("After column name standardization", df, debug = debug)
+    
+    # Add field name standardization
+    df <- standardize_field_names(df, measure_name, verbose = verbose)
+    debug_print("After field standardization", df, debug = debug)
+    
+    # For eefrt reward hard money version (and others):
+    df <- apply_measure_transformations(df, measure_name, verbose = verbose)
+    debug_print("After measure-specific transformations", df, debug = debug)
     
     # Save standardized dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
