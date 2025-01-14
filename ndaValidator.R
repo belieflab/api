@@ -11,8 +11,52 @@
 #' @import jsonlite
 #' @import dplyr
 
-# todo: check type field (integers. floats)
-
+# Function to handle missing required fields
+handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
+  if(verbose) {
+    message("\nAuto-adding missing required fields with null values:")
+  }
+  
+  for (field in missing_required) {
+    element <- elements[elements$name == field, ]
+    
+    if(verbose) {
+      cat("\nNotes for", field, ":", element$notes)
+    }
+    
+    # Extract null value from notes
+    null_value <- if (!is.na(element$notes)) {
+      # Match patterns like:
+      # "999 = Missing"
+      # "999 = Missing/NA"
+      # "999=Missing"
+      if (grepl("\\d+\\s*=\\s*Missing(?:/NA)?", element$notes, perl = TRUE)) {
+        missing_val <- gsub(".*?([-]?\\d+)\\s*=\\s*Missing(?:/NA)?.*", "\\1", 
+                            element$notes, perl = TRUE)
+        if (element$type == "Float" || element$type == "Integer") {
+          as.numeric(paste0("-", abs(as.numeric(missing_val))))  # Ensure negative
+        } else {
+          paste0("-", abs(as.numeric(missing_val)))
+        }
+      } else {
+        ""  # Default to empty string if no match
+      }
+    } else {
+      ""
+    }
+    
+    # Add the field with null value
+    df[[field]] <- null_value
+    
+    if(verbose) {
+      cat(sprintf("\n- %s: added with null value '%s'", field, null_value))
+    }
+  }
+  
+  if(verbose) cat("\n")
+  
+  return(df)
+}
 
 # Generic function for measure-specific transformations
 apply_measure_transformations <- function(df, measure_name, verbose = FALSE) {
@@ -1161,6 +1205,24 @@ ndaValidator <- function(measure_name,
     
     # Validate structure
     validation_results <- validate_structure(df, elements, measure_name, verbose = verbose)
+    
+    # ADD HERE:
+    if (length(validation_results$missing_required) > 0) {
+
+      # Handle missing required fields
+      df <- handle_missing_fields(df, elements, validation_results$missing_required, verbose = TRUE)
+      
+      # Update the global environment
+      assign(measure_name, df, envir = .GlobalEnv)
+      
+      # Clear missing_required after processing
+      validation_results$missing_required <- character(0)
+      
+      # Confirm reset
+      if (length(validation_results$missing_required) == 0) {
+        message("\nAll missing required fields have been addressed.")
+      }
+    }
     
     return(validation_results)
     
