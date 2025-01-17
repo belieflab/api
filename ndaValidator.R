@@ -465,7 +465,7 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
   return(df)
 }
 
- 
+
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
   # Convert to lowercase
@@ -670,7 +670,7 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
         if (best_score > 0.7) {
           if(verbose) {
             message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
-                        field, best_match, best_score * 100))
+                            field, best_match, best_score * 100))
           }
           
           # Add the new column with renamed data
@@ -756,19 +756,39 @@ validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
     valid_fields <- elements$name
     df_cols <- names(df)
     
+    # # Check for and DROP unknown fields    
+    # results$unknown_fields <- setdiff(df_cols, valid_fields)
+    # if(length(results$unknown_fields) > 0) {
+    #   if(verbose) {
+    #     cat("\n\nUnknown fields detected:")
+    #     cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
+    #   }
+    #   df <- df[, !names(df) %in% results$unknown_fields]
+    #   results$unknown_fields <- character(0)
+    #   if(verbose) {
+    #     cat("\nDropped unknown fields from dataframe")
+    #   }
+    #   assign(measure_name, df, envir = .GlobalEnv)
+    # }
+    
     # Check for unknown fields
     results$unknown_fields <- setdiff(df_cols, valid_fields)
     if(length(results$unknown_fields) > 0) {
-      results$valid <- FALSE
       if(verbose) {
         cat("\n\nUnknown fields detected:")
         cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
       }
+      # No longer dropping fields here
+      results$valid <- FALSE  # Keep failing validation if unknown fields exist
     }
     
-    # Check required fields
+    # Update field lists after renaming
+    df_cols <- names(df)  # Get updated column names
+    required_fields <- setdiff(required_fields, df_cols)  # Only keep the ones that are still missing
+    
+    # Check required fields 
     if(length(required_fields) > 0) {
-      missing_required <- required_fields[!required_fields %in% df_cols]
+      missing_required <- required_fields  # These are already the missing ones now
       if(length(missing_required) > 0) {
         results$valid <- FALSE
         results$missing_required <- missing_required
@@ -780,6 +800,8 @@ validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
         cat("\n\nAll required fields present")
       }
     }
+    
+    # Rest of validation code...
     
     # Check value ranges
     if(verbose) cat("\n\nChecking value ranges...")
@@ -842,29 +864,29 @@ validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
     
     # Final summary
     if(verbose) {
-      cat("\n\nValidation Summary:")
-      cat(sprintf("\n- Status: %s", 
-                  if(results$valid) "PASSED" else "FAILED"))
+      message("\n\nValidation Summary:")
+      message(sprintf("- Status: %s", 
+                      if(results$valid) "PASSED" else "FAILED"))
       
       if(length(results$unknown_fields) > 0) {
-        cat(sprintf("\n- Unknown fields: %d", 
-                    length(results$unknown_fields)))
+        message(sprintf("- Unknown fields: %d", 
+                        length(results$unknown_fields)))
       }
       
       if(length(results$missing_required) > 0) {
-        cat(sprintf("\n- Missing required fields: %d", 
-                    length(results$missing_required)))
+        message(sprintf("- Missing required fields: %d", 
+                        length(results$missing_required)))
       }
       
       if(length(results$value_range_violations) > 0) {
-        cat(sprintf("\n- Fields with range violations: %d", 
-                    length(results$value_range_violations)))
+        message(sprintf("- Fields with range violations: %d", 
+                        length(results$value_range_violations)))
       }
       
       if(length(results$warnings) > 0) {
-        cat("\n\nWarnings:")
+        message("\n\nWarnings:")
         for(warning in results$warnings) {
-          cat(sprintf("\n- %s", warning))
+          message(sprintf("\n- %s", warning))
         }
       }
       cat("\n")
@@ -1137,27 +1159,16 @@ ndaValidator <- function(measure_name,
     # Save processed dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
     
-    # Validate structure
-    validation_results <- validate_structure(df, elements, measure_name, verbose = verbose)
-    
-    # ADD HERE:
-    if (length(validation_results$missing_required) > 0) {
-
-      # Handle missing required fields
-      df <- handle_missing_fields(df, elements, validation_results$missing_required, verbose = TRUE)
-      
-      # Update the global environment
+    # Check and add any missing required fields BEFORE validation
+    required_fields <- elements$name[elements$required == "Required"]
+    missing_required <- required_fields[!required_fields %in% names(df)]
+    if(length(missing_required) > 0) {
+      df <- handle_missing_fields(df, elements, missing_required, verbose = TRUE)
       assign(measure_name, df, envir = .GlobalEnv)
-      
-      # Clear missing_required after processing
-      validation_results$missing_required <- character(0)
-      
-      # Confirm reset
-      if (length(validation_results$missing_required) == 0) {
-        message("\nAll missing required fields have been addressed.")
-      }
     }
     
+    # Now validate the complete dataset
+    validation_results <- validate_structure(df, elements, measure_name, verbose = verbose)
     return(validation_results)
     
   }, error = function(e) {
