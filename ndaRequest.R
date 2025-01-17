@@ -170,12 +170,17 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     base::source("api/ndaValidator.R")
     validation_results <- ndaValidator(measure, api)
     # Create data upload template if test passes
-    if (validation_results$valid == FALSE) {
-      base::source("api/src/ndaTemplate.R")
-      ndaTemplate(measure)
+    if (validation_results$valid == TRUE) {
       beepr::beep("mario")
-      formatElapsedTime(start_time)
     }
+    
+    if (validation_results$valid == FALSE) {
+      beepr::beep("wilhelm")
+    }
+    
+    base::source("api/src/ndaTemplate.R")
+    ndaTemplate(measure)
+    formatElapsedTime(start_time)
     
   }, error = function(e) {
     # Check if super_keys is valid (you can modify this logic based on your criteria)
