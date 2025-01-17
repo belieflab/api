@@ -633,14 +633,18 @@ transform_value_ranges <- function(df, elements) {
 
 # Helper function to fetch structure elements from API
 fetch_structure_elements <- function(structure_name, api_base_url) {
+  
+  if (!require(httr)) {install.packages("httr")}; library(httr)
+  if (!require(jsonlite)) {install.packages("jsonlite")}; library(jsonlite)
+  
   url <- sprintf("%s/datastructure/%s", api_base_url, structure_name)
-  response <- GET(url)
+  response <- httr::GET(url)
   
   if (status_code(response) != 200) {
     stop("Failed to fetch structure elements: ", content(response, "text"))
   }
   
-  content <- fromJSON(rawToChar(response$content))
+  content <- jsonlite::fromJSON(rawToChar(response$content))
   
   if (!"dataElements" %in% names(content)) {
     stop("Unexpected API response format - no dataElements found")
