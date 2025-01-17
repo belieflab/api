@@ -515,10 +515,10 @@ standardize_handedness <- function(value) {
   mapped_values[is.na(mapped_values)] <- value[is.na(mapped_values)]
   
   # Count and report transformations
-  n_transformed <- sum(value != mapped_values, na.rm = TRUE)
-  if (n_transformed > 0) {
-    cat(sprintf("\nTransformed %d handedness values to NDA standard format\n", n_transformed))
-  }
+  # n_transformed <- sum(value != mapped_values, na.rm = TRUE)
+  # if (n_transformed > 0) {
+  #   cat(sprintf("\nTransformed %d handedness values to NDA standard format\n", n_transformed))
+  # }
   
   return(mapped_values)
 }
@@ -579,56 +579,6 @@ parse_array_string <- function(value) {
   }
   
   return(tolower(trimws(value)))
-}
-
-# Transform values based on NDA structure requirements
-# Add case mapping standardization to transform_value_ranges (e.g. eefrt01 e, h)
-transform_value_ranges <- function(df, elements) {
-  # Check which columns are required
-  required_fields <- elements$name[elements$required == "Required"]
-  
-  # Only check non-required columns for emptiness e.g."rt" on eefrt
-  empty_cols <- sapply(df[, !names(df) %in% required_fields], function(col) all(is.na(col) | col == ""))
-  if (any(empty_cols)) {
-    df <- df[, !names(df) %in% names(empty_cols)[empty_cols], drop=FALSE]
-    cat("\nDropped empty columns:", paste(names(empty_cols)[empty_cols], collapse=", "), "\n")
-  }
-  
-  # Keep existing binary field transformation
-  binary_fields <- elements$name[!is.na(elements$valueRange) & elements$valueRange == "0;1"]
-  if (length(binary_fields) > 0) {
-    for (field in binary_fields) {
-      if (field %in% names(df)) {
-        values <- as.character(df[[field]])
-        potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
-        if (any(values %in% potential_booleans, na.rm = TRUE)) {
-          cat(sprintf("\nChecking %s format (0;1)...", field))
-          df[[field]] <- standardize_binary(df[[field]])
-        }
-      }
-    }
-  }
-  
-  # Process fields that have value range rules
-  for (i in 1:nrow(elements)) {
-    field_name <- elements$name[i]
-    value_range <- elements$valueRange[i]
-    
-    if (field_name %in% names(df) && !is.na(value_range) && grepl(";", value_range)) {
-      expected_values <- trimws(unlist(strsplit(value_range, ";")))
-      current_values <- df[[field_name]]
-      
-      # Map case-insensitive matches to expected case
-      for (exp_val in expected_values) {
-        matches <- tolower(current_values) == tolower(exp_val)
-        if (any(matches)) {
-          df[[field_name]][matches] <- exp_val
-        }
-      }
-    }
-  }
-  
-  return(df)
 }
 
 # Helper function to fetch structure elements from API
@@ -1001,147 +951,127 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
   if(verbose) cat("\nChecking and transforming value ranges...")
   range_summary <- list()
   
-  tryCatch({
-    # Get required fields
-    required_fields <- elements$name[elements$required == "Required"]
-    
-    # Check for empty non-required columns
-    non_required_cols <- names(df)[!names(df) %in% required_fields]
-    if(length(non_required_cols) > 0) {
-      empty_cols <- sapply(df[non_required_cols], function(col) {
-        all(is.na(col) | col == "")
-      })
-      
-      if(any(empty_cols)) {
-        empty_col_names <- names(empty_cols)[empty_cols]
-        if(verbose) {
-          cat("\n\nEmpty columns detected:")
-          cat(sprintf("\n  Dropping: %s", paste(empty_col_names, collapse=", ")))
-        }
-        df <- df[, !names(df) %in% empty_col_names, drop=FALSE]
-      }
+  # Check which columns are required
+  required_fields <- elements$name[elements$required == "Required"]
+  
+  # Only check non-required columns for emptiness e.g."rt" on eefrt  
+  empty_cols <- sapply(df[, !names(df) %in% required_fields], function(col) all(is.na(col) | col == ""))
+  if (any(empty_cols)) {
+    empty_col_names <- names(empty_cols)[empty_cols]
+    if(verbose) {
+      cat("\n\nEmpty columns detected:")
+      cat(sprintf("\n  Dropping: %s", paste(empty_col_names, collapse=", ")))
     }
+    df <- df[, !names(df) %in% empty_col_names, drop=FALSE]
+  }
+  
+  # Process binary fields first
+  binary_fields <- elements$name[!is.na(elements$valueRange) & elements$valueRange == "0;1"]
+  if (length(binary_fields) > 0) {
+    if(verbose) cat("\n\nProcessing binary fields (0;1)...")
     
-    # Process binary fields first
-    binary_fields <- elements$name[!is.na(elements$valueRange) & 
-                                     elements$valueRange == "0;1"]
-    
-    if(length(binary_fields) > 0) {
-      if(verbose) cat("\n\nProcessing binary fields (0;1)...")
-      
-      for(field in binary_fields) {
-        if(field %in% names(df)) {
-          values <- as.character(df[[field]])
-          potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
+    for (field in binary_fields) {
+      if (field %in% names(df)) {
+        values <- as.character(df[[field]])
+        potential_booleans <- c("true", "false", "t", "f", "TRUE", "FALSE", "True", "False")
+        if (any(values %in% potential_booleans, na.rm = TRUE)) {
+          if(verbose) {
+            cat(sprintf("\n\nField: %s", field))
+            cat("\n  Converting boolean values to 0/1")
+          }
           
-          boolean_mask <- values %in% potential_booleans
-          if(any(boolean_mask)) {
-            if(verbose) {
-              cat(sprintf("\n\nField: %s", field))
-              cat("\n  Converting boolean values to 0/1")
-            }
-            
-            # Store original values
-            orig_values <- unique(values)
-            
-            # Transform values
-            df[[field]] <- standardize_binary(values)
-            
-            # Store summary
-            range_summary[[field]] <- list(
-              type = "binary",
-              values_transformed = sum(boolean_mask),
-              orig_values = orig_values,
-              new_values = unique(df[[field]])
-            )
-            
-            if(verbose) {
-              cat("\n  Value mapping:")
-              cat(sprintf("\n    Before: %s", 
-                          paste(head(orig_values), collapse=", ")))
-              cat(sprintf("\n    After:  %s", 
-                          paste(head(unique(df[[field]])), collapse=", ")))
-            }
+          # Store original values
+          orig_values <- unique(values)
+          
+          # Transform values 
+          df[[field]] <- standardize_binary(values)
+          
+          # Store summary
+          range_summary[[field]] <- list(
+            type = "binary",
+            values_transformed = sum(values != df[[field]], na.rm = TRUE),
+            orig_values = orig_values,
+            new_values = unique(df[[field]])
+          )
+          
+          if(verbose) {
+            cat("\n  Value mapping:")
+            cat(sprintf("\n    Before: %s", paste(head(orig_values), collapse=", ")))
+            cat(sprintf("\n    After:  %s", paste(head(unique(df[[field]])), collapse=", ")))
           }
         }
       }
     }
+  }
+  
+  # Process fields that have value range rules
+  for (i in 1:nrow(elements)) {
+    field_name <- elements$name[i]
+    value_range <- elements$valueRange[i]
     
-    # Process other value ranges
-    for(i in 1:nrow(elements)) {
-      field_name <- elements$name[i]
-      value_range <- elements$valueRange[i]
+    if (field_name %in% names(df) && !is.na(value_range) && value_range != "" && 
+        value_range != "0;1" && grepl(";", value_range)) {
       
-      if(field_name %in% names(df) && 
-         !is.na(value_range) && 
-         value_range != "" && 
-         value_range != "0;1" && 
-         grepl(";", value_range)) {
-        
-        if(verbose) {
-          cat(sprintf("\n\nField: %s", field_name))
-          cat(sprintf("\n  Expected values: %s", value_range))
-        }
-        
-        # Store original values
-        orig_values <- unique(df[[field_name]])
-        
-        # Get expected values and standardize
-        expected_values <- trimws(unlist(strsplit(value_range, ";")))
-        current_values <- df[[field_name]]
-        transformed_count <- 0
-        
-        # Map case-insensitive matches
-        for(exp_val in expected_values) {
-          matches <- tolower(current_values) == tolower(exp_val)
-          if(any(matches)) {
+      if(verbose) {
+        cat(sprintf("\n\nField: %s", field_name))
+        cat(sprintf("\n  Expected values: %s", value_range))
+      }
+      
+      # Store original values
+      orig_values <- unique(df[[field_name]])
+      
+      # Get expected values and standardize
+      expected_values <- trimws(unlist(strsplit(value_range, ";")))
+      current_values <- df[[field_name]]
+      transformed_count <- 0
+      
+      # Special handling for handedness
+      if(field_name == "handedness") {
+        df[[field_name]] <- standardize_handedness(current_values)
+        transformed_count <- sum(current_values != df[[field_name]], na.rm = TRUE)
+      } else {
+        # Map case-insensitive matches for other fields
+        for (exp_val in expected_values) {
+          matches <- tolower(current_values) == tolower(exp_val) 
+          if (any(matches)) {
             transformed_count <- transformed_count + sum(matches)
             df[[field_name]][matches] <- exp_val
           }
         }
-        
-        # Store summary
-        range_summary[[field_name]] <- list(
-          type = "categorical",
-          values_transformed = transformed_count,
-          orig_values = orig_values,
-          new_values = unique(df[[field_name]])
-        )
-        
-        if(verbose && transformed_count > 0) {
-          cat(sprintf("\n  Transformed %d values", transformed_count))
-          cat("\n  Value comparison:")
-          cat(sprintf("\n    Before: %s", 
-                      paste(head(orig_values), collapse=", ")))
-          cat(sprintf("\n    After:  %s", 
-                      paste(head(unique(df[[field_name]])), collapse=", ")))
-        }
+      }
+      
+      # Store summary
+      range_summary[[field_name]] <- list(
+        type = "categorical",
+        values_transformed = transformed_count,
+        orig_values = orig_values,
+        new_values = unique(df[[field_name]])
+      )
+      
+      if(verbose && transformed_count > 0) {
+        cat(sprintf("\n  Transformed %d values", transformed_count))
+        cat("\n  Value comparison:")
+        cat(sprintf("\n    Before: %s", paste(head(orig_values), collapse=", ")))
+        cat(sprintf("\n    After:  %s", paste(head(unique(df[[field_name]])), collapse=", ")))
       }
     }
-    
-    # Print summary if needed
-    if(verbose && length(range_summary) > 0) {
-      cat("\n\nValue range transformation summary:")
-      for(field in names(range_summary)) {
-        cat(sprintf("\n- %s", field))
-        if(range_summary[[field]]$values_transformed > 0) {
-          cat(sprintf(" (%d values standardized)", 
-                      range_summary[[field]]$values_transformed))
-        }
+  }
+  
+  # Print summary if needed
+  if(verbose && length(range_summary) > 0) {
+    cat("\n\nValue range transformation summary:")
+    for(field in names(range_summary)) {
+      cat(sprintf("\n- %s", field))
+      if(range_summary[[field]]$values_transformed > 0) {
+        cat(sprintf(" (%d values standardized)", range_summary[[field]]$values_transformed))
       }
-      cat("\n")
     }
-    
-    return(df)
-    
-  }, error = function(e) {
-    if(verbose) {
-      cat("\n\nError in transform_value_ranges:")
-      cat(sprintf("\n  %s", e$message))
-    }
-    return(df)
-  })
+    cat("\n")
+  }
+  
+  return(df)
 }
+
 # Modified ndaValidator to include column name standardization
 ndaValidator <- function(measure_name,
                          source,
