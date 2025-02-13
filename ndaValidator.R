@@ -424,7 +424,9 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
           if (!is.null(parsed_dates) && !all(is.na(parsed_dates))) {
             if(verbose) cat(sprintf("\n  Detected format: %s", format))
             # df[[col]] <- format(parsed_dates, "%Y-%m-%d")
-            df[[col]] <- format(parsed_dates, "%m/%d/%Y")
+            #df[[col]] <- format(parsed_dates, "%m/%d/%Y")
+            # Perform interview_date date shifting to created de-identified dataset
+            df[[col]] <- format(parsed_dates, "%m/01/%Y")
             success <- TRUE
             
             date_summary[[col]] <- list(
