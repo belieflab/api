@@ -1003,7 +1003,7 @@ standardize_column_names <- function(df, structure_name, verbose = FALSE) {
 transform_value_ranges <- function(df, elements, verbose = FALSE) {
   if(verbose) cat("\nChecking and transforming value ranges...")
   range_summary <- list()
-  
+
   # Check which columns are required
   required_fields <- elements$name[elements$required == "Required"]
   
@@ -1037,6 +1037,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
           orig_values <- unique(values)
           
           # Transform values 
+
           df[[field]] <- standardize_binary(values)
           
           # Store summary
@@ -1061,7 +1062,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
   for (i in 1:nrow(elements)) {
     field_name <- elements$name[i]
     value_range <- elements$valueRange[i]
-    
+
     if (field_name %in% names(df) && !is.na(value_range) && value_range != "" && 
         value_range != "0;1" && grepl(";", value_range)) {
       
@@ -1070,6 +1071,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
         cat(sprintf("\n  Expected values: %s", value_range))
       }
       
+      stop('\nNDA required values contain NA or no data, please update ndar_subject01 values to make sure no data is missing')
       # Store original values
       orig_values <- unique(df[[field_name]])
       
@@ -1084,6 +1086,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
         transformed_count <- sum(current_values != df[[field_name]], na.rm = TRUE)
       } else {
         # Map case-insensitive matches for other fields
+
         for (exp_val in expected_values) {
           matches <- tolower(current_values) == tolower(exp_val) 
           if (any(matches)) {
