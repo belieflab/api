@@ -391,8 +391,8 @@ apply_type_conversions <- function(df, elements, verbose = FALSE) {
 }
 
 # Demonstrate with standardize_dates as well
-standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FALSE) {
-  if(verbose) cat("\nStandardizing date formats...")
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE) {
+  if(verbose) cat("\nStandardizing and date-shifting interview_date...")
   date_summary <- list()
   
   for (col in date_cols) {
@@ -468,6 +468,34 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
   return(df)
 }
 
+standardize_age <- function(df, verbose = TRUE) {
+  if ("interview_age" %in% names(df)) {
+    if(verbose) cat("\nDe-identifying interview_age...")
+    
+    # Convert to numeric first
+    df$interview_age <- as.numeric(df$interview_age)
+    orig_age_stats <- summary(df$interview_age)
+    
+    # Count values that will be changed
+    values_to_change <- sum(df$interview_age > 1068, na.rm = TRUE)
+    
+    # Apply the age standardization (cap at 1068 months = 89 years * 12)
+    df$interview_age <- pmin(df$interview_age, 1068)
+    
+    if(verbose) {
+      cat("\nAge standardization summary:")
+      cat("\nBefore:", capture.output(orig_age_stats))
+      cat("\nAfter:", capture.output(summary(df$interview_age)))
+      if(values_to_change > 0) {
+        cat(sprintf("\nNumber of values capped at 1068 months: %d", values_to_change))
+      } else {
+        cat("\nNo values needed capping (all were <= 1068 months)")
+      }
+    }
+  }
+  
+  return(df)
+}
 
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
@@ -1112,9 +1140,13 @@ ndaValidator <- function(measure_name,
     # Get structure name
     structure_name <- paste0(measure_name, "01")
     
-    # Add explicit date standardization step
+    # Add explicit date standardization step to make data de-identified
     df <- standardize_dates(df, verbose = verbose)
-    debug_print("After date standardization", df, debug = debug)
+    debug_print("After date standardization and de-identification", df, debug = debug)
+    
+    # Add explicit age standardization step to make data de-identified
+    df <- standardize_age(df, verbose = verbose)
+    debug_print("After age standardization and de-identification", df, debug = debug)
     
     # Standardize column names based on structure
     df <- standardize_column_names(df, structure_name, verbose = verbose)
