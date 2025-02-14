@@ -9,7 +9,6 @@
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
 #' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
 #' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
-#' @param limited_dataset Optional; Boolean, if TRUE does not perform date-shifting of interview_date or age-capping of interview_age
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
@@ -22,7 +21,7 @@
 
 start_time <- Sys.time()
 
-ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
+ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   base::source("api/getRedcap.R")
   base::source("api/getSurvey.R")
@@ -189,7 +188,7 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     
     # Run validation
     base::source("api/ndaValidator.R")
-    validation_results <- ndaValidator(measure, api, limited_dataset)
+    validation_results <- ndaValidator(measure, api)
     # Create data upload template if test passes
     if (validation_results$valid == TRUE) {
       beepr::beep("mario")
