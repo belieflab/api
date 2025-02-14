@@ -161,7 +161,6 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     
     # Only process if df exists and is a data frame
     if (!is.null(df) && is.data.frame(df)) {
-      df <- preserveDateFormat(df)
       # Reassign the processed data frame
       base::assign(measure, df, envir = .GlobalEnv)
     }
@@ -190,6 +189,14 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     # Run validation
     base::source("api/ndaValidator.R")
     validation_results <- ndaValidator(measure, api, limited_dataset)
+    
+    # Now apply date format preservation AFTER validation
+    df <- base::get0(measure, envir = .GlobalEnv)
+    if (!is.null(df) && is.data.frame(df)) {
+      df <- preserveDateFormat(df, limited_dataset)
+      base::assign(measure, df, envir = .GlobalEnv)
+    }
+    
     # Create data upload template if test passes
     if (validation_results$valid == TRUE) {
       beepr::beep("mario")
@@ -241,9 +248,17 @@ performCleanup <- function() {
 # Helper function to preserve MM/DD/YYYY format
 preserveDateFormat <- function(df, limited_dataset = FALSE) {
   if ("interview_date" %in% names(df)) {
-    df <- df %>%
-      dplyr::mutate(interview_date = format(as.Date(interview_date), 
-                                            ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y")))
+    # Convert to Date first to ensure consistent handling
+    dates <- as.Date(df$interview_date, format = "%m/%d/%Y")
+    
+    # Apply format based on limited_dataset flag
+    df$interview_date <- format(dates, 
+                                ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
+    
+    # Add debug message
+    message("Applying date format with limited_dataset = ", limited_dataset)
+    message("Sample dates after formatting: ", 
+            paste(head(df$interview_date), collapse=", "))
   }
   return(df)
 }
