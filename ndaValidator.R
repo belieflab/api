@@ -158,21 +158,13 @@ standardize_field_names <- function(df, measure_name, verbose = FALSE) {
     df$index <- NULL
   }
   
-  # Handle other common field standardizations here...
-  # Example pattern for future field transformations:
-  # if ("old_name" %in% names(df)) {
-  #   if(verbose) cat("\n\nProcessing 'old_name' to 'new_name' conversion...")
-  #   # Transformation logic
-  #   # Store in transformations list
-  # }
-  
   # Print summary if any transformations occurred
   if(verbose && length(transformations) > 0) {
     cat("\n\nField standardization summary:")
     for(transform_name in names(transformations)) {
       transform <- transformations[[transform_name]]
       cat(sprintf("\n- %s → %s", transform$from, transform$to))
-      cat(sprintf("\n  Processed %d rows (%d valid)", 
+      cat(sprintf("\n  Processed %d rows (%d valid)",
                   transform$total, transform$valid))
     }
     cat("\n")
@@ -637,6 +629,7 @@ fetch_structure_elements <- function(structure_name, api_base_url) {
 }
 
 # Calculate similarity with more accurate prefix handling
+# Calculate similarity with more accurate prefix handling
 find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE) {
   renamed <- list(
     df = df,
@@ -659,25 +652,32 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
     if(verbose) cat("\nAnalyzing field name similarities...\n")
     
     for (field in unknown_fields) {
-      # Try matching both with and without prefix
+      # Check if this is a hierarchical field (contains multiple underscores with numbers)
+      parts <- strsplit(field, "_")[[1]]
+      num_parts <- sum(grepl("^\\d+$", parts))
+      
+      # If field has more than 2 numeric parts, it's hierarchical - skip renaming
+      if (num_parts > 2) {
+        if(verbose) {
+          cat(sprintf("\nField: %s\n", field))
+          cat("Skipping rename - hierarchical field structure detected\n")
+        }
+        next
+      }
+      
+      # For non-hierarchical fields, proceed with similarity matching
       base_field <- sub(paste0("^", structure_prefix, "_"), "", field)
       
-      # Calculate similarity scores considering prefix variations
+      # Calculate similarity scores
       similarities <- sapply(valid_fields, function(name) {
         # Remove prefix from target field if it exists
         target_base <- sub(paste0("^", structure_prefix, "_"), "", name)
         
-        # Calculate similarities considering various combinations
-        sims <- c(
-          calculate_similarity(field, name),  # Direct match
-          calculate_similarity(base_field, target_base),  # Base names
-          calculate_similarity(paste0(structure_prefix, "_", field), name),  # With prefix
-          calculate_similarity(field, target_base)  # Mixed comparison
-        )
-        max(sims)
+        # Calculate direct similarity
+        calculate_similarity(field, name)
       })
       
-      # Store all similarity scores for this field
+      # Store all similarity scores
       renamed$similarity_scores[[field]] <- sort(similarities, decreasing = TRUE)
       
       if(verbose) {
@@ -685,10 +685,10 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
         cat("Top matches:\n")
         top_matches <- head(sort(similarities, decreasing = TRUE), 3)
         for(i in seq_along(top_matches)) {
-          cat(sprintf("%d. %s (%.2f%% match)\n", 
-                      i, 
-                      names(top_matches)[i], 
-                      top_matches[i] * 100))
+          cat(sprintf("%d. %s (%.2f%% match)\n",
+                     i,
+                     names(top_matches)[i],
+                     top_matches[i] * 100))
         }
       }
       
@@ -699,10 +699,10 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
         best_match <- names(similarities)[which.max(similarities)]
         best_score <- max(similarities)
         
-        if (best_score > 0.7) {
+        if (best_score > 0.9) {  # Increased threshold for more conservative matching
           if(verbose) {
             message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
-                            field, best_match, best_score * 100))
+                          field, best_match, best_score * 100))
           }
           
           # Add the new column with renamed data
@@ -713,15 +713,15 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
           
           # Store the rename operation
           renamed$renames <- c(renamed$renames,
-                               sprintf("%s -> %s (%.2f%%)", 
-                                       field, best_match, best_score * 100))
+                             sprintf("%s -> %s (%.2f%%)",
+                                   field, best_match, best_score * 100))
         } else if(verbose) {
-          cat(sprintf("No automatic rename - best match below 70%% threshold\n"))
+          cat(sprintf("No automatic rename - best match below 90%% threshold\n"))
         }
       }
     }
     
-    # Actually drop the original columns after all renames are complete
+    # Drop original columns after all renames
     if(length(renamed$columns_to_drop) > 0) {
       if(verbose) {
         cat("\nDropping original columns:")
@@ -998,6 +998,54 @@ standardize_column_names <- function(df, structure_name, verbose = FALSE) {
   # Apply new names
   names(df) <- new_names
   return(df)
+}
+
+parse_field_name <- function(name) {
+  # Split name into components
+  parts <- strsplit(name, "_")[[1]]
+  
+  # Extract prefix and numeric components
+  prefix <- parts[1]  # e.g., "lec"
+  
+  # Get all numeric components
+  numbers <- as.numeric(grep("^\\d+$", parts, value = TRUE))
+  
+  list(
+    prefix = prefix,
+    numbers = numbers,
+    original = name
+  )
+}
+
+# Helper function to compare numeric patterns
+compare_numeric_patterns <- function(name1, name2) {
+  # Parse both names
+  parsed1 <- parse_field_name(name1)
+  parsed2 <- parse_field_name(name2)
+  
+  # Must have same prefix
+  if (parsed1$prefix != parsed2$prefix) {
+    return(0)
+  }
+  
+  # Compare number of numeric components
+  n1 <- length(parsed1$numbers)
+  n2 <- length(parsed2$numbers)
+  
+  # If one is hierarchical (has underscore numbers) and other isn't, they're different
+  if ((grepl("_\\d+_\\d+", name1) && !grepl("_\\d+_\\d+", name2)) ||
+      (!grepl("_\\d+_\\d+", name1) && grepl("_\\d+_\\d+", name2))) {
+    return(0.3)  # Very low similarity for different patterns
+  }
+  
+  # Compare the actual numbers
+  max_nums <- max(n1, n2)
+  matching_nums <- sum(parsed1$numbers[1:min(n1, n2)] == parsed2$numbers[1:min(n1, n2)])
+  
+  # Calculate similarity based on matching numbers
+  similarity <- matching_nums / max_nums
+  
+  return(similarity)
 }
 
 # Modify transform_value_ranges to be more robust
