@@ -648,8 +648,8 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
   df_cols <- names(df)
   valid_fields <- elements$name
   
-  # Get structure short name (e.g., "mft" from "mft01")
-  structure_prefix <- sub("01$", "", structure_name)
+  # Get structure short name by taking last 2 digits of structure_name
+  structure_prefix <- substr(structure_name, nchar(structure_name) - 1, nchar(structure_name))
   
   # Find unknown fields
   unknown_fields <- setdiff(df_cols, valid_fields)
@@ -961,8 +961,8 @@ debug_print <- function(msg, df = NULL, sample_size = 5, debug = FALSE) {
 standardize_column_names <- function(df, structure_name, verbose = FALSE) {
   if(verbose) cat("\nStandardizing column names...")
   
-  # Get structure prefix (e.g., "ahrs" from "ahrs01")
-  prefix <- sub("01$", "", structure_name)
+  # Get structure short name by taking last 2 digits of structure_name
+  prefix <- substr(structure_name, nchar(structure_name) - 1, nchar(structure_name))
   
   # Create name mapping function
   standardize_name <- function(name) {
@@ -1159,7 +1159,9 @@ ndaValidator <- function(measure_name,
     debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
-    structure_name <- paste0(measure_name, "01")
+    #structure_name <- paste0(measure_name, "01")
+    
+    structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
     df <- standardize_dates(df, verbose = verbose)
