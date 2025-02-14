@@ -9,7 +9,6 @@
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
 #' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
 #' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
-#' @param identifier Optional; String, accepts "numeric" or "character", converts src_subject_id to desired format.
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
@@ -158,7 +157,7 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     # Apply date format preservation after processing
     # Get the data frame from global environment
     df <- base::get0(measure, envir = .GlobalEnv)
-    View(df)
+    
     # Only process if df exists and is a data frame
     if (!is.null(df) && is.data.frame(df)) {
       df <- preserveDateFormat(df)
@@ -179,8 +178,12 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
       source("api/test/ndaCheckQualtricsDuplicates.R")
       ndaCheckQualtricsDuplicates(measure,"qualtrics")
       
-      View(df[is.na(df$interview_age), ])
-      
+      # show missing data that needs filled
+      missing_data <- df[is.na(df$src_subject_id) | is.na(df$subjectkey) | is.na(df$interview_age) | is.na(df$interview_date) | is.na(df$sex), ]
+      if (nrow(missing_data) > 0) {
+        View(missing_data)
+      }
+     
     }
     
     # Run validation

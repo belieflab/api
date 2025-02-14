@@ -7,7 +7,7 @@ ndaTemplate <- function(df) {
   structure_name <- df  # Assuming '01' is static
   
   # Create the file path
-  path <- file.path('nda/tmp', paste0(df, '01_template.csv'))
+  path <- file.path('nda/tmp', paste0(df, '_template.csv'))
   
   # Get the dataframe
   template <- base::get(df, envir = .GlobalEnv)
@@ -15,8 +15,12 @@ ndaTemplate <- function(df) {
   # Open a connection to overwrite the file
   con <- file(path, "w")
   
-  # Write the first line with "structure_name, 01"
-  writeLines(paste0(structure_name, ",01"), con)
+  # Split structure name into base name and suffix
+  structure_short_name <- substr(structure_name, 1, nchar(structure_name) - 2)  # gets "eefrt"
+  structure_suffix <- substr(structure_name, nchar(structure_name) - 1, nchar(structure_name))  # gets "01"
+  
+  # Write the line with separated components
+  writeLines(paste0(structure_short_name, ",", structure_suffix), con)
   
   # Write column headers manually
   writeLines(paste(names(template), collapse = ","), con)
