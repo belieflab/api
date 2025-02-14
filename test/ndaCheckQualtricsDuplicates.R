@@ -18,13 +18,15 @@
 #'       Qualtrics data and expects the data frame to be named with a '_clean' suffix.
 #'       It checks for duplicates based on 'src_subject_id' combined with 'visit' or 'week' columns.
 #'       The function will stop and throw an error if the necessary columns are not present.
-ndaCheckQualtricsDuplicates <- function(measure_alias, measure_type, df) {
+ndaCheckQualtricsDuplicates <- function(measure_alias, measure_type) {
   
   # Ensure required packages are loaded
   if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
   if (!require(testthat)) { install.packages("testthat") }; library(testthat)
   
   identifier <- "src_subject_id"
+  
+  df <- base::get0(measure_alias)
   
   if (measure_type == "qualtrics") {
     if (!(identifier %in% colnames(df))) {

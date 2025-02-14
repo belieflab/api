@@ -157,13 +157,30 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     base::source(file_path)  # Execute the cleaning script for the measure
     # Apply date format preservation after processing
     # Get the data frame from global environment
-    df <- get0(measure, envir = .GlobalEnv)
-    
+    df <- base::get0(measure, envir = .GlobalEnv)
+    View(df)
     # Only process if df exists and is a data frame
     if (!is.null(df) && is.data.frame(df)) {
       df <- preserveDateFormat(df)
       # Reassign the processed data frame
-      assign(measure, df, envir = .GlobalEnv)
+      base::assign(measure, df, envir = .GlobalEnv)
+    }
+    
+    if (api == "qualtrics") {
+      # Remove specified qualtrics columns
+      cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
+                          "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
+                          "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
+      df <- df[!names(df) %in% cols_to_remove]
+      
+      # Reassign the filtered dataframe to the global environment
+      base::assign(measure, df, envir = .GlobalEnv)
+      
+      source("api/test/ndaCheckQualtricsDuplicates.R")
+      ndaCheckQualtricsDuplicates(measure,"qualtrics")
+      
+      View(df[is.na(df$interview_age), ])
+      
     }
     
     # Run validation
