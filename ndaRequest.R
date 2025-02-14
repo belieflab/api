@@ -9,6 +9,7 @@
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
 #' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
 #' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
+#' @param limited_dataset Optional; Boolean, if TRUE does not perform date-shifting of interview_date or age-capping of interview_age
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
@@ -21,7 +22,7 @@
 
 start_time <- Sys.time()
 
-ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
+ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
   
   base::source("api/getRedcap.R")
   base::source("api/getSurvey.R")
@@ -110,7 +111,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Process each measure using processMeasure function
   for (measure in data_list) {
     api <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
-    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time)
+    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset)
   }
   
   # Clean up and record processing time
@@ -118,7 +119,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # print(Sys.time() - start_time)  # Print time taken for processing
 }
 
-processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time) {
+processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset = FALSE) {
   # Check if input is a dataframe
   if (is.data.frame(measure)) {
     # Get the name of the dataframe as a string
@@ -188,7 +189,7 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     
     # Run validation
     base::source("api/ndaValidator.R")
-    validation_results <- ndaValidator(measure, api)
+    validation_results <- ndaValidator(measure, api, limited_dataset)
     # Create data upload template if test passes
     if (validation_results$valid == TRUE) {
       beepr::beep("mario")
@@ -238,10 +239,11 @@ performCleanup <- function() {
 }
 
 # Helper function to preserve MM/DD/YYYY format
-preserveDateFormat <- function(df) {
+preserveDateFormat <- function(df, limited_dataset = FALSE) {
   if ("interview_date" %in% names(df)) {
     df <- df %>%
-      dplyr::mutate(interview_date = format(as.Date(interview_date), "%m/%d/%Y"))
+      dplyr::mutate(interview_date = format(as.Date(interview_date), 
+                                            ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y")))
   }
   return(df)
 }

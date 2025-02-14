@@ -391,7 +391,7 @@ apply_type_conversions <- function(df, elements, verbose = FALSE) {
 }
 
 # Demonstrate with standardize_dates as well
-standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE) {
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = FALSE) {
   if(verbose) cat("\nStandardizing and date-shifting interview_date...")
   date_summary <- list()
   
@@ -426,7 +426,8 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRU
             # df[[col]] <- format(parsed_dates, "%Y-%m-%d")
             #df[[col]] <- format(parsed_dates, "%m/%d/%Y")
             # Perform interview_date date shifting to created de-identified dataset
-            df[[col]] <- format(parsed_dates, "%m/01/%Y")
+            df[[col]] <- format(parsed_dates, ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
+            
             success <- TRUE
             
             date_summary[[col]] <- list(
@@ -468,8 +469,8 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRU
   return(df)
 }
 
-standardize_age <- function(df, verbose = TRUE) {
-  if ("interview_age" %in% names(df)) {
+standardize_age <- function(df, verbose = TRUE, limited_dataset = FALSE) {
+  if ("interview_age" %in% names(df) && limited_dataset == TRUE) {
     if(verbose) cat("\nDe-identifying interview_age...")
     
     # Convert to numeric first
@@ -1149,6 +1150,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
 # Modified ndaValidator to include column name standardization
 ndaValidator <- function(measure_name,
                          source,
+                         limited_dataset,
                          api_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE) {
@@ -1164,11 +1166,11 @@ ndaValidator <- function(measure_name,
     structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
-    df <- standardize_dates(df, verbose = verbose)
+    df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
     debug_print("After date standardization and de-identification", df, debug = debug)
     
     # Add explicit age standardization step to make data de-identified
-    df <- standardize_age(df, verbose = verbose)
+    df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
     debug_print("After age standardization and de-identification", df, debug = debug)
     
     # Standardize column names based on structure
