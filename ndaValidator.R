@@ -55,57 +55,6 @@ handle_missing_fields <- function(df, elements, missing_required, verbose = FALS
   return(df)
 }
 
-# Generic function for measure-specific transformations
-apply_measure_transformations <- function(df, measure_name, verbose = FALSE) {
-  if(verbose) cat(sprintf("\nApplying %s-specific transformations...", measure_name))
-  
-  transformations <- list()
-  
-  # EEFRT-specific transformations
-  if (measure_name == "eefrt01" && "reward_hard" %in% names(df)) {
-    if(verbose) cat("\n\nProcessing EEFRT 'reward_hard' decimal conversion...")
-    
-    # Store original values
-    orig_values <- head(df$reward_hard, 3)
-    
-    # Convert to numeric and multiply decimals by 100
-    df$reward_hard <- as.numeric(df$reward_hard)
-    decimal_mask <- !is.na(df$reward_hard) & abs(df$reward_hard - floor(df$reward_hard)) > 0
-    
-    if(any(decimal_mask)) {
-      df$reward_hard[decimal_mask] <- round(df$reward_hard[decimal_mask] * 100)
-      
-      transformations[["reward_hard"]] <- list(
-        field = "reward_hard",
-        total = length(decimal_mask),
-        modified = sum(decimal_mask),
-        sample_before = orig_values,
-        sample_after = head(df$reward_hard, 3)
-      )
-      
-      if(verbose) {
-        cat(sprintf("\n  Transformed %d decimal values to whole numbers", sum(decimal_mask)))
-        cat("\n  Sample transformations:")
-        cat(sprintf("\n    Before: %s", paste(orig_values, collapse=", ")))
-        cat(sprintf("\n    After:  %s", paste(head(df$reward_hard, 3), collapse=", ")))
-      }
-    }
-  }
-  
-  # Print summary
-  if(verbose && length(transformations) > 0) {
-    cat("\n\nMeasure-specific transformation summary:")
-    for(transform in transformations) {
-      cat(sprintf("\n- %s: modified %d of %d values",
-                  transform$field, transform$modified, transform$total))
-    }
-    cat("\n")
-  }
-  
-  return(df)
-}
-
-
 # Generic function for field standardization
 standardize_field_names <- function(df, measure_name, verbose = FALSE) {
   if(verbose) cat("\nStandardizing common field names...")
@@ -1218,9 +1167,6 @@ ndaValidator <- function(measure_name,
     
     # Add field name standardization
     df <- standardize_field_names(df, measure_name, verbose = verbose)
-    
-    # For eefrt reward hard money version (and others):
-    df <- apply_measure_transformations(df, measure_name, verbose = verbose)
     
     # Save standardized dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
