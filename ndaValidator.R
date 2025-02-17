@@ -65,7 +65,7 @@ apply_measure_transformations <- function(df, measure_name, verbose = FALSE) {
   transformations <- list()
   
   # EEFRT-specific transformations
-  if (measure_name == "eefrt" && "reward_hard" %in% names(df)) {
+  if (measure_name == "eefrt01" && "reward_hard" %in% names(df)) {
     if(verbose) cat("\n\nProcessing EEFRT 'reward_hard' decimal conversion...")
     
     # Store original values
@@ -383,8 +383,7 @@ apply_type_conversions <- function(df, elements, verbose = FALSE) {
 }
 
 # Demonstrate with standardize_dates as well
-standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = FALSE) {
-  if(verbose) cat("\nStandardizing and date-shifting interview_date...")
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = limited_dataset) {
   date_summary <- list()
   
   for (col in date_cols) {
@@ -447,7 +446,8 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRU
   }
   
   if(verbose && length(date_summary) > 0) {
-    cat("\n\nDate standardization summary:")
+    if(limited_dataset == FALSE) message("\n\nDe-identifying interview_date using date-shifting...")
+    cat("Date standardization summary:")
     for(field in names(date_summary)) {
       cat(sprintf("\n- %s", field))
       cat(sprintf("\n  Before: %s", 
@@ -461,9 +461,9 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRU
   return(df)
 }
 
-standardize_age <- function(df, verbose = TRUE, limited_dataset = FALSE) {
+standardize_age <- function(df, verbose = TRUE, limited_dataset = limited_dataset) {
   if ("interview_age" %in% names(df) && limited_dataset == FALSE) {
-    if(verbose) cat("\nDe-identifying interview_age...")
+    if(verbose && limited_dataset == FALSE) message("\nDe-identifying interview_age using age-capping...")
     
     # Convert to numeric first
     df$interview_age <- as.numeric(df$interview_age)
@@ -476,7 +476,7 @@ standardize_age <- function(df, verbose = TRUE, limited_dataset = FALSE) {
     df$interview_age <- pmin(df$interview_age, 1068)
     
     if(verbose) {
-      cat("\nAge standardization summary:")
+      cat("Age standardization summary:")
       cat("\nBefore:", capture.output(orig_age_stats))
       cat("\nAfter:", capture.output(summary(df$interview_age)))
       if(values_to_change > 0) {
@@ -1198,7 +1198,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
 # Modified ndaValidator to include column name standardization
 ndaValidator <- function(measure_name,
                          source,
-                         limited_dataset,
+                         limited_dataset = FALSE,
                          api_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE) {
@@ -1214,11 +1214,11 @@ ndaValidator <- function(measure_name,
     structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
-    df <- standardize_dates(df, verbose = verbose, limited_dataset = FALSE)
+    df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
     debug_print("After date standardization and de-identification", df, debug = debug)
     
     # Add explicit age standardization step to make data de-identified
-    df <- standardize_age(df, verbose = verbose, limited_dataset = FALSE)
+    df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
     debug_print("After age standardization and de-identification", df, debug = debug)
     
     # Standardize column names based on structure
@@ -1237,7 +1237,7 @@ ndaValidator <- function(measure_name,
     assign(measure_name, df, envir = .GlobalEnv)
     
     # Continue with structure fetching and validation...
-    message("\nFetching ", structure_name, " Data Structure from NDA API...")
+    message("\n\nFetching ", structure_name, " Data Structure from NDA API...")
     elements <- fetch_structure_elements(structure_name, api_base_url)
     
     if (is.null(elements) || nrow(elements) == 0) {

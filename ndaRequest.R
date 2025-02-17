@@ -192,21 +192,21 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     
     # Now apply date format preservation AFTER validation
     df <- base::get0(measure, envir = .GlobalEnv)
-    if (!is.null(df) && is.data.frame(df)) {
-      df <- preserveDateFormat(df, limited_dataset)
-      base::assign(measure, df, envir = .GlobalEnv)
+    # if (!is.null(df) && is.data.frame(df)) {
+    #   df <- preserveDateFormat(df, limited_dataset)
+    #   base::assign(measure, df, envir = .GlobalEnv)
+    # }
+    
+    # Add limited de-identification summary
+    if (limited_dataset == FALSE) {
+      message("Dataset has been de-identified using date-shifting and age-capping.")
     }
     
-    # Create data upload template if test passes
-    if (validation_results$valid == TRUE) {
-      beepr::beep("mario")
-    }
-    
-    if (validation_results$valid == FALSE) {
-      beepr::beep("wilhelm")
-    }
+    # audio alert of validation
+    ifelse(validation_results$valid, "mario", "wilhelm") |> beepr::beep()
     
     base::source("api/src/ndaTemplate.R")
+    # Create data upload template regardless of if test passes
     ndaTemplate(measure)
     formatElapsedTime(start_time)
     
@@ -246,22 +246,22 @@ performCleanup <- function() {
 }
 
 # Helper function to preserve MM/DD/YYYY format
-preserveDateFormat <- function(df, limited_dataset = FALSE) {
-  if ("interview_date" %in% names(df)) {
-    # Convert to Date first to ensure consistent handling
-    dates <- as.Date(df$interview_date, format = "%m/%d/%Y")
-    
-    # Apply format based on limited_dataset flag
-    df$interview_date <- format(dates, 
-                                ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
-    
-    # Add debug message
-    message("Applying date format with limited_dataset = ", limited_dataset)
-    message("Sample dates after formatting: ", 
-            paste(head(df$interview_date), collapse=", "))
-  }
-  return(df)
-}
+# preserveDateFormat <- function(df, limited_dataset = limited_dataset) {
+#   if ("interview_date" %in% names(df)) {
+#     # Convert to Date first to ensure consistent handling
+#     dates <- as.Date(df$interview_date, format = "%m/%d/%Y")
+#     
+#     # Apply format based on limited_dataset flag
+#     df$interview_date <- format(dates, 
+#                                 ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
+#     
+#     # Add debug message
+#     message("Applying date format with limited_dataset = ", limited_dataset)
+#     message("Sample dates after formatting: ", 
+#             paste(head(df$interview_date), collapse=", "))
+#   }
+#   return(df)
+# }
 
 # Helper function to display time savings.
 formatElapsedTime <- function(start_time) {
