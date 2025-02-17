@@ -14,7 +14,7 @@
 # Function to handle missing required fields
 handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
   if(verbose) {
-    message("\nAuto-adding missing required fields with null values:")
+    message("\nAuto-adding missing required fields with missing value codes:")
   }
   
   for (field in missing_required) {
@@ -24,37 +24,34 @@ handle_missing_fields <- function(df, elements, missing_required, verbose = FALS
       cat("\nNotes for", field, ":", element$notes)
     }
     
-    # Extract null value from notes
-    null_value <- if (!is.na(element$notes)) {
-      # Match patterns like:
-      # "999 = Missing"
-      # "999 = Missing/NA"
-      # "999=Missing"
+    # Extract missing value code from notes (e.g. -999)
+    missing_code <- NULL
+    if (!is.na(element$notes)) {
+      # Look for pattern like "999 = Missing" or "999 = Missing/NA"
       if (grepl("\\d+\\s*=\\s*Missing(?:/NA)?", element$notes, perl = TRUE)) {
-        missing_val <- gsub(".*?([-]?\\d+)\\s*=\\s*Missing(?:/NA)?.*", "\\1", 
-                            element$notes, perl = TRUE)
-        if (element$type == "Float" || element$type == "Integer") {
-          as.numeric(paste0("-", abs(as.numeric(missing_val))))  # Ensure negative
-        } else {
-          paste0("-", abs(as.numeric(missing_val)))
-        }
-      } else {
-        ""  # Default to empty string if no match
+        value <- gsub(".*?(\\d+)\\s*=\\s*Missing(?:/NA)?.*", "\\1", element$notes, perl = TRUE)
+        missing_code <- paste0("-", value)  # Make it negative
       }
-    } else {
-      ""
     }
     
-    # Add the field with null value
-    df[[field]] <- null_value
-    
-    if(verbose) {
-      cat(sprintf("\n- %s: added with null value '%s'", field, null_value))
+    if (!is.null(missing_code)) {
+      # Convert to proper type and fill entire column
+      if (element$type == "Float") {
+        df[[field]] <- as.numeric(missing_code)
+      } else if (element$type == "Integer") {
+        df[[field]] <- as.integer(missing_code)
+      } else {
+        df[[field]] <- missing_code
+      }
+      
+      if(verbose) {
+        cat(sprintf("\n- Added %s with missing code %s as type %s", 
+                    field, missing_code, element$type))
+      }
     }
   }
   
   if(verbose) cat("\n")
-  
   return(df)
 }
 
@@ -1202,36 +1199,28 @@ ndaValidator <- function(measure_name,
                          api_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE) {
-  
   tryCatch({
     # Get the dataframe from the global environment
     df <- base::get(measure_name, envir = .GlobalEnv)
     debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
-    #structure_name <- paste0(measure_name, "01")
-    
     structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
     df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
-    debug_print("After date standardization and de-identification", df, debug = debug)
     
     # Add explicit age standardization step to make data de-identified
     df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
-    debug_print("After age standardization and de-identification", df, debug = debug)
     
     # Standardize column names based on structure
     df <- standardize_column_names(df, structure_name, verbose = verbose)
-    debug_print("After column name standardization", df, debug = debug)
     
     # Add field name standardization
     df <- standardize_field_names(df, measure_name, verbose = verbose)
-    debug_print("After field standardization", df, debug = debug)
     
     # For eefrt reward hard money version (and others):
     df <- apply_measure_transformations(df, measure_name, verbose = verbose)
-    debug_print("After measure-specific transformations", df, debug = debug)
     
     # Save standardized dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
@@ -1244,7 +1233,16 @@ ndaValidator <- function(measure_name,
       stop("No elements found in the structure definition")
     }
     
-    # Perform field renaming
+    # ADD THE BLOCK HERE - BEFORE ANY OTHER TRANSFORMATIONS
+    # Check for required fields that are missing and add them
+    required_fields <- elements$name[elements$required == "Required"]
+    missing_required <- required_fields[!required_fields %in% names(df)]
+    if(length(missing_required) > 0) {
+      df <- handle_missing_fields(df, elements, missing_required, verbose = TRUE)
+      assign(measure_name, df, envir = .GlobalEnv)
+    }
+    
+    # Then continue with the rest of the transformations
     renamed_results <- find_and_rename_fields(df, elements, structure_name, verbose)
     df <- renamed_results$df
     
