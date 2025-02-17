@@ -462,7 +462,7 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRU
 }
 
 standardize_age <- function(df, verbose = TRUE, limited_dataset = FALSE) {
-  if ("interview_age" %in% names(df) && limited_dataset == TRUE) {
+  if ("interview_age" %in% names(df) && limited_dataset == FALSE) {
     if(verbose) cat("\nDe-identifying interview_age...")
     
     # Convert to numeric first
@@ -1214,11 +1214,11 @@ ndaValidator <- function(measure_name,
     structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
-    df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
+    df <- standardize_dates(df, verbose = verbose, limited_dataset = FALSE)
     debug_print("After date standardization and de-identification", df, debug = debug)
     
     # Add explicit age standardization step to make data de-identified
-    df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
+    df <- standardize_age(df, verbose = verbose, limited_dataset = FALSE)
     debug_print("After age standardization and de-identification", df, debug = debug)
     
     # Standardize column names based on structure
