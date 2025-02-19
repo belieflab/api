@@ -20,9 +20,11 @@
 #' 
 #' 
 
-start_time <- Sys.time()
+
 
 ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
+  
+  start_time <- Sys.time()
   
   base::source("api/getRedcap.R")
   base::source("api/getSurvey.R")
@@ -219,6 +221,9 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     }
     NULL  # Return NULL on error
   })
+  
+  # Flush environment
+  base::source("api/env/cleanup.R")
   
   return(result)  # Return the result of the processing
 }
