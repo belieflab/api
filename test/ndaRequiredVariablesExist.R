@@ -27,7 +27,7 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
   df_clean <- base::get(output_df_name)
   
   # Initial list of NDA required variables
-  nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "week", 
+  nda_required_variables <- c("src_subject_id", "phenotype", "site", 
                               "subjectkey", "sex", "interview_date", "interview_age")
   
   # Adjust NDA required variables based on presence of 'visit' or 'week'
@@ -35,7 +35,7 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
   
   # alter required variables for redcap measures (no interview_date or interview_age)
   if (measure_type=="redcap") {
-    adjusted_nda_required <- nda_required_variables <- c("src_subject_id", "phenotype", "site", "visit", "week", 
+    adjusted_nda_required <- nda_required_variables <- c("src_subject_id", "phenotype", "site", 
                                                          "subjectkey", "sex")
   }
   
