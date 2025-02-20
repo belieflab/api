@@ -59,11 +59,11 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   }
   
   # Preprocess data frames: Remove specified columns and ungroup
-  data_list <- lapply(data_list, function(df) {
-    # Remove 'interview_date' and 'interview_age' columns
-    df <- df[setdiff(names(df), c("interview_date", "interview_age"))]
-    return(df)
-  })
+ # data_list <- lapply(data_list, function(df) {
+#    # Remove 'interview_date' and 'interview_age' columns
+#    df <- df[setdiff(names(df), c("interview_date", "interview_age"))]
+#    return(df)
+#  })
   
   # Determine the keys to use for merging
   if (is.null(by)) {

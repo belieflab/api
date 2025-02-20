@@ -14,7 +14,7 @@
 # Function to handle missing required fields
 handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
   if(verbose) {
-    message("\nAuto-adding missing required fields with null values:")
+    message("\nAuto-adding missing required fields with missing value codes:")
   }
   
   for (field in missing_required) {
@@ -24,90 +24,36 @@ handle_missing_fields <- function(df, elements, missing_required, verbose = FALS
       cat("\nNotes for", field, ":", element$notes)
     }
     
-    # Extract null value from notes
-    null_value <- if (!is.na(element$notes)) {
-      # Match patterns like:
-      # "999 = Missing"
-      # "999 = Missing/NA"
-      # "999=Missing"
+    # Extract missing value code from notes (e.g. -999)
+    missing_code <- NULL
+    if (!is.na(element$notes)) {
+      # Look for pattern like "999 = Missing" or "999 = Missing/NA"
       if (grepl("\\d+\\s*=\\s*Missing(?:/NA)?", element$notes, perl = TRUE)) {
-        missing_val <- gsub(".*?([-]?\\d+)\\s*=\\s*Missing(?:/NA)?.*", "\\1", 
-                            element$notes, perl = TRUE)
-        if (element$type == "Float" || element$type == "Integer") {
-          as.numeric(paste0("-", abs(as.numeric(missing_val))))  # Ensure negative
-        } else {
-          paste0("-", abs(as.numeric(missing_val)))
-        }
-      } else {
-        ""  # Default to empty string if no match
+        value <- gsub(".*?(\\d+)\\s*=\\s*Missing(?:/NA)?.*", "\\1", element$notes, perl = TRUE)
+        missing_code <- paste0("-", value)  # Make it negative
       }
-    } else {
-      ""
     }
     
-    # Add the field with null value
-    df[[field]] <- null_value
-    
-    if(verbose) {
-      cat(sprintf("\n- %s: added with null value '%s'", field, null_value))
+    if (!is.null(missing_code)) {
+      # Convert to proper type and fill entire column
+      if (element$type == "Float") {
+        df[[field]] <- as.numeric(missing_code)
+      } else if (element$type == "Integer") {
+        df[[field]] <- as.integer(missing_code)
+      } else {
+        df[[field]] <- missing_code
+      }
+      
+      if(verbose) {
+        cat(sprintf("\n- Added %s with missing code %s as type %s", 
+                    field, missing_code, element$type))
+      }
     }
   }
   
   if(verbose) cat("\n")
-  
   return(df)
 }
-
-# Generic function for measure-specific transformations
-apply_measure_transformations <- function(df, measure_name, verbose = FALSE) {
-  if(verbose) cat(sprintf("\nApplying %s-specific transformations...", measure_name))
-  
-  transformations <- list()
-  
-  # EEFRT-specific transformations
-  if (measure_name == "eefrt" && "reward_hard" %in% names(df)) {
-    if(verbose) cat("\n\nProcessing EEFRT 'reward_hard' decimal conversion...")
-    
-    # Store original values
-    orig_values <- head(df$reward_hard, 3)
-    
-    # Convert to numeric and multiply decimals by 100
-    df$reward_hard <- as.numeric(df$reward_hard)
-    decimal_mask <- !is.na(df$reward_hard) & abs(df$reward_hard - floor(df$reward_hard)) > 0
-    
-    if(any(decimal_mask)) {
-      df$reward_hard[decimal_mask] <- round(df$reward_hard[decimal_mask] * 100)
-      
-      transformations[["reward_hard"]] <- list(
-        field = "reward_hard",
-        total = length(decimal_mask),
-        modified = sum(decimal_mask),
-        sample_before = orig_values,
-        sample_after = head(df$reward_hard, 3)
-      )
-      
-      if(verbose) {
-        cat(sprintf("\n  Transformed %d decimal values to whole numbers", sum(decimal_mask)))
-        cat("\n  Sample transformations:")
-        cat(sprintf("\n    Before: %s", paste(orig_values, collapse=", ")))
-        cat(sprintf("\n    After:  %s", paste(head(df$reward_hard, 3), collapse=", ")))
-      }
-    }
-  }
-  
-  # Print summary
-  if(verbose && length(transformations) > 0) {
-    cat("\n\nMeasure-specific transformation summary:")
-    for(transform in transformations) {
-      cat(sprintf("\n- %s: modified %d of %d values",
-                  transform$field, transform$modified, transform$total))
-    }
-    cat("\n")
-  }
-  
-  return(df)
-}
-
 
 # Generic function for field standardization
 standardize_field_names <- function(df, measure_name, verbose = FALSE) {
@@ -158,21 +104,13 @@ standardize_field_names <- function(df, measure_name, verbose = FALSE) {
     df$index <- NULL
   }
   
-  # Handle other common field standardizations here...
-  # Example pattern for future field transformations:
-  # if ("old_name" %in% names(df)) {
-  #   if(verbose) cat("\n\nProcessing 'old_name' to 'new_name' conversion...")
-  #   # Transformation logic
-  #   # Store in transformations list
-  # }
-  
   # Print summary if any transformations occurred
   if(verbose && length(transformations) > 0) {
     cat("\n\nField standardization summary:")
     for(transform_name in names(transformations)) {
       transform <- transformations[[transform_name]]
       cat(sprintf("\n- %s → %s", transform$from, transform$to))
-      cat(sprintf("\n  Processed %d rows (%d valid)", 
+      cat(sprintf("\n  Processed %d rows (%d valid)",
                   transform$total, transform$valid))
     }
     cat("\n")
@@ -391,8 +329,7 @@ apply_type_conversions <- function(df, elements, verbose = FALSE) {
 }
 
 # Demonstrate with standardize_dates as well
-standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FALSE) {
-  if(verbose) cat("\nStandardizing date formats...")
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = limited_dataset) {
   date_summary <- list()
   
   for (col in date_cols) {
@@ -424,7 +361,10 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
           if (!is.null(parsed_dates) && !all(is.na(parsed_dates))) {
             if(verbose) cat(sprintf("\n  Detected format: %s", format))
             # df[[col]] <- format(parsed_dates, "%Y-%m-%d")
-            df[[col]] <- format(parsed_dates, "%m/%d/%Y")
+            #df[[col]] <- format(parsed_dates, "%m/%d/%Y")
+            # Perform interview_date date shifting to created de-identified dataset
+            df[[col]] <- format(parsed_dates, ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
+            
             success <- TRUE
             
             date_summary[[col]] <- list(
@@ -452,7 +392,8 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
   }
   
   if(verbose && length(date_summary) > 0) {
-    cat("\n\nDate standardization summary:")
+    if(limited_dataset == FALSE) message("\n\nDe-identifying interview_date using date-shifting...")
+    cat("Date standardization summary:")
     for(field in names(date_summary)) {
       cat(sprintf("\n- %s", field))
       cat(sprintf("\n  Before: %s", 
@@ -466,6 +407,34 @@ standardize_dates <- function(df, date_cols = c("interview_date"), verbose = FAL
   return(df)
 }
 
+standardize_age <- function(df, verbose = TRUE, limited_dataset = limited_dataset) {
+  if ("interview_age" %in% names(df) && limited_dataset == FALSE) {
+    if(verbose && limited_dataset == FALSE) message("\nDe-identifying interview_age using age-capping...")
+    
+    # Convert to numeric first
+    df$interview_age <- as.numeric(df$interview_age)
+    orig_age_stats <- summary(df$interview_age)
+    
+    # Count values that will be changed
+    values_to_change <- sum(df$interview_age > 1068, na.rm = TRUE)
+    
+    # Apply the age standardization (cap at 1068 months = 89 years * 12)
+    df$interview_age <- pmin(df$interview_age, 1068)
+    
+    if(verbose) {
+      cat("Age standardization summary:")
+      cat("\nBefore:", capture.output(orig_age_stats))
+      cat("\nAfter:", capture.output(summary(df$interview_age)))
+      if(values_to_change > 0) {
+        cat(sprintf("\nNumber of values capped at 1068 months: %d", values_to_change))
+      } else {
+        cat("\nNo values needed capping (all were <= 1068 months)")
+      }
+    }
+  }
+  
+  return(df)
+}
 
 # Calculate Levenshtein distance similarity between two strings
 calculate_similarity <- function(str1, str2) {
@@ -606,6 +575,7 @@ fetch_structure_elements <- function(structure_name, api_base_url) {
 }
 
 # Calculate similarity with more accurate prefix handling
+# Calculate similarity with more accurate prefix handling
 find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE) {
   renamed <- list(
     df = df,
@@ -618,8 +588,8 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
   df_cols <- names(df)
   valid_fields <- elements$name
   
-  # Get structure short name (e.g., "mft" from "mft01")
-  structure_prefix <- sub("01$", "", structure_name)
+  # Get structure short name by taking last 2 digits of structure_name
+  structure_prefix <- substr(structure_name, nchar(structure_name) - 1, nchar(structure_name))
   
   # Find unknown fields
   unknown_fields <- setdiff(df_cols, valid_fields)
@@ -628,25 +598,32 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
     if(verbose) cat("\nAnalyzing field name similarities...\n")
     
     for (field in unknown_fields) {
-      # Try matching both with and without prefix
+      # Check if this is a hierarchical field (contains multiple underscores with numbers)
+      parts <- strsplit(field, "_")[[1]]
+      num_parts <- sum(grepl("^\\d+$", parts))
+      
+      # If field has more than 2 numeric parts, it's hierarchical - skip renaming
+      if (num_parts > 2) {
+        if(verbose) {
+          cat(sprintf("\nField: %s\n", field))
+          cat("Skipping rename - hierarchical field structure detected\n")
+        }
+        next
+      }
+      
+      # For non-hierarchical fields, proceed with similarity matching
       base_field <- sub(paste0("^", structure_prefix, "_"), "", field)
       
-      # Calculate similarity scores considering prefix variations
+      # Calculate similarity scores
       similarities <- sapply(valid_fields, function(name) {
         # Remove prefix from target field if it exists
         target_base <- sub(paste0("^", structure_prefix, "_"), "", name)
         
-        # Calculate similarities considering various combinations
-        sims <- c(
-          calculate_similarity(field, name),  # Direct match
-          calculate_similarity(base_field, target_base),  # Base names
-          calculate_similarity(paste0(structure_prefix, "_", field), name),  # With prefix
-          calculate_similarity(field, target_base)  # Mixed comparison
-        )
-        max(sims)
+        # Calculate direct similarity
+        calculate_similarity(field, name)
       })
       
-      # Store all similarity scores for this field
+      # Store all similarity scores
       renamed$similarity_scores[[field]] <- sort(similarities, decreasing = TRUE)
       
       if(verbose) {
@@ -654,10 +631,10 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
         cat("Top matches:\n")
         top_matches <- head(sort(similarities, decreasing = TRUE), 3)
         for(i in seq_along(top_matches)) {
-          cat(sprintf("%d. %s (%.2f%% match)\n", 
-                      i, 
-                      names(top_matches)[i], 
-                      top_matches[i] * 100))
+          cat(sprintf("%d. %s (%.2f%% match)\n",
+                     i,
+                     names(top_matches)[i],
+                     top_matches[i] * 100))
         }
       }
       
@@ -668,10 +645,10 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
         best_match <- names(similarities)[which.max(similarities)]
         best_score <- max(similarities)
         
-        if (best_score > 0.7) {
+        if (best_score > 0.9) {  # Increased threshold for more conservative matching
           if(verbose) {
             message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
-                            field, best_match, best_score * 100))
+                          field, best_match, best_score * 100))
           }
           
           # Add the new column with renamed data
@@ -682,15 +659,15 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
           
           # Store the rename operation
           renamed$renames <- c(renamed$renames,
-                               sprintf("%s -> %s (%.2f%%)", 
-                                       field, best_match, best_score * 100))
+                             sprintf("%s -> %s (%.2f%%)",
+                                   field, best_match, best_score * 100))
         } else if(verbose) {
-          cat(sprintf("No automatic rename - best match below 70%% threshold\n"))
+          cat(sprintf("No automatic rename - best match below 90%% threshold\n"))
         }
       }
     }
     
-    # Actually drop the original columns after all renames are complete
+    # Drop original columns after all renames
     if(length(renamed$columns_to_drop) > 0) {
       if(verbose) {
         cat("\nDropping original columns:")
@@ -931,8 +908,8 @@ debug_print <- function(msg, df = NULL, sample_size = 5, debug = FALSE) {
 standardize_column_names <- function(df, structure_name, verbose = FALSE) {
   if(verbose) cat("\nStandardizing column names...")
   
-  # Get structure prefix (e.g., "ahrs" from "ahrs01")
-  prefix <- sub("01$", "", structure_name)
+  # Get structure short name by taking last 2 digits of structure_name
+  prefix <- substr(structure_name, nchar(structure_name) - 1, nchar(structure_name))
   
   # Create name mapping function
   standardize_name <- function(name) {
@@ -969,6 +946,54 @@ standardize_column_names <- function(df, structure_name, verbose = FALSE) {
   return(df)
 }
 
+parse_field_name <- function(name) {
+  # Split name into components
+  parts <- strsplit(name, "_")[[1]]
+  
+  # Extract prefix and numeric components
+  prefix <- parts[1]  # e.g., "lec"
+  
+  # Get all numeric components
+  numbers <- as.numeric(grep("^\\d+$", parts, value = TRUE))
+  
+  list(
+    prefix = prefix,
+    numbers = numbers,
+    original = name
+  )
+}
+
+# Helper function to compare numeric patterns
+compare_numeric_patterns <- function(name1, name2) {
+  # Parse both names
+  parsed1 <- parse_field_name(name1)
+  parsed2 <- parse_field_name(name2)
+  
+  # Must have same prefix
+  if (parsed1$prefix != parsed2$prefix) {
+    return(0)
+  }
+  
+  # Compare number of numeric components
+  n1 <- length(parsed1$numbers)
+  n2 <- length(parsed2$numbers)
+  
+  # If one is hierarchical (has underscore numbers) and other isn't, they're different
+  if ((grepl("_\\d+_\\d+", name1) && !grepl("_\\d+_\\d+", name2)) ||
+      (!grepl("_\\d+_\\d+", name1) && grepl("_\\d+_\\d+", name2))) {
+    return(0.3)  # Very low similarity for different patterns
+  }
+  
+  # Compare the actual numbers
+  max_nums <- max(n1, n2)
+  matching_nums <- sum(parsed1$numbers[1:min(n1, n2)] == parsed2$numbers[1:min(n1, n2)])
+  
+  # Calculate similarity based on matching numbers
+  similarity <- matching_nums / max_nums
+  
+  return(similarity)
+}
+
 # Modify transform_value_ranges to be more robust
 transform_value_ranges <- function(df, elements, verbose = FALSE) {
   if(verbose) cat("\nChecking and transforming value ranges...")
@@ -977,6 +1002,28 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
   # Check which columns are required
   required_fields <- elements$name[elements$required == "Required"]
   
+  # MODIFIED: More robust check for missing/NA values in required fields
+  missing_required <- FALSE
+  missing_fields <- character(0)
+  
+  for(field in required_fields) {
+    if(field %in% names(df)) {
+      if(any(is.na(df[[field]]) | df[[field]] == "")) {
+        missing_required <- TRUE
+        missing_fields <- c(missing_fields, field)
+      }
+    } else {
+      missing_required <- TRUE
+      missing_fields <- c(missing_fields, field)
+    }
+  }
+  
+  if(missing_required) {
+    stop(sprintf('\nNDA required values contain NA or no data in fields: %s\nPlease update ndar_subject01 values to make sure no data is missing', 
+                 paste(missing_fields, collapse=", ")))
+  }
+  
+  # Rest of the function remains the same
   # Only check non-required columns for emptiness e.g."rt" on eefrt  
   empty_cols <- sapply(df[, !names(df) %in% required_fields], function(col) all(is.na(col) | col == ""))
   if (any(empty_cols)) {
@@ -1031,7 +1078,6 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
   for (i in 1:nrow(elements)) {
     field_name <- elements$name[i]
     value_range <- elements$valueRange[i]
-    
     if (field_name %in% names(df) && !is.na(value_range) && value_range != "" && 
         value_range != "0;1" && grepl(";", value_range)) {
       
@@ -1077,7 +1123,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
         cat(sprintf("\n    Before: %s", paste(head(orig_values), collapse=", ")))
         cat(sprintf("\n    After:  %s", paste(head(unique(df[[field_name]])), collapse=", ")))
       }
-    }
+    }   
   }
   
   # Print summary if needed
@@ -1098,46 +1144,51 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
 # Modified ndaValidator to include column name standardization
 ndaValidator <- function(measure_name,
                          source,
+                         limited_dataset = FALSE,
                          api_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE) {
-  
   tryCatch({
     # Get the dataframe from the global environment
     df <- base::get(measure_name, envir = .GlobalEnv)
     debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
-    structure_name <- paste0(measure_name, "01")
+    structure_name <- measure_name
     
-    # Add explicit date standardization step
-    df <- standardize_dates(df, verbose = verbose)
-    debug_print("After date standardization", df, debug = debug)
+    # Add explicit date standardization step to make data de-identified
+    df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
+    
+    # Add explicit age standardization step to make data de-identified
+    df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
     
     # Standardize column names based on structure
     df <- standardize_column_names(df, structure_name, verbose = verbose)
-    debug_print("After column name standardization", df, debug = debug)
     
     # Add field name standardization
     df <- standardize_field_names(df, measure_name, verbose = verbose)
-    debug_print("After field standardization", df, debug = debug)
-    
-    # For eefrt reward hard money version (and others):
-    df <- apply_measure_transformations(df, measure_name, verbose = verbose)
-    debug_print("After measure-specific transformations", df, debug = debug)
     
     # Save standardized dataframe back to global environment
     assign(measure_name, df, envir = .GlobalEnv)
     
     # Continue with structure fetching and validation...
-    message("\nFetching ", structure_name, " Data Structure from NDA API...")
+    message("\n\nFetching ", structure_name, " Data Structure from NDA API...")
     elements <- fetch_structure_elements(structure_name, api_base_url)
     
     if (is.null(elements) || nrow(elements) == 0) {
       stop("No elements found in the structure definition")
     }
     
-    # Perform field renaming
+    # ADD THE BLOCK HERE - BEFORE ANY OTHER TRANSFORMATIONS
+    # Check for required fields that are missing and add them
+    required_fields <- elements$name[elements$required == "Required"]
+    missing_required <- required_fields[!required_fields %in% names(df)]
+    if(length(missing_required) > 0) {
+      df <- handle_missing_fields(df, elements, missing_required, verbose = TRUE)
+      assign(measure_name, df, envir = .GlobalEnv)
+    }
+    
+    # Then continue with the rest of the transformations
     renamed_results <- find_and_rename_fields(df, elements, structure_name, verbose)
     df <- renamed_results$df
     

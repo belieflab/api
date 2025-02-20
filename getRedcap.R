@@ -58,8 +58,8 @@ formatDuration <- function(duration) {
   }
 }
 
-getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size = 1000, records = NULL, fields = NULL) {
-  start_time <- Sys.time()  # Add this at the start
+getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", redcap_event_name = NULL, batch_size = 1000, records = NULL, fields = NULL) {
+  start_time <- Sys.time()
   
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
@@ -80,8 +80,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
                  forms_table,
                  example_text), 
          call. = FALSE)
-  }
-  
+  }  
   config <- config::get()
   
   if (!file.exists("secrets.R")) {
@@ -100,62 +99,69 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", batch_size =
     Sys.sleep(0.1)
   }
   completeLoadingAnimation(pb)
-  message("")  # Add blank line before REDCap messages
+  message("")
   
+  # Get super_keys data first (without event filtering)
+  super_keys_data <- REDCapR::redcap_read(
+    redcap_uri = uri,
+    token = token,
+    forms = config$redcap$super_keys,
+    batch_size = batch_size,
+    records = records,
+    raw_or_label = raw_or_label,
+    raw_or_label_headers = "raw",
+    verbose = TRUE
+  )$data
   
-  # Get data based on whether specific fields were provided
-  if (!is.null(fields)) {
-    df <- REDCapR::redcap_read(
-      redcap_uri = uri,
-      token = token,
-      fields = fields,
-      forms = c(config$redcap$super_keys,instrument_name),
-      batch_size = batch_size,
-      records = records,
-      raw_or_label = raw_or_label,    # Added this parameter
-      raw_or_label_headers = "raw",
-      # guess_type = FALSE,      # Prevent type guessing issues
-      verbose = TRUE
-    )$data
-  } else {
-    df <- REDCapR::redcap_read(
-      redcap_uri = uri,
-      token = token,
-      forms = c(config$redcap$super_keys,instrument_name),
-      batch_size = batch_size,
-      records = records,
-      raw_or_label = raw_or_label,    # Added this parameter
-      raw_or_label_headers = "raw",
-      # guess_type = FALSE,      # Prevent type guessing issues
-      verbose = TRUE
-    )$data
-  }
+  # Get instrument-specific data
+  instrument_data <- REDCapR::redcap_read(
+    redcap_uri = uri,
+    token = token,
+    forms = instrument_name,
+    batch_size = batch_size,
+    records = records,
+    fields = fields,
+    raw_or_label = raw_or_label,
+    raw_or_label_headers = "raw",
+    verbose = TRUE
+  )$data
   
   # Add measure column to track source
-  df$measure <- instrument_name
+  instrument_data$measure <- instrument_name
   
-  # Return the raw dataframe if not CAPR study
-  # Return the raw dataframe if not CAPR study
+  # Filter instrument data by event if specified
+  if (!is.null(redcap_event_name)) {
+    instrument_data <- instrument_data[instrument_data$redcap_event_name == redcap_event_name, ]
+  }
+  
+  # Get the common join keys (typically record_id and perhaps some other identifiers)
+  join_keys <- base::setdiff(colnames(super_keys_data), "redcap_event_name")
+  join_keys <- base::intersect(join_keys, colnames(instrument_data))
+  
+  # Merge the data
+  df <- base::merge(super_keys_data, instrument_data, by = join_keys, all.y = TRUE)
+  
+  # Study-specific processing
   if (config$study_alias == "impact-mh") {
     if ("dob" %in% colnames(df)) {
       df <- subset(df, select = -dob)
     }
   }
   
-  
-  # CAPR-specific processing only happens if study_alias is "capr"
   if (config$study_alias == "capr") {
     base::source("api/redcap/capr-logic.R")
-    df <- processCaprData(df, instrument_name)  # New function to process CAPR data
+    df <- processCaprData(df, instrument_name)
   }
   
-  # At the end, add duration message without repeating progress bar
+  # Calculate duration
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData retrieval completed in %s.", formatDuration(duration)))
   
   return(df)
 }
+
+
 
 getForms <- function() {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)

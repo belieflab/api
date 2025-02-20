@@ -9,7 +9,7 @@
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
 #' @param rdata Optional; Boolean, if TRUE creates an .rdata extract in ./tmp.
 #' @param spss Optional; Boolean, if TRUE creates a .sav extract in ./tmp.
-#' @param identifier Optional; String, accepts "numeric" or "character", converts src_subject_id to desired format.
+#' @param limited_dataset Optional; Boolean, if TRUE does not perform date-shifting of interview_date or age-capping of interview_age
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
@@ -20,9 +20,11 @@
 #' 
 #' 
 
-start_time <- Sys.time()
 
-ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
+
+ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
+  
+  start_time <- Sys.time()
   
   base::source("api/getRedcap.R")
   base::source("api/getSurvey.R")
@@ -91,7 +93,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
     invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, task_list), data_list)
     
     if (length(invalid_list) > 0) {
-      stop(paste(invalid_list, collapse = ", "), " does not have a cleaning script, please create one.\n")
+      stop(paste(invalid_list, collapse = ", "), " does not have a cleaning script, please create one in nda/.\n")
     }
   }
   
@@ -111,7 +113,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Process each measure using processMeasure function
   for (measure in data_list) {
     api <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
-    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time)
+    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset)
   }
   
   # Clean up and record processing time
@@ -119,7 +121,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # print(Sys.time() - start_time)  # Print time taken for processing
 }
 
-processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time) {
+processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset = FALSE) {
   # Check if input is a dataframe
   if (is.data.frame(measure)) {
     # Get the name of the dataframe as a string
@@ -157,28 +159,56 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     base::source(file_path)  # Execute the cleaning script for the measure
     # Apply date format preservation after processing
     # Get the data frame from global environment
-    df <- get0(measure, envir = .GlobalEnv)
+    df <- base::get0(measure, envir = .GlobalEnv)
     
     # Only process if df exists and is a data frame
     if (!is.null(df) && is.data.frame(df)) {
-      df <- preserveDateFormat(df)
       # Reassign the processed data frame
-      assign(measure, df, envir = .GlobalEnv)
+      base::assign(measure, df, envir = .GlobalEnv)
+    }
+    
+    if (api == "qualtrics") {
+      # Remove specified qualtrics columns
+      cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
+                          "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
+                          "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
+      df <- df[!names(df) %in% cols_to_remove]
+      
+      # Reassign the filtered dataframe to the global environment
+      base::assign(measure, df, envir = .GlobalEnv)
+      
+      source("api/test/ndaCheckQualtricsDuplicates.R")
+      ndaCheckQualtricsDuplicates(measure,"qualtrics")
+      
+      # show missing data that needs filled
+      missing_data <- df[is.na(df$src_subject_id) | is.na(df$subjectkey) | is.na(df$interview_age) | is.na(df$interview_date) | is.na(df$sex), ]
+      if (nrow(missing_data) > 0) {
+        View(missing_data)
+      }
+     
     }
     
     # Run validation
     base::source("api/ndaValidator.R")
-    validation_results <- ndaValidator(measure, api)
-    # Create data upload template if test passes
-    if (validation_results$valid == TRUE) {
-      beepr::beep("mario")
+    validation_results <- ndaValidator(measure, api, limited_dataset)
+    
+    # Now apply date format preservation AFTER validation
+    df <- base::get0(measure, envir = .GlobalEnv)
+    # if (!is.null(df) && is.data.frame(df)) {
+    #   df <- preserveDateFormat(df, limited_dataset)
+    #   base::assign(measure, df, envir = .GlobalEnv)
+    # }
+    
+    # Add limited de-identification summary
+    if (limited_dataset == FALSE) {
+      message("Dataset has been de-identified using date-shifting and age-capping.")
     }
     
-    if (validation_results$valid == FALSE) {
-      beepr::beep("wilhelm")
-    }
+    # audio alert of validation
+    ifelse(validation_results$valid, "mario", "wilhelm") |> beepr::beep()
     
     base::source("api/src/ndaTemplate.R")
+    # Create data upload template regardless of if test passes
     ndaTemplate(measure)
     formatElapsedTime(start_time)
     
@@ -191,6 +221,9 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     }
     NULL  # Return NULL on error
   })
+  
+  # Flush environment
+  base::source("api/env/cleanup.R")
   
   return(result)  # Return the result of the processing
 }
@@ -218,13 +251,22 @@ performCleanup <- function() {
 }
 
 # Helper function to preserve MM/DD/YYYY format
-preserveDateFormat <- function(df) {
-  if ("interview_date" %in% names(df)) {
-    df <- df %>%
-      dplyr::mutate(interview_date = format(as.Date(interview_date), "%m/%d/%Y"))
-  }
-  return(df)
-}
+# preserveDateFormat <- function(df, limited_dataset = limited_dataset) {
+#   if ("interview_date" %in% names(df)) {
+#     # Convert to Date first to ensure consistent handling
+#     dates <- as.Date(df$interview_date, format = "%m/%d/%Y")
+#     
+#     # Apply format based on limited_dataset flag
+#     df$interview_date <- format(dates, 
+#                                 ifelse(limited_dataset, "%m/%d/%Y", "%m/01/%Y"))
+#     
+#     # Add debug message
+#     message("Applying date format with limited_dataset = ", limited_dataset)
+#     message("Sample dates after formatting: ", 
+#             paste(head(df$interview_date), collapse=", "))
+#   }
+#   return(df)
+# }
 
 # Helper function to display time savings.
 formatElapsedTime <- function(start_time) {

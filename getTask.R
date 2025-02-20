@@ -459,26 +459,32 @@ disconnectMongo <- function(mongo) {
 #' df <- getMongoData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
 #' @export
 getMongoData <- function(Mongo, identifier, batch_info) {
-  query_json <- sprintf('{"%s": {"$ne": ""}}', identifier)
+  # Check for both exists AND non-empty
+  query_json <- sprintf('{"%s": {"$exists": true, "$ne": ""}}', identifier)
+  print(paste("Using query:", query_json))
   
-  result <- tryCatch({
-    df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
+  # Get initial data
+  df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
+  print(paste("Initial rows:", nrow(df)))
+  
+  # Only proceed with filtering if we have data
+  if (!is.null(df) && nrow(df) > 0) {
+    # Print sample of data before filtering
+    print("Sample before filtering:")
+    print(head(df[[identifier]]))
     
-    # Additional filtering to ensure the identifier exists
+    # Apply both NA and empty string filtering
     df <- df[!is.na(df[[identifier]]) & df[[identifier]] != "", ]
+    print(paste("Rows after complete filtering:", nrow(df)))
     
-    if (nrow(df) == 0) {
-      message("\nNo data found. Please verify spelling of db/collection name.")
-      return(NULL)  # Return NULL if no valid data after filtering
-    }
-    
-    return(df)
-  }, error = function(e) {
-    message("Error fetching data: ", e$message)
-    return(NULL)  # Return NULL in case of error
-  })
+    # Print sample after filtering
+    print("Sample after filtering:")
+    print(head(df[[identifier]]))
+  } else {
+    print("No data found in initial query")
+  }
   
-  return(result)
+  return(df)
 }
 
 
