@@ -33,21 +33,27 @@ explicit_keep <- c("createCsv", "createSpss", "createRds", "getRedcap", "getTask
                    "getDictionary", "testSuite", "ndaRequest", "dataRequest", nda_merge_vars)
 
 # Since explicit_keep should directly contain the values, ensure nda_merge_vars are expanded into it
-explicit_keep <- unique(c(explicit_keep, nda_merge_vars))  # This combines and deduplicates the items
+explicit_keep <- base::unique(c(explicit_keep, nda_merge_vars))  # This combines and deduplicates the items
 
 # Assume all_objects_env is defined as follows:
 all_objects <- ls(all.names = TRUE)
-all_objects_env <- mget(all_objects)
+all_objects_env <- base::mget(all_objects)
 
-# Filtering data frames ending with "_clean" or ending with a two-digit number 01-09
-data_frames_clean <- names(Filter(function(obj) is.data.frame(obj), all_objects_env))
-data_frames_clean <- Filter(function(name) grepl("(_clean$)|(0[1-9]$)", name), data_frames_clean)
+
+# check whether the objects in environment are: (1) a data frame, or (2) a list 
+# but with all the objects within the list being data.frames
+data_frames_clean <- base::names(base::Filter(function(obj) {
+  is.data.frame(obj) || (is.list(obj) && all(sapply(obj, is.data.frame)))
+  }, all_objects_env))
+# Filtering data frames ending with "_clean", "_scored", or ending with a two-digit 
+# number 01-09 (third criteria for NDA objects)
+data_frames_clean <- base::Filter(function(name) grepl("(_clean$)|(_scored$)|(0[1-9]$)", name), data_frames_clean)
 
 # Combine explicit keep list and data frames ending with the desired patterns
-keep_objects <- unique(c(explicit_keep, data_frames_clean))  # Ensuring no duplicates
+keep_objects <- base::unique(c(explicit_keep, data_frames_clean)) # Ensuring no duplicates
 
 # Remove all other objects except for the ones to keep
-rm(list = setdiff(all_objects, keep_objects))
+rm(list = base::setdiff(all_objects, keep_objects))
 
 # Clean up, if you no longer need these lists
 rm(list = c("keep_objects", "data_frames_clean", "all_objects", "explicit_keep", "all_objects_env", "performCleanup", "processMeasure"))

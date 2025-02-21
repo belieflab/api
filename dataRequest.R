@@ -111,8 +111,10 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   }
   
   # Clean up and record processing time
-  # performCleanup()
   print(Sys.time() - start_time)  # Print time taken for processing
+  
+  # Flush environment
+  base::source("api/env/cleanup.R")
 }
 
 processMeasure <- function(measure, source, csv, rdata, spss, super_keys) {
@@ -184,14 +186,6 @@ disconnectMongo <- function(mongo) {
     })
   }
 }
-
-
-# Cleanup Function
-performCleanup <- function() {
-  # Placeholder for cleanup operations, like disconnecting from databases
-  suppressWarnings(source("api/env/cleanup.R"))
-}
-
 
 ### trying to store results from unit tests - work in progress (mkp)
 
@@ -266,11 +260,4 @@ performCleanup <- function() {
 #     data.frame(Measure = measure, Test = "Error during processing", Status = "Fail", Message = e$message)
 #   })
 #   return(result)
-# }
-# 
-# 
-# # Cleanup Function
-# performCleanup <- function() {
-#   # Placeholder for cleanup operations, like disconnecting from databases
-#   suppressWarnings(source("api/env/cleanup.R"))
 # }
