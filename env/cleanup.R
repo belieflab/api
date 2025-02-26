@@ -56,4 +56,4 @@ keep_objects <- base::unique(c(explicit_keep, data_frames_clean)) # Ensuring no 
 rm(list = base::setdiff(all_objects, keep_objects))
 
 # Clean up, if you no longer need these lists
-rm(list = c("keep_objects", "data_frames_clean", "all_objects", "explicit_keep", "all_objects_env", "performCleanup", "processMeasure"))
+rm(list = c("keep_objects", "data_frames_clean", "all_objects", "explicit_keep", "all_objects_env"))
