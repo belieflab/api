@@ -687,11 +687,35 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE)
 }
 
 # Helper function to get violating values with type conversion
+# Updated get_violations function with more robust categorical matching
+# Updated get_violations function
+# Updated get_violations function with special handling for ranges with both :: and ;
 get_violations <- function(value, range_str) {
   if (is.null(range_str) || is.na(range_str) || range_str == "") return(character(0))
   
-  range_str <- gsub(" ", "", range_str)
+  # Special case for mixed ranges like "1::26;77"
+  if (grepl("::", range_str) && grepl(";", range_str)) {
+    # Split by semicolon first
+    parts <- strsplit(range_str, ";")[[1]]
+    
+    # Get the numeric range from the first part
+    range_part <- parts[grepl("::", parts)][1]
+    range <- as.numeric(strsplit(range_part, "::")[[1]])
+    
+    # Get individual values from other parts
+    individual_values <- as.numeric(parts[!grepl("::", parts)])
+    
+    # Combine valid values: numbers in range plus individual values
+    valid_values <- c(seq(from = range[1], to = range[2]), individual_values)
+    
+    # Check for violations
+    invalid_mask <- !value %in% valid_values
+    invalid_mask[is.na(invalid_mask)] <- FALSE
+    
+    return(sort(unique(value[invalid_mask])))
+  }
   
+  # Rest of the function for simple ranges
   if (grepl("::", range_str)) {
     # Numeric range check
     range <- as.numeric(strsplit(range_str, "::")[[1]])
@@ -705,9 +729,13 @@ get_violations <- function(value, range_str) {
     invalid_mask[is.na(invalid_mask)] <- FALSE
     return(sort(unique(value[invalid_mask])))
   } else if (grepl(";", range_str)) {
-    # Categorical values - already standardized by this point
+    # Categorical values
     valid_values <- trimws(strsplit(range_str, ";")[[1]])
-    invalid_mask <- !(as.character(value) %in% valid_values)
+    
+    # Convert to character for comparison
+    value_char <- as.character(value)
+    
+    invalid_mask <- !value_char %in% valid_values
     invalid_mask[is.na(invalid_mask)] <- FALSE
     return(sort(unique(value[invalid_mask])))
   }
