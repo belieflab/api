@@ -58,42 +58,36 @@ formatDuration <- function(duration) {
   }
 }
 
-getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", redcap_event_name = NULL, batch_size = 1000, records = NULL, fields = NULL) {
+getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", 
+                      redcap_event_name = NULL, batch_size = 1000, 
+                      records = NULL, fields = NULL) {
   start_time <- Sys.time()
   
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
   
-  # If instrument_name parameter is NULL, show warning:
+  # Input validation and config setup
   if (is.null(instrument_name)) {
     forms_data <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
-    # Filter out nda form before sampling
     forms_filtered <- forms_data[!grepl("nda", forms_data$instrument_name), ]
     random_instrument <- sample(forms_filtered$instrument_name, 1)
-    
     forms_table <- paste(capture.output(print(getForms())), collapse = "\n")
     example_text <- sprintf("\n\nExample:\n%s <- getRedcap(\"%s\")", random_instrument, random_instrument)
-    
-    # First display the error
-    stop(sprintf("No REDCap Instrument Name provided!\n%s%s", 
-                 forms_table,
-                 example_text), 
+    stop(sprintf("No REDCap Instrument Name provided!\n%s%s",
+                 forms_table, example_text),
          call. = FALSE)
-  }  
-  config <- config::get()
+  }
   
+  config <- config::get()
   if (!file.exists("secrets.R")) {
     stop("secrets.R file not found, please create it and add uri, token")
   }
-  
   base::source("secrets.R")
   
-  # Initialize progress bar
+  # Progress bar
   pb <- initializeLoadingAnimation(20)
   message(sprintf("\nImporting records from REDCap form: %s", instrument_name))
-  
-  # Update progress before data retrieval
   for (i in 1:20) {
     updateLoadingAnimation(pb, i)
     Sys.sleep(0.1)
@@ -101,45 +95,72 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", redcap_event
   completeLoadingAnimation(pb)
   message("")
   
-  # Get super_keys data first (without event filtering)
-  super_keys_data <- REDCapR::redcap_read(
-    redcap_uri = uri,
-    token = token,
-    forms = config$redcap$super_keys,
-    batch_size = batch_size,
-    records = records,
-    raw_or_label = raw_or_label,
-    raw_or_label_headers = "raw",
-    verbose = TRUE
-  )$data
+  # First try the simple approach
+  tryCatch({
+    df <- REDCapR::redcap_read(
+      redcap_uri = uri,
+      token = token,
+      forms = c(config$redcap$super_keys, instrument_name),
+      batch_size = batch_size,
+      records = records,
+      fields = fields,
+      raw_or_label = raw_or_label,
+      raw_or_label_headers = "raw",
+      verbose = TRUE
+    )$data
+    
+    # Quick validation check - if we're missing key data, throw an error to trigger fallback
+    required_cols <- c("src_subject_id", "subjectkey")  # Add other required columns as needed
+    if (!all(required_cols %in% names(df))) {
+      stop("Missing required columns in simple merge")
+    }
+  }, error = function(e) {
+    # If simple approach fails, try the separate keys approach
+    message("\nAttempting alternative data retrieval method...")
+    
+    # Get super_keys data
+    super_keys_data <- REDCapR::redcap_read(
+      redcap_uri = uri,
+      token = token,
+      forms = config$redcap$super_keys,
+      batch_size = batch_size,
+      records = records,
+      raw_or_label = raw_or_label,
+      raw_or_label_headers = "raw",
+      verbose = TRUE
+    )$data
+    
+    # Get instrument data
+    instrument_data <- REDCapR::redcap_read(
+      redcap_uri = uri,
+      token = token,
+      forms = instrument_name,
+      batch_size = batch_size,
+      records = records,
+      fields = fields,
+      raw_or_label = raw_or_label,
+      raw_or_label_headers = "raw",
+      verbose = TRUE
+    )$data
+    
+    # Get join keys while preserving redcap_event_name
+    join_keys <- base::intersect(names(super_keys_data), names(instrument_data))
+    join_keys <- join_keys[join_keys != "redcap_event_name"]
+    
+    # Merge while preserving the instrument data's redcap_event_name
+    df <- base::merge(super_keys_data, instrument_data, by = join_keys, all.y = TRUE)
+  })
   
-  # Get instrument-specific data
-  instrument_data <- REDCapR::redcap_read(
-    redcap_uri = uri,
-    token = token,
-    forms = instrument_name,
-    batch_size = batch_size,
-    records = records,
-    fields = fields,
-    raw_or_label = raw_or_label,
-    raw_or_label_headers = "raw",
-    verbose = TRUE
-  )$data
+  # Add measure column
+  df$measure <- instrument_name
   
-  # Add measure column to track source
-  instrument_data$measure <- instrument_name
-  
-  # Filter instrument data by event if specified
+  # Apply redcap_event_name filter if specified
   if (!is.null(redcap_event_name)) {
-    instrument_data <- instrument_data[instrument_data$redcap_event_name == redcap_event_name, ]
+    if (!"redcap_event_name" %in% names(df)) {
+      stop("Cannot filter by redcap_event_name: column not found in data")
+    }
+    df <- df[df$redcap_event_name == redcap_event_name, ]
   }
-  
-  # Get the common join keys (typically record_id and perhaps some other identifiers)
-  join_keys <- base::setdiff(colnames(super_keys_data), "redcap_event_name")
-  join_keys <- base::intersect(join_keys, colnames(instrument_data))
-  
-  # Merge the data
-  df <- base::merge(super_keys_data, instrument_data, by = join_keys, all.y = TRUE)
   
   # Study-specific processing
   if (config$study_alias == "impact-mh") {
@@ -153,7 +174,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", redcap_event
     df <- processCaprData(df, instrument_name)
   }
   
-  # Calculate duration
+  # Show duration
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData retrieval completed in %s.", formatDuration(duration)))
