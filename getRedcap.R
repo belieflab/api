@@ -80,10 +80,25 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   }
   
   config <- config::get()
+  
   if (!file.exists("secrets.R")) {
     stop("secrets.R file not found, please create it and add uri, token")
   }
+  
   base::source("secrets.R")
+  
+  # Check that required variables exist
+  required_vars <- c("uri", "token")
+  missing_vars <- required_vars[!base::sapply(required_vars, exists)]
+  if (length(missing_vars) > 0) {
+    stop("Missing required REDCap API variable in secrets.R: ", base::paste(missing_vars, collapse=", "))
+  }
+  
+  # Check that variables are strings
+  non_string_vars <- required_vars[base::sapply(required_vars, function(var) !is.character(get(var)))]
+  if (length(non_string_vars) > 0) {
+    stop("These REDCap API variables must be strings in secrets.R: ", base::paste(non_string_vars, collapse=", "))
+  }
   
   # Progress bar
   pb <- initializeLoadingAnimation(20)

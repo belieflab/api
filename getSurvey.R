@@ -35,7 +35,7 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
   message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
   
   # Connect to Qualtrics to ensure correct credentials are used
-  connect(qualtrics_alias)  # Always connect to ensure correct credentials
+  connectQualtrics(qualtrics_alias)  # Always connect to ensure correct credentials
   
   show_loading_animation()
   
@@ -108,13 +108,28 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
 #' @importFrom config get
 #' @import qualtRics qualtrics_api_credentials
 #' @noRd
-connect <- function(qualtrics_alias) {
+connectQualtrics <- function(qualtrics_alias) {
+  config <- config::get()
   if (!file.exists("secrets.R")) {
-    stop("secrets.R file not found. Please create it and add apiKeys and baseUrls arrays.")
+    stop("secrets.R file not found, please create it and add apiKeys and baseUrls")
   }
+  
   base::source("secrets.R")
   
-  config <- config::get()
+  # Check that required variables exist
+  required_vars <- c("apiKeys", "baseUrls")
+  missing_vars <- required_vars[!base::sapply(required_vars, exists)]
+  if (length(missing_vars) > 0) {
+    stop("Missing required Qualtrics API variables in secrets.R: ", base::paste(missing_vars, collapse=", "))
+  }
+  
+  # Check that variables are vectors (created with c())
+  non_vector_vars <- required_vars[base::sapply(required_vars, function(var) !is.vector(get(var)))]
+  if (length(non_vector_vars) > 0) {
+    stop("The following Qualtrics API variables must be vectors created with c() in secrets.R: ", 
+         base::paste(non_vector_vars, collapse=", "))
+  }
+  
   
   if (is.null(config$qualtrics$survey_ids)) {
     stop("Survey IDs configuration not found.")
