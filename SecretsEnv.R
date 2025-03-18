@@ -18,6 +18,10 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               qualtrics = list(
                                 required = c("apiKeys", "baseUrls"),
                                 types = c(apiKeys = "vector", baseUrls = "vector")
+                              ),
+                              sql = list(
+                                required = c("conn"),
+                                types = c(connectionString = "character")
                               )
                             ),
                             
