@@ -189,7 +189,10 @@ getForms <- function() {
   if (!require(config)) install.packages("config"); library(config)
   if (!require(knitr)) install.packages("knitr"); library(knitr)
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
-  base::source("secrets.R")
+  
+  # Validate secrets
+  base::source("api/SecretsEnv.R")
+  validate_secrets("redcap")
   
   forms <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
   
