@@ -407,25 +407,11 @@ createChunks <- function(total_records, chunk_size) {
 #' @return A mongolite::mongo object representing the connection to the MongoDB collection.
 Connect <- function(collection_name, db_name) {
   
+  # Validate secrets
+  base::source("api/SecretsEnv.R")
+  validate_secrets("mongo")
+  
   config <- config::get()
-  if (!file.exists("secrets.R")) {
-    stop("secrets.R file not found, please create it and add connectionString")
-  }
-  
-  base::source("secrets.R")
-  
-  # Check that required variables exist
-  required_vars <- c("connectionString")
-  missing_vars <- required_vars[!base::sapply(required_vars, exists)]
-  if (length(missing_vars) > 0) {
-    stop("Missing required Mongo API variable in secrets.R: ", base::paste(missing_vars, collapse=", "))
-  }
-  
-  # Check that variables are strings
-  non_string_vars <- required_vars[base::sapply(required_vars, function(var) !is.character(get(var)))]
-  if (length(non_string_vars) > 0) {
-    stop("These Mongo API variables must be strings in secrets.R: ", base::paste(non_string_vars, collapse=", "))
-  }
   
   if (is.null(db_name)) {
     db_name = config$study_alias

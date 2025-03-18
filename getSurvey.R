@@ -109,27 +109,12 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
 #' @import qualtRics qualtrics_api_credentials
 #' @noRd
 connectQualtrics <- function(qualtrics_alias) {
+  
+  # Validate secrets
+  base::source("api/SecretsEnv.R")
+  validate_secrets("qualtrics")
+  
   config <- config::get()
-  if (!file.exists("secrets.R")) {
-    stop("secrets.R file not found, please create it and add apiKeys and baseUrls")
-  }
-  
-  base::source("secrets.R")
-  
-  # Check that required variables exist
-  required_vars <- c("apiKeys", "baseUrls")
-  missing_vars <- required_vars[!base::sapply(required_vars, exists)]
-  if (length(missing_vars) > 0) {
-    stop("Missing required Qualtrics API variables in secrets.R: ", base::paste(missing_vars, collapse=", "))
-  }
-  
-  # Check that variables are vectors (created with c())
-  non_vector_vars <- required_vars[base::sapply(required_vars, function(var) !is.vector(get(var)))]
-  if (length(non_vector_vars) > 0) {
-    stop("The following Qualtrics API variables must be vectors created with c() in secrets.R: ", 
-         base::paste(non_vector_vars, collapse=", "))
-  }
-  
   
   if (is.null(config$qualtrics$survey_ids)) {
     stop("Survey IDs configuration not found.")
