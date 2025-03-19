@@ -121,10 +121,16 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                     }
                                   }
                                   
-                                  # For REDCap URI, check for trailing slash and add it if missing
+                                  # For REDCap URI, check trailing slash and 'api' endpoint
                                   if (api_type == "redcap" && "uri" %in% correct_type_vars) {
                                     uri_value <- base::get("uri")
-                                    if (!grepl("/$", uri_value)) {
+                                    
+                                    # Check if it ends with "api/" (correct format)
+                                    if (grepl("api/$", uri_value)) {
+                                      # Format is correct, do nothing
+                                    } 
+                                    # Check if it ends with "api" (missing trailing slash)
+                                    else if (grepl("api$", uri_value)) {
                                       # Add trailing slash
                                       fixed_uri <- paste0(uri_value, "/")
                                       
@@ -133,20 +139,15 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                       
                                       # Update the secrets.R file
                                       if (file.exists(self$secrets_file)) {
-                                        # Read the file content
+                                        # Read and update file content
                                         file_content <- readLines(self$secrets_file)
-                                        
-                                        # Find the line with uri assignment
                                         uri_pattern <- "^\\s*uri\\s*<-\\s*[\"\'](.*)[\"\']\\s*$"
                                         uri_line_index <- grep(uri_pattern, file_content)
                                         
                                         if (length(uri_line_index) > 0) {
-                                          # Replace the line with the fixed uri
                                           file_content[uri_line_index] <- gsub(uri_pattern,
                                                                                paste0("uri <- \"", fixed_uri, "\""),
                                                                                file_content[uri_line_index])
-                                          
-                                          # Write the updated content back to the file
                                           writeLines(file_content, self$secrets_file)
                                           message("Note: Added trailing slash to uri in ", self$secrets_file,
                                                   " (", uri_value, " → ", fixed_uri, ")")
@@ -155,6 +156,22 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                                   self$secrets_file, " automatically.")
                                         }
                                       }
+                                    } 
+                                    # Not ending with "api" at all
+                                    else {
+                                      # Don't add a slash, add an error instead
+                                      all_errors <- c(all_errors, paste("URI format error:",
+                                                                        "uri must end with 'api/' for REDCap API access.",
+                                                                        "Please verify REDCap API endpoint in the API Playground"))
+                                    }
+                                  }
+                                  
+                                  # Check REDCap token length
+                                  if (api_type == "redcap" && "token" %in% correct_type_vars) {
+                                    token_value <- base::get("token")
+                                    if (nchar(token_value) < 32) {
+                                      all_errors <- c(all_errors, paste("Token length error:",
+                                                                        "token must be at least 32 characters long for REDCap API."))
                                     }
                                   }
                                 }
@@ -162,10 +179,10 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               
                               # If we found any errors, report them all at once
                               if (length(all_errors) > 0) {
-                                stop(api_type, " configuration errors in secrets.R:\n- ",
+                                stop(api_type, " API configuration errors in secrets.R:\n- ",
                                      paste(all_errors, collapse="\n- "), call. = FALSE)
                               } else {
-                                message("All ", api_type, " configuration variables in secrets.R are valid.")
+                                # message("All ", api_type, " API credentials in secrets.R are valid.")
                               }
                               
                               return(TRUE)

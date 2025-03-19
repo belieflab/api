@@ -152,7 +152,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   })
   
   # Add measure column
-  df$measure <- instrument_name
+  # df$measure <- instrument_name
   
   # Apply redcap_event_name filter if specified
   if (!is.null(redcap_event_name)) {
@@ -177,8 +177,8 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   # Show duration
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
-  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration)))
-  
+  message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
+
   return(df)
 }
 
