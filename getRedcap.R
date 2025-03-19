@@ -154,6 +154,18 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   # Add measure column
   # df$measure <- instrument_name
   
+  # For interview_age columns
+  age_cols <- grep("_interview_age$", base::names(df))
+  if (length(age_cols) > 0) {
+    base::names(df)[age_cols] <- "interview_age"
+  }
+  
+  # For interview_date columns
+  date_cols <- grep("_interview_date$", base::names(df))
+  if (length(date_cols) > 0) {
+    base::names(df)[date_cols] <- "interview_date"
+  }
+  
   # Apply redcap_event_name filter if specified
   if (!is.null(redcap_event_name)) {
     if (!"redcap_event_name" %in% names(df)) {
