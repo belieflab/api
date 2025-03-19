@@ -1,9 +1,7 @@
 # First, install R6 if you don't have it
-if (!require(R6)) {
-  install.packages("R6"); library(R6)
-}
+if (!require(R6)) install.packages("R6"); library(R6)
 
-# Define a Secrets class without the static method
+# Define a Secrets class
 SecretsEnv <- R6::R6Class("SecretsEnv",
                           public = list(
                             config_specs = list(
@@ -25,11 +23,17 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               )
                             ),
                             
+                            # Store the secrets file path
+                            secrets_file = NULL,
+                            
                             initialize = function(secrets_file = "secrets.R") {
                               # Check if secrets file exists
                               if (!file.exists(secrets_file)) {
                                 stop(secrets_file, " file not found. Please create this file and define the required API variables.")
                               }
+                              
+                              # Store the secrets file path
+                              self$secrets_file <- secrets_file
                               
                               # Source the secrets file
                               base::source(secrets_file)
@@ -37,7 +41,7 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                             
                             validate_config = function(api_type) {
                               if (!api_type %in% names(self$config_specs)) {
-                                stop("Unknown API type: '", api_type, "'. Valid types are: ", 
+                                stop("Unknown API type: '", api_type, "'. Valid types are: ",
                                      base::paste(names(self$config_specs), collapse=", "))
                               }
                               
@@ -47,7 +51,7 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               # Check that required variables exist
                               missing_vars <- specs$required[!base::sapply(specs$required, exists)]
                               if (length(missing_vars) > 0) {
-                                all_errors <- c(all_errors, paste("Missing variables:", 
+                                all_errors <- c(all_errors, paste("Missing variables:",
                                                                   base::paste(missing_vars, collapse=", ")))
                               }
                               
@@ -76,12 +80,12 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                   # Report if any variables fail this type check
                                   if (length(failing_vars) > 0) {
                                     if (type_name == "character") {
-                                      all_errors <- c(all_errors, paste("Type error:", 
-                                                                        base::paste(failing_vars, collapse=", "), 
+                                      all_errors <- c(all_errors, paste("Type error:",
+                                                                        base::paste(failing_vars, collapse=", "),
                                                                         "must be defined as character strings using quotes."))
                                     } else if (type_name == "vector") {
-                                      all_errors <- c(all_errors, paste("Type error:", 
-                                                                        base::paste(failing_vars, collapse=", "), 
+                                      all_errors <- c(all_errors, paste("Type error:",
+                                                                        base::paste(failing_vars, collapse=", "),
                                                                         "must be defined as vectors using c() function."))
                                     }
                                   }
@@ -97,8 +101,8 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                     })]
                                     
                                     if (length(empty_vars) > 0) {
-                                      all_errors <- c(all_errors, paste("Empty value error:", 
-                                                                        base::paste(empty_vars, collapse=", "), 
+                                      all_errors <- c(all_errors, paste("Empty value error:",
+                                                                        base::paste(empty_vars, collapse=", "),
                                                                         "cannot be empty strings."))
                                     }
                                   }
@@ -111,9 +115,46 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                     })]
                                     
                                     if (length(empty_vars) > 0) {
-                                      all_errors <- c(all_errors, paste("Empty vector error:", 
-                                                                        base::paste(empty_vars, collapse=", "), 
+                                      all_errors <- c(all_errors, paste("Empty vector error:",
+                                                                        base::paste(empty_vars, collapse=", "),
                                                                         "cannot be empty vectors."))
+                                    }
+                                  }
+                                  
+                                  # For REDCap URI, check for trailing slash and add it if missing
+                                  if (api_type == "redcap" && "uri" %in% correct_type_vars) {
+                                    uri_value <- base::get("uri")
+                                    if (!grepl("/$", uri_value)) {
+                                      # Add trailing slash
+                                      fixed_uri <- paste0(uri_value, "/")
+                                      
+                                      # Update the variable in memory
+                                      assign("uri", fixed_uri, envir = .GlobalEnv)
+                                      
+                                      # Update the secrets.R file
+                                      if (file.exists(self$secrets_file)) {
+                                        # Read the file content
+                                        file_content <- readLines(self$secrets_file)
+                                        
+                                        # Find the line with uri assignment
+                                        uri_pattern <- "^\\s*uri\\s*<-\\s*[\"\'](.*)[\"\']\\s*$"
+                                        uri_line_index <- grep(uri_pattern, file_content)
+                                        
+                                        if (length(uri_line_index) > 0) {
+                                          # Replace the line with the fixed uri
+                                          file_content[uri_line_index] <- gsub(uri_pattern,
+                                                                               paste0("uri <- \"", fixed_uri, "\""),
+                                                                               file_content[uri_line_index])
+                                          
+                                          # Write the updated content back to the file
+                                          writeLines(file_content, self$secrets_file)
+                                          message("Note: Added trailing slash to uri in ", self$secrets_file,
+                                                  " (", uri_value, " → ", fixed_uri, ")")
+                                        } else {
+                                          message("Note: Added trailing slash to uri in memory, but couldn't update ",
+                                                  self$secrets_file, " automatically.")
+                                        }
+                                      }
                                     }
                                   }
                                 }
@@ -121,8 +162,10 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               
                               # If we found any errors, report them all at once
                               if (length(all_errors) > 0) {
-                                stop(api_type, " configuration errors in secrets.R:\n- ", 
-                                     paste(all_errors, collapse="\n- "))
+                                stop(api_type, " configuration errors in secrets.R:\n- ",
+                                     paste(all_errors, collapse="\n- "), call. = FALSE)
+                              } else {
+                                message("All ", api_type, " configuration variables in secrets.R are valid.")
                               }
                               
                               return(TRUE)
@@ -130,8 +173,7 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                           )
 )
 
-
-# Create a wrapper function instead of a static method
+# Create a wrapper function to make validation easier
 validate_secrets <- function(api_type, secrets_file = "secrets.R") {
   secrets <- SecretsEnv$new(secrets_file)
   return(secrets$validate_config(api_type))
