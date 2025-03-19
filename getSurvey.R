@@ -209,12 +209,14 @@ dataHarmonization <- function(df, identifier, qualtrics_alias) {
   # df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   
   # add measure column
-  df$measure <- qualtrics_alias
+  # df$measure <- qualtrics_alias
   
   # select visit
   # df <- df[df$visit==visit,]
   
   suppressWarnings(return(df))
+  # comment into add prefixes (will break code)
+  #suppressWarnings(return(add_prefix_to_columns(df,qualtrics_alias)))
 }
 
 #' Extract Column Mapping from Qualtrics Data Frame
