@@ -107,6 +107,7 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Process each measure using processMeasure function
   for (measure in data_list) {
     sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "task"))
+    base::source("api/dataRequest.R")
     processMeasure(measure, sourceCategory, csv, rdata, spss, identifier)
   }
   
