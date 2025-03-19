@@ -60,16 +60,16 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_da
   qualtrics_list <- tools::file_path_sans_ext(list.files("./nda/qualtrics"))
   task_list <- tools::file_path_sans_ext(list.files("./nda/mongo"))
   
-  # Get super_keys from config
+  # Get identifier from config
   config <- config::get()
-  super_keys <- config$super_keys
-  if (is.null(super_keys) || super_keys == "") {
-    stop("No super_keys specified in the config file.")
+  identifier <- config$identifier
+  if (is.null(identifier) || identifier == "") {
+    stop("No identifier specified in the config file.")
   }
   
-  # Split super_keys if it's a comma-separated string
-  if (is.character(super_keys)) {
-    super_keys <- strsplit(super_keys, ",")[[1]]
+  # Split identifier if it's a comma-separated string
+  if (is.character(identifier)) {
+    identifier <- strsplit(identifier, ",")[[1]]
   }
   
   # Source necessary R scripts from the 'api' directory
@@ -113,7 +113,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_da
   # Process each measure using processMeasure function
   for (measure in data_list) {
     api <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
-    processMeasure(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset)
+    processMeasure(measure, api, csv, rdata, spss, identifier, start_time, limited_dataset)
   }
   
   # Clean up and record processing time
@@ -121,7 +121,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_da
   # print(Sys.time() - start_time)  # Print time taken for processing
 }
 
-processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_time, limited_dataset = FALSE) {
+processMeasure <- function(measure, api, csv, rdata, spss, identifier, start_time, limited_dataset = FALSE) {
   # Check if input is a dataframe
   if (is.data.frame(measure)) {
     # Get the name of the dataframe as a string
@@ -213,8 +213,8 @@ processMeasure <- function(measure, api, csv, rdata, spss, super_keys, start_tim
     formatElapsedTime(start_time)
     
   }, error = function(e) {
-    # Check if super_keys is valid (you can modify this logic based on your criteria)
-    if (length(super_keys) == 0 || all(is.na(super_keys))) {
+    # Check if identifier is valid (you can modify this logic based on your criteria)
+    if (length(identifier) == 0 || all(is.na(identifier))) {
       message("An error occurred: ", e$message)  # General error message
     } else {
       message("Error with ", measure, ": ", e$message)  # Specific error message

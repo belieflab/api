@@ -23,6 +23,8 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
   base::source("api/ConfigEnv.R")
   validate_config("qualtrics")
   
+  identifier <- config$identifier
+  
   # Split identifier if it's a comma-separated string
   if (is.character(identifier)) {
     identifier <- strsplit(identifier, ",")[[1]]
@@ -74,6 +76,8 @@ connectQualtrics <- function(qualtrics_alias) {
   # Validate config
   base::source("api/ConfigEnv.R")
   validate_config("qualtrics")
+  
+  base::source(config$qualtrics$survey_ids)
   
   if (!(qualtrics_alias %in% names(surveyIds))) {
     stop("Provided qualtrics_alias does not match any survey IDs.")
