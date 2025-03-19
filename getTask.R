@@ -207,10 +207,24 @@ formatDuration <- function(duration) {
   }
 }
 
-#' Main data retrieval function
+#' Retrieve data from MongoDB
+#'
+#' @param collection_name The name of the MongoDB collection
+#' @param db_name The database name (optional)
+#' @param identifier Field to use as identifier (optional)
+#' @param chunk_size Number of records per chunk (optional)
+#'
+#' @importFrom mongolite mongo ssl_options
+#' @importFrom parallel detectCores
+#' @importFrom future plan multisession
+#' @importFrom future future
+#' @importFrom future.apply future_lapply
+#' @importFrom dplyr bind_rows
+#' @importFrom utils flush.console
+#' @importFrom stats setNames
+#'
+#' @return A data frame containing the MongoDB data
 #' @export
-# Previous helper functions remain the same...
-
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL) {
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
@@ -515,9 +529,6 @@ getMongoData <- function(Mongo, identifier, batch_info) {
 #' harmonized_data <- dataHarmonization(df, 'src_subject_id', 'task1')
 #'
 #' @importFrom stats setNames
-#' @importFrom base ifelse
-#' @importFrom base subset
-#' @importFrom base as.Date
 #' @export
 dataHarmonization <- function(df, identifier, collection_name) {
   

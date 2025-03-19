@@ -58,6 +58,23 @@ formatDuration <- function(duration) {
   }
 }
 
+#' Get Data from REDCap
+#'
+#' Retrieves data from a REDCap instrument
+#'
+#' @param instrument_name Name of the REDCap instrument
+#' @param raw_or_label Whether to return raw or labeled values
+#' @param redcap_event_name Optional event name filter
+#' @param batch_size Number of records to retrieve per batch
+#' @param records Optional vector of specific record IDs
+#' @param fields Optional vector of specific fields
+#'
+#' @importFrom REDCapR redcap_read redcap_instruments redcap_metadata_read
+#' @importFrom cli console_width
+#' @importFrom knitr kable
+#'
+#' @return A data frame containing the requested REDCap data
+#' @export
 getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", 
                       redcap_event_name = NULL, batch_size = 1000, 
                       records = NULL, fields = NULL) {
