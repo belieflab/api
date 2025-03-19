@@ -254,7 +254,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     stop("No identifier specified in the config file.")
   }
   
-  # Initialize MongoDB connection
+  # Try connecting - will now throw explicit error if collection doesn't exist
   Mongo <- Connect(collection_name, db_name)
   
   # Find valid identifier
@@ -424,7 +424,6 @@ createChunks <- function(total_records, chunk_size) {
 #' @param db_dname The name of the database you cant to connect to.
 #' @return A mongolite::mongo object representing the connection to the MongoDB collection.
 Connect <- function(collection_name, db_name) {
-  
   # Validate secrets
   base::source("api/SecretsEnv.R")
   validate_secrets("mongo")
@@ -439,6 +438,32 @@ Connect <- function(collection_name, db_name) {
   # The key is to use sink() to capture and discard the messages
   temp <- tempfile()
   sink(temp)
+  
+  # Create connection without specifying collection first
+  base_connection <- mongolite::mongo(
+    collection = "system.namespaces", # This is a system collection that always exists
+    db = db_name,
+    url = connectionString,
+    verbose = FALSE,
+    options = options
+  )
+  
+  # Check if the collection exists
+  collections_list <- getCollectionsFromConnection(base_connection)
+  
+  # Close the base connection
+  base_connection$disconnect()
+  sink()
+  unlink(temp)
+  
+  # Validate that collection exists
+  if (!collection_name %in% collections_list) {
+    stop(sprintf("Collection '%s' does not exist in database '%s'. Available collections: %s", 
+                 collection_name, db_name, paste(collections_list, collapse=", ")))
+  }
+  
+  # If we get here, the collection exists - create normal connection
+  sink(temp)
   on.exit({
     sink()
     unlink(temp)
@@ -446,7 +471,7 @@ Connect <- function(collection_name, db_name) {
   
   Mongo <- mongolite::mongo(
     collection = collection_name, 
-    db = db_name, 
+    db = db_name,
     url = connectionString,
     verbose = FALSE,
     options = options
@@ -562,21 +587,24 @@ dataHarmonization <- function(df, identifier, collection_name) {
 
 
 
+getCollectionsFromConnection <- function(mongo_connection) {
+  collections <- mongo_connection$run('{"listCollections":1,"nameOnly":true}')
+  return(collections$cursor$firstBatch$name)
+}
+
+# Maintain original getCollections function for backward compatibility
 getCollections <- function() {
-  
   Mongo <- NULL
-  
   on.exit({
     disconnectMongo(Mongo)
   })
   
-  Mongo <- Connect("foo")
-  collections <- Mongo$run('{"listCollections":1,"nameOnly":true}')
-  print(collections$cursor$firstBatch$name) # lists collections in database
-  
-  return(collections$cursor$firstBatch$name)
-  
+  # Connect to any default collection just to get connection
+  Mongo <- Connect("system.namespaces", silent_validation = TRUE)
+  collections <- getCollectionsFromConnection(Mongo)
+  return(collections)
 }
+
 
 #' Alias for 'getTask'
 getTask <- getMongo
