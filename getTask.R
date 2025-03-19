@@ -223,17 +223,21 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
   
-  # Source dependencies and get config
+  # Source dependencies
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-  config <- config::get()
+  
+  # Validate config
+  base::source("api/ConfigEnv.R")
+  validate_config("mongo")
+  
   if (is.null(db_name)) {
-    db_name <- config$study_alias
+    db_name <- config$mongo$collection
   }
   
-  # Validate super_keys
-  super_keys <- config$super_keys
-  if (is.null(super_keys) || any(super_keys == "")) {
-    stop("No super_keys specified in the config file.")
+  # Validate identifier
+  identifier <- config$identifier
+  if (is.null(identifier) || any(identifier == "")) {
+    stop("No identifier specified in the config file.")
   }
   
   # Initialize MongoDB connection
@@ -241,7 +245,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   
   # Find valid identifier
   if (is.null(identifier)) {
-    for (key in trimws(strsplit(super_keys, ",")[[1]])) {
+    for (key in trimws(strsplit(identifier, ",")[[1]])) {
       count <- Mongo$count(sprintf('{"%s": {"$exists": true, "$ne": ""}}', key))
       if (count > 0) {
         identifier <- key
@@ -371,7 +375,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   Sys.sleep(0.5)  # Optional: small pause for visual effect
-  message(sprintf("\nData retrieval completed in %s.", formatDuration(duration-1))) # minus 1 to account for sleep
+  message(sprintf("\nData frame '%s' retrieved in %s.", collection_name, formatDuration(duration-1)))# minus 1 to account for sleep
   
   return(clean_df)
 }
@@ -414,7 +418,7 @@ Connect <- function(collection_name, db_name) {
   config <- config::get()
   
   if (is.null(db_name)) {
-    db_name = config$study_alias
+    db_name = config$mongo$collection
   }
   options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
   
@@ -525,7 +529,7 @@ dataHarmonization <- function(df, identifier, collection_name) {
   }
   
   # capr wants as.numeric
-  # if (config$study_alias === "capr") {
+  # if (config$mongo$collection === "capr") {
   #   df$src_subject_id <- as.numeric(df$src_subject_id)
   # }
   

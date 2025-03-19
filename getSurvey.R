@@ -19,17 +19,13 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
   
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
-  config <- config::get()
+  # Validate config
+  base::source("api/ConfigEnv.R")
+  validate_config("qualtrics")
   
-  # Get super_keys from config
-  super_keys <- config$super_keys
-  if (is.null(super_keys) || super_keys == "") {
-    stop("No super_keys specified in the config file.")
-  }
-  
-  # Split super_keys if it's a comma-separated string
-  if (is.character(super_keys)) {
-    super_keys <- strsplit(super_keys, ",")[[1]]
+  # Split identifier if it's a comma-separated string
+  if (is.character(identifier)) {
+    identifier <- strsplit(identifier, ",")[[1]]
   }
   
   message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
@@ -44,18 +40,8 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
     stop("Failed to fetch data from Qualtrics.")
   }
   
-  # Find the first valid identifier from super_keys
-  identifier <- NA
-  for (key in super_keys) {
-    key <- trimws(key)  # Remove any leading/trailing whitespace
-    if (key %in% names(df)) {
-      identifier <- key
-      break
-    }
-  }
-  
   if (is.na(identifier)) {
-    stop("No valid identifier found in the Qualtrics data based on super_keys from config.")
+    stop("No valid identifier found in the Qualtrics data based on identifier from config.")
   }
   
   message(sprintf("Using identifier: %s", identifier))
@@ -64,35 +50,6 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
   
   return(clean_df)
 }
-### mkp dynamic identifier selection
-# # dynamically selects identifier from df; if none found, default is src_subject_id
-# getQualtrics <- function(qualtrics_alias, label = FALSE) {
-#   if (!require(config)) {install.packages("config"); library(config)}
-#   if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
-#   if (!require(dplyr)) {install.packages("dplyr")}; library(dplyr)
-#   
-#   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-#   
-#   message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
-#   
-#   connect(qualtrics_alias)
-#   show_loading_animation()
-#   
-#   df <- getQualtricsData(qualtrics_alias, label)
-#   
-#   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")
-#   selected_identifier <- intersect(super_keys, colnames(df))
-#   
-#   if (length(selected_identifier) == 0) {
-#     stop("No valid identifier column found.")
-#   } else {
-#     selected_identifier <- selected_identifier[1]  # Select the first valid identifier
-#   }
-#   
-#   clean_df <- dataHarmonization(df, selected_identifier, qualtrics_alias)
-#   
-#   return(clean_df)
-# }
 
 
 # ################ #
@@ -114,12 +71,9 @@ connectQualtrics <- function(qualtrics_alias) {
   base::source("api/SecretsEnv.R")
   validate_secrets("qualtrics")
   
-  config <- config::get()
-  
-  if (is.null(config$qualtrics$survey_ids)) {
-    stop("Survey IDs configuration not found.")
-  }
-  base::source(config$qualtrics$survey_ids)
+  # Validate config
+  base::source("api/ConfigEnv.R")
+  validate_config("qualtrics")
   
   if (!(qualtrics_alias %in% names(surveyIds))) {
     stop("Provided qualtrics_alias does not match any survey IDs.")
@@ -161,8 +115,11 @@ connectQualtrics <- function(qualtrics_alias) {
 #' @noRd
 getQualtricsData <- function(qualtrics_alias, label) {
   tryCatch({
-    config <- config::get()
-    base::source(config$qualtrics$survey_ids)
+    
+    # Validate config
+    base::source("api/ConfigEnv.R")
+    validate_config("qualtrics")
+    
     df <- qualtRics::fetch_survey(
       surveyID = toString(surveyIds[qualtrics_alias]),
       verbose = FALSE,

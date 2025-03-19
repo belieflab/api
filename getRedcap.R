@@ -83,7 +83,9 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
          call. = FALSE)
   }
   
-  config <- config::get()
+  # Validate config
+  base::source("api/ConfigEnv.R")
+  validate_config("redcap")
 
   # Progress bar
   pb <- initializeLoadingAnimation(20)
@@ -198,7 +200,6 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
 
 getForms <- function() {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-  if (!require(config)) install.packages("config"); library(config)
   if (!require(knitr)) install.packages("knitr"); library(knitr)
 
   # Validate secrets
@@ -213,10 +214,11 @@ getForms <- function() {
 
 getDictionary <- function(instrument_name) {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-  if (!require(config)) install.packages("config"); library(config)
-  # check to see if secrets.R exists; if it does not, create it
-  if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add uri, token")
-  base::source("secrets.R") # sensitive info for api key
+
+  # Validate secrets
+  base::source("api/SecretsEnv.R")
+  validate_secrets("redcap")
+  
   metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
   dictionary <- metadata[metadata$form_name == instrument_name, ]
   # View(dictionary)
