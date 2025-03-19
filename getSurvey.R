@@ -214,9 +214,9 @@ dataHarmonization <- function(df, identifier, qualtrics_alias) {
   # select visit
   # df <- df[df$visit==visit,]
   
-  suppressWarnings(return(df))
+  #suppressWarnings(return(df))
   # comment into add prefixes (will break code)
-  #suppressWarnings(return(add_prefix_to_columns(df,qualtrics_alias)))
+  suppressWarnings(return(add_prefix_to_columns(df,qualtrics_alias)))
 }
 
 #' Extract Column Mapping from Qualtrics Data Frame

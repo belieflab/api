@@ -554,9 +554,9 @@ dataHarmonization <- function(df, identifier, collection_name) {
   # add measure column
   # df$measure <- collection_name
   
-  return(df)
+  #return(df)
   # comment into add prefixes (will break code)
-  #return(add_prefix_to_columns(df,collection_name))
+  return(add_prefix_to_columns(df,collection_name))
   
 }
 

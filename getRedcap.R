@@ -210,9 +210,9 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
 
-  return(df)
+  #return(df)
   # comment into add prefixes (will break code)
-  #return(add_prefix_to_columns(df,instrument_name))
+  return(add_prefix_to_columns(df,instrument_name))
 }
 
 
