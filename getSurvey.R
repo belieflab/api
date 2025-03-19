@@ -13,6 +13,9 @@
 #' # Get survey by institution and alias
 #' survey_data <- getQualtrics("iipsc", institution = "nu")
 getQualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
+  
+  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  
   # Get configuration
   cfg <- config::get()
   
