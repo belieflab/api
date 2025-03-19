@@ -1,4 +1,4 @@
 if(!require(dplyr)) {install.packages("dplyr")}; library(dplyr);
 
 # negate in
-`%!in%` = Negate(`%in%`)
+`%!in%` = dplyr::Negate(`%in%`)

@@ -1,58 +1,83 @@
 #' Retrieve Survey Data from Qualtrics
 #'
-#' This function connects to the Qualtrics API to retrieve survey data based on a specified alias. 
-#' It ensures that the correct credentials are used and performs data harmonization before returning the cleaned data frame.
-#' 
 #' @param qualtrics_alias The alias for the Qualtrics survey to be retrieved.
-#' @param identifier The unique identifier for the survey respondents (default is "src_subject_id").
+#' @param institution Optional. The institution name (e.g., "temple" or "nu"). If NULL, all institutions will be searched.
 #' @param label Logical indicating whether to return coded values or their associated labels (default is FALSE).
 #' @return A cleaned and harmonized data frame containing the survey data.
 #' @importFrom dplyr %>% select mutate
 #' @export
 #' @examples
-#' survey_data <- getSurvey("rgpts")
-getQualtrics <- function(qualtrics_alias, label = FALSE) {
-  # Load required packages
-  if (!require(config)) {install.packages("config"); library(config)}
-  if (!require(qualtRics)) {install.packages("qualtRics"); library(qualtRics)}
-  if (!require(dplyr)) {install.packages("dplyr"); library(dplyr)}
+#' # Get survey by alias (will search all institutions)
+#' survey_data <- getQualtrics("rgpts")
+#'
+#' # Get survey by institution and alias
+#' survey_data <- getQualtrics("iipsc", institution = "nu")
+getQualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
+  # Get configuration
+  cfg <- config::get()
   
-  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+  # Get survey ID
+  survey_id <- NULL
   
-  # Validate config
-  base::source("api/ConfigEnv.R")
-  validate_config("qualtrics")
-  
-  identifier <- config$identifier
-  
-  # Split identifier if it's a comma-separated string
-  if (is.character(identifier)) {
-    identifier <- strsplit(identifier, ",")[[1]]
+  if (!is.null(institution)) {
+    # Check if institution exists
+    if (!(institution %in% names(cfg$qualtrics$survey_ids))) {
+      stop(paste("Institution", institution, "not found in configuration"))
+    }
+    
+    # Check if survey exists in specified institution
+    if (!(qualtrics_alias %in% names(cfg$qualtrics$survey_ids[[institution]]))) {
+      stop(paste("Survey", qualtrics_alias, "not found in institution", institution))
+    }
+    
+    survey_id <- cfg$qualtrics$survey_ids[[institution]][[qualtrics_alias]]
+  } else {
+    # Search all institutions
+    for (inst in names(cfg$qualtrics$survey_ids)) {
+      if (qualtrics_alias %in% names(cfg$qualtrics$survey_ids[[inst]])) {
+        survey_id <- cfg$qualtrics$survey_ids[[inst]][[qualtrics_alias]]
+        institution <- inst
+        break
+      }
+    }
   }
   
-  message(ifelse(label, "Extracting choice text:", "Extracting numeric values:"))
-  
-  # Connect to Qualtrics to ensure correct credentials are used
-  connectQualtrics(qualtrics_alias)  # Always connect to ensure correct credentials
-  
-  show_loading_animation()
-  
-  df <- getQualtricsData(qualtrics_alias, label)
-  if (is.null(df)) {
-    stop("Failed to fetch data from Qualtrics.")
+  if (is.null(survey_id)) {
+    stop(paste("Survey", qualtrics_alias, "not found in any institution"))
   }
   
-  if (is.na(identifier)) {
-    stop("No valid identifier found in the Qualtrics data based on identifier from config.")
+  message(sprintf("Retrieving %s survey from %s", qualtrics_alias, institution))
+  
+  # Connect to Qualtrics
+  connectQualtrics(qualtrics_alias)
+  
+  # Show loading animation (if implemented)
+  if (exists("show_loading_animation")) {
+    show_loading_animation()
   }
   
-  message(sprintf("Using identifier: %s", identifier))
+  # Fetch the data
+  df <- qualtRics::fetch_survey(
+    surveyID = survey_id,
+    verbose = FALSE,
+    label = label,
+    convert = label,
+    force_request = TRUE,
+    add_column_map = TRUE
+  )
   
+  if (!is.data.frame(df)) {
+    stop(paste("fetch_survey did not return a data frame for", qualtrics_alias))
+  }
+  
+  # Get identifier from config
+  identifier <- cfg$identifier
+  
+  # Harmonize the data
   clean_df <- dataHarmonization(df, identifier, qualtrics_alias)
   
   return(clean_df)
 }
-
 
 # ################ #
 # Helper Functions #
@@ -60,12 +85,12 @@ getQualtrics <- function(qualtrics_alias, label = FALSE) {
 
 #' Connect to Qualtrics API
 #'
-#' This helper function sets up the connection to the Qualtrics API using credentials stored in a file or environment variables. 
+#' This helper function sets up the connection to the Qualtrics API using credentials stored in a file or environment variables.
 #' It is called internally by the 'getSurvey' function.
-#' 
+#'
 #' @param qualtrics_alias The alias for the Qualtrics survey to connect to.
 #' @importFrom config get
-#' @import qualtRics qualtrics_api_credentials
+#' @import qualtRics
 #' @noRd
 connectQualtrics <- function(qualtrics_alias) {
   
@@ -77,11 +102,19 @@ connectQualtrics <- function(qualtrics_alias) {
   base::source("api/ConfigEnv.R")
   validate_config("qualtrics")
   
-  base::source(config$qualtrics$survey_ids)
-  
-  if (!(qualtrics_alias %in% names(surveyIds))) {
-    stop("Provided qualtrics_alias does not match any survey IDs.")
+  #base::source(config$qualtrics$survey_ids)
+  # NEW CODE
+  cfg <- config::get()
+  for (inst in names(cfg$qualtrics$survey_ids)) {
+    if (qualtrics_alias %in% names(cfg$qualtrics$survey_ids[[inst]])) {
+      survey_id <- cfg$qualtrics$survey_ids[[inst]][[qualtrics_alias]]
+      break
+    }
   }
+  
+  #if (!(qualtrics_alias %in% names(surveyIds))) {
+  #  stop("Provided qualtrics_alias does not match any survey IDs.")
+  #}
   
   if (!exists("apiKeys") || !exists("baseUrls")) {
     stop("apiKeys and/or baseUrls arrays not found in secrets.R")
