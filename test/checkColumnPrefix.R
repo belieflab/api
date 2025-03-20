@@ -9,12 +9,14 @@
 #' @return The function does not return a value but outputs an error message if any non-NDA columns do not follow the naming convention.
 #' @export
 #' @examples
+#' \dontrun{
 #' checkColumnPrefix("dataset_name", "qualtrics", c("nda_var1", "nda_var2"))
+#' }
 #' @importFrom testthat test_that expect_true
 #' @importFrom dplyr setdiff
-#' @importFrom base get
 #' @note This function assumes that the dataset follows a specific naming convention where non-NDA columns should be prefixed with the measure alias followed by an underscore.
 #'       The actual dataset name is expected to be the measure alias suffixed with '_clean'.
+#' @noRd
 checkColumnPrefix <- function(measure_alias, measure_type, nda_required_variables) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)
@@ -28,12 +30,12 @@ checkColumnPrefix <- function(measure_alias, measure_type, nda_required_variable
   
   # Determine columns to check based on measure_type
   if (measure_type == "qualtrics") {
-    non_nda_cols <- setdiff(colnames(df), c(nda_required_variables, "ResponseId"))
+    non_nda_cols <- dplyr::setdiff(colnames(df), c(nda_required_variables, "ResponseId"))
   } else if (measure_type=="redcap") {
-    non_nda_cols <- setdiff(colnames(df), c(nda_required_variables, "int_start", 
+    non_nda_cols <- dplyr::setdiff(colnames(df), c(nda_required_variables, "int_start", 
                                             "int_end"))
   } else {
-    non_nda_cols <- setdiff(colnames(df), nda_required_variables)
+    non_nda_cols <- dplyr::setdiff(colnames(df), nda_required_variables)
   }
   
   tryCatch({

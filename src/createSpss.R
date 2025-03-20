@@ -12,7 +12,9 @@
 #' @return Writes an SPSS file to the designated path and prints a message indicating
 #'   the file's location. This function does not return any value.
 #' @examples
+#' \dontrun{
 #' createSpss(rgpts)
+#' }
 #' @import haven
 #' @export
 #' @author Joshua Kenney <joshua.kenney@yale.edu>

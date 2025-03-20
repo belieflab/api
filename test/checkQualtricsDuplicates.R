@@ -10,14 +10,16 @@
 #'         and display those duplicates in the RStudio viewer.
 #' @export
 #' @examples
+#' \dontrun{
 #' checkDuplicates("your_dataset_alias", "qualtrics")
+#' }
 #' @importFrom dplyr filter %>% 
 #' @importFrom testthat test_that expect_true
-#' @importFrom utils View stop
 #' @note This function requires the dplyr and testthat packages. It is specifically designed for
 #'       Qualtrics data and expects the data frame to be named with a '_clean' suffix.
 #'       It checks for duplicates based on 'src_subject_id' combined with 'visit' or 'week' columns.
 #'       The function will stop and throw an error if the necessary columns are not present.
+#' @noRd
 checkQualtricsDuplicates <- function(measure_alias, measure_type) {
   
   # Ensure required packages are loaded

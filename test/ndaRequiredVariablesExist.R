@@ -11,11 +11,14 @@
 #' @return This function does not return a value but uses the `testthat` package to assert the presence of all NDA required variables and provides detailed feedback if any are missing.
 #' @export
 #' @examples
+#' \dontrun{
 #' ndaRequiredVariablesExist("your_dataset_alias", "qualtrics", c("src_subject_id", "phenotype"))
+#' }
 #' @importFrom testthat test_that expect_true
-#' @importFrom base get setdiff
+#' @importFrom dplyr setdiff
 #' @note While currently the function overwrites the 'nda_required_variables' parameter internally, future versions may allow for dynamic adjustment based on 'measure_type'.
 #'       It assumes that the dataset has been cleaned and is named according to a standard naming convention with a '_clean' suffix.
+#' @noRd
 ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_variables) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)
@@ -41,14 +44,14 @@ ndaRequiredVariablesExist <- function(measure_alias, measure_type, nda_required_
   
   # If 'visit' and 'week' are not both required, adjust the list accordingly:
   if (!("visit" %in% colnames(df_clean)) && ("week" %in% colnames(df_clean))) {
-    adjusted_nda_required <- setdiff(adjusted_nda_required, "visit")  # Remove 'visit' if it's not there but 'week' is
+    adjusted_nda_required <- dplyr::setdiff(adjusted_nda_required, "visit")  # Remove 'visit' if it's not there but 'week' is
   } else if (("visit" %in% colnames(df_clean)) && !("week" %in% colnames(df_clean))) {
-    adjusted_nda_required <- setdiff(adjusted_nda_required, "week")  # Remove 'week' if it's not there but 'visit' is
+    adjusted_nda_required <- dplyr::setdiff(adjusted_nda_required, "week")  # Remove 'week' if it's not there but 'visit' is
   } # If neither or both are present, no changes needed to adjusted_nda_required
   
   
   # Now check if the output dataframe contains all adjusted NDA required variables
-  missing_vars <- setdiff(adjusted_nda_required, colnames(df_clean))
+  missing_vars <- dplyr::setdiff(adjusted_nda_required, colnames(df_clean))
   
   tryCatch({
     test_that("Check for missing NDA required variables", {

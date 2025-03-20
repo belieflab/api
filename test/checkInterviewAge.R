@@ -10,13 +10,15 @@
 #'         with 'interview_age' outside the 12 to 70 years range if such cases exist.
 #' @export
 #' @examples
+#' \dontrun{
 #' checkInterviewAge("your_dataset_alias")
+#' }
 #' @importFrom testthat test_that expect_true
-#' @importFrom utils get message
 #' @note This function requires the 'testthat' package for unit testing.
 #'       It is designed to operate on datasets that follow a specific naming convention,
 #'       appending '_clean' to the measure_alias to construct the dataframe name.
 #'       The function throws an error if the 'interview_age' falls outside the specified range.
+#' @noRd
 checkInterviewAge <- function(measure_alias) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)

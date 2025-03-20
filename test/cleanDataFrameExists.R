@@ -9,11 +9,14 @@
 #' @return This function does not return a value but outputs a message indicating whether the specified clean data frame exists.
 #' @export
 #' @examples
+#' \dontrun{
 #' cleanDataFrameExists("your_dataset_alias", "qualtrics")
+#' }
 #' @importFrom testthat test_that expect_true
 #' @note This function assumes that the dataset, if cleaned and prepared correctly, has been named according to a standard
 #'       naming convention with a '_clean' suffix. The measure_type parameter is included for potential future functionality
 #'       but is not currently used.
+#' @noRd
 cleanDataFrameExists <- function(measure_alias, measure_type) {
   
   if (!require(testthat)) {install.packages("testthat")}; library(testthat)
