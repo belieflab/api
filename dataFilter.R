@@ -17,6 +17,8 @@
 #' @param states Optional; a vector of state conditions to filter the dataframe by. Only used 
 #'        if 'state' column exists in the dataframe. Can include values like 'complete', 
 #'        'completed baseline', 'completed 12m', 'completed 24m', etc.
+#' @param arm Optional; a condition specified as part of a trial e.g. drug, placebo
+#' @param site Optional; a site like Yale, NU 
 #' @param sex Optional; a string of sex at birth 'M', 'F'
 #' @param phenotype Optional; a string of phenotype to drill down
 #' @param interview_date Optional; a string in MM/DD/YYYY format to lock data
@@ -26,11 +28,13 @@
 #'         are specified, returns the entire dataframe with applied row filters.
 #'
 #' @examples
-#' data_filtered <- dataFilter(df, 
+#' \dontrun{
+#' filtered <- dataFilter(df, 
 #'                             rows_of_interest = c("foo","bar"),
 #'                             columns_of_interest = c("src_subject_id", "phenotype"), 
 #'                             visit = 2, 
 #'                             states = c("complete", "completed baseline"))
+#' }
 #' @import dplyr
 #' @export
 dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,

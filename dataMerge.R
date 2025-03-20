@@ -14,13 +14,14 @@
 #' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
 #'
 #' @examples
+#' \dontrun{
 #' # Perform an OUTER JOIN on 'prl' and 'rgpts' using default keys:
 #' dataMerge(prl, rgpts, all = TRUE)
 #' # Perform an INNER JOIN using 'subjectkey' as the merge key:
 #' dataMerge(prl, rgpts, by = "subjectkey", all = FALSE)
 #' # Merge multiple data frames using specified keys and export to CSV:
 #' dataMerge(prl, rgpts, lshsr, by = c("src_subject_id", "visit"), csv = TRUE)
-#'
+#' }
 #' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export

@@ -1,13 +1,38 @@
-# Input: string representation of the SINGLE raw qualtrics dataframe
-# Output: MULTIPLE subsets of the dataframes for each questionnaire
-
-# process a full dataframe that includes a collection of surveys to separate
-#   into individual dataframes for each survey including only the correct
-#   identifier: participantId, workerId, PROLIFIC_PID, or src_subject_id (default in getSurvey())
-
-
-
-
+#' Parse Qualtrics Data into Separate Survey Dataframes
+#'
+#' This function takes a raw Qualtrics dataframe containing multiple surveys and
+#' separates it into individual dataframes for each survey detected in the data.
+#' It identifies the appropriate identifier column (e.g., participantId, workerId)
+#' and splits the data based on column name prefixes.
+#'
+#' @param qualtrics_alias Character string specifying the Qualtrics survey alias to retrieve.
+#' @param label Logical; if TRUE, returns coded values as labels instead of raw values.
+#'
+#' @return Creates multiple dataframes in the global environment, one for each survey
+#'   detected in the data. Each dataframe is named after its survey prefix.
+#'   
+#' @details
+#' The function performs the following steps:
+#' \itemize{
+#'   \item Retrieves the raw Qualtrics data using the getSurvey() function
+#'   \item Identifies which identifier column to use (participantId, workerId, PROLIFIC_PID, or src_subject_id)
+#'   \item Determines survey prefixes by analyzing column names
+#'   \item Creates separate dataframes for each survey prefix found
+#'   \item Assigns each dataframe to the global environment with names matching the survey prefixes
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Parse a Qualtrics export containing multiple surveys
+#' dataParse("combined_surveys", label = FALSE)
+#' 
+#' # After running, access individual survey dataframes directly:
+#' head(pss)  # Access the PSS survey dataframe
+#' head(cesd) # Access the CESD survey dataframe
+#' }
+#'
+#' @importFrom dplyr filter select
+#' @export
 dataParse <- function(qualtrics_alias, label){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
@@ -80,5 +105,3 @@ dataParse <- function(qualtrics_alias, label){
   
   return(list2env(output, globalenv()))
 }
-
-
