@@ -6,6 +6,7 @@ if (!require(dplyr)) { install.packages("dplyr") }; library(dplyr)
 
 #' Cross-platform memory check function
 #' @return List containing total and available memory in GB
+#' @noRd
 getAvailableMemory <- function() {
       tryCatch({
         if (.Platform$OS.type == "windows") {
@@ -125,7 +126,10 @@ getAvailableMemory <- function() {
 
 #' Calculate optimal resource parameters
 #' @param total_records Total number of records to process
+#' @param mem_info Memory information structure
+#' @param num_cores Number of CPU cores
 #' @return List containing optimal chunk size and number of workers
+#' @noRd
 calculateResourceParams <- function(total_records, mem_info, num_cores) {
   # Default values
   params <- list(
@@ -160,6 +164,7 @@ calculateResourceParams <- function(total_records, mem_info, num_cores) {
 #' Initialize a clean loading animation
 #' @param steps Number of steps in the process
 #' @return Loading animation object
+#' @noRd
 initializeLoadingAnimation <- function(steps) {
   list(
     steps = steps,
@@ -172,6 +177,7 @@ initializeLoadingAnimation <- function(steps) {
 #' Update the loading animation
 #' @param pb Loading animation object
 #' @param current Current step
+#' @noRd
 updateLoadingAnimation <- function(pb, current) {
   pb$current <- current
   percentage <- round(current / pb$steps * 100)
@@ -186,12 +192,18 @@ updateLoadingAnimation <- function(pb, current) {
 
 #' Complete the loading animation
 #' @param pb Loading animation object
+#' @noRd
 completeLoadingAnimation <- function(pb) {
   updateLoadingAnimation(pb, pb$steps)
   cat("\n")
 }
 
-#' Format duration in a human-friendly way
+#' Format a time duration in a human-readable way
+#' 
+#' @name formatDuration
+#' @param duration The duration to format in seconds or minutes
+#' @return A formatted string representing the duration
+#' @noRd
 formatDuration <- function(duration) {
   secs <- as.numeric(duration, units = "secs")
   if (secs < 60) {
@@ -237,25 +249,24 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
   
-  # Source dependencies
-  lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
-  
-  # Validate config
-  base::source("api/ConfigEnv.R")
-  validate_config("mongo")
+  # Get configuration
+  cfg <- validate_config("mongo")
   
   if (is.null(db_name)) {
-    db_name <- config$mongo$collection
+    db_name <- cfg$mongo$collection
   }
   
   # Validate identifier
-  identifier <- config$identifier
+  if (is.null(identifier)) {
+    identifier <- cfg$identifier
+  }
+  
   if (is.null(identifier) || any(identifier == "")) {
     stop("No identifier specified in the config file.")
   }
   
   # Try connecting - will now throw explicit error if collection doesn't exist
-  Mongo <- Connect(collection_name, db_name)
+  Mongo <- ConnectMongo(collection_name, db_name)
   
   # Find valid identifier
   if (is.null(identifier)) {
@@ -315,8 +326,8 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
     }
   }
   
-  message(sprintf("Processing: %d chunks × %d records in parallel (%d workers)", 
-                  params$num_chunks, params$chunk_size, params$workers))  
+message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)", 
+                params$num_chunks, params$chunk_size, params$workers))
   
   # Setup chunks
   num_chunks <- ceiling(total_records / chunk_size)
@@ -353,7 +364,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
       })
       
       tryCatch({
-        chunk_mongo <- Connect(collection_name, db_name)
+        chunk_mongo <- ConnectMongo(collection_name, db_name)
         batch_info <- chunks[[i]]
         if (!is.null(batch_info) && !is.null(batch_info$start) && !is.null(batch_info$size)) {
           data_chunk <- getMongoData(chunk_mongo, identifier, batch_info)
@@ -371,7 +382,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   }
   
   # Collect results
-  results <- lapply(future_results, value)
+  results <- lapply(future_results, future::value)
   
   # Combine results
   # message("\nCombining data chunks...")
@@ -380,7 +391,7 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   
   # Harmonize data
   message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)  # Prevents line feed
-  clean_df <- dataHarmonization(df, identifier, collection_name)
+  clean_df <- taskHarmonization(df, identifier, collection_name)
   Sys.sleep(0.5)  # Optional: small pause for visual effect
   message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
   # "\u2713"
@@ -421,14 +432,16 @@ createChunks <- function(total_records, chunk_size) {
 
 #' Setup MongoDB connection with suppressed messages
 #' @param collection_name The name of the collection you want to connect to.
-#' @param db_dname The name of the database you cant to connect to.
+#' @param db_name The name of the database you cant to connect to.
 #' @return A mongolite::mongo object representing the connection to the MongoDB collection.
-Connect <- function(collection_name, db_name) {
+#' @noRd
+ConnectMongo <- function(collection_name, db_name) {
   # Validate secrets
   base::source("api/SecretsEnv.R")
   validate_secrets("mongo")
   
-  config <- config::get()
+  base::source("api/ConfigEnv.R")
+  config <- validate_config("mongo")
   
   if (is.null(db_name)) {
     db_name = config$mongo$collection
@@ -503,8 +516,10 @@ disconnectMongo <- function(mongo) {
 #' @param batch_info List containing 'start' and 'size' defining the batch to fetch.
 #' @return A data.frame with the filtered data or NULL if no valid data is found or in case of error.
 #' @examples
-#' df <- getMongoData("task_name", list(start = 0, size = 100), Mongo, "src_subject_id")
-#' @export
+#' # This example assumes 'Mongo' is a MongoDB connection
+#' # batch_info <- list(start = 0, size = 100)
+#' # df <- getMongoData(Mongo, "src_subject_id", batch_info)
+#' @noRd
 getMongoData <- function(Mongo, identifier, batch_info) {
   # Check for both exists AND non-empty
   query_json <- sprintf('{"%s": {"$exists": true, "$ne": ""}}', identifier)
@@ -535,7 +550,7 @@ getMongoData <- function(Mongo, identifier, batch_info) {
 }
 
 
-#' Data Harmonization Function
+#' Task Data Harmonization Function
 #'
 #' This function performs data cleaning and preparation tasks, including handling missing values, 
 #' converting date formats, and adding necessary columns. It is tailored for a specific dataset 
@@ -550,12 +565,19 @@ getMongoData <- function(Mongo, identifier, batch_info) {
 #' converted interview dates, and added 'measure' column based on the task.
 #'
 #' @examples
-#' # Assuming 'df' is your dataset, 'src_subject_id' is your identifier, and 'rgpts' is your task:
-#' harmonized_data <- dataHarmonization(df, 'src_subject_id', 'task1')
+#' \dontrun{
+#' # Create a sample dataset
+#' df <- data.frame(
+#'   src_subject_id = 1:3,
+#'   visit = c("bl", "6m", "12m"),
+#'   score = c(10, 20, 30)
+#' )
+#' harmonized_data <- taskHarmonization(df, 'src_subject_id', 'task1')
+#' }
 #'
 #' @importFrom stats setNames
-#' @export
-dataHarmonization <- function(df, identifier, collection_name) {
+#' @noRd
+taskHarmonization <- function(df, identifier, collection_name) {
   
   # Ensure 'visit' column exists and update it as necessary
   if (!("visit" %in% colnames(df))) {
@@ -585,8 +607,6 @@ dataHarmonization <- function(df, identifier, collection_name) {
   
 }
 
-
-
 getCollectionsFromConnection <- function(mongo_connection) {
   collections <- mongo_connection$run('{"listCollections":1,"nameOnly":true}')
   return(collections$cursor$firstBatch$name)
@@ -600,11 +620,22 @@ getCollections <- function() {
   })
   
   # Connect to any default collection just to get connection
-  Mongo <- Connect("system.namespaces", silent_validation = TRUE)
+  # Mongo <- ConnectMongo("system.namespaces", silent_validation = TRUE)
+  Mongo <- ConnectMongo("system.namespaces")
   collections <- getCollectionsFromConnection(Mongo)
   return(collections)
 }
 
 
-#' Alias for 'getTask'
+#' Alias for 'getMongo'
+#'
+#' This is a legacy alias for the 'getMongo' function to maintain compatibility with older code.
+#'
+#' @inheritParams getMongo
+#' @inherit getMongo return
+#' @export
+#' @examples
+#' \dontrun{
+#' survey_data <- getTask("task_alias")
+#' }
 getTask <- getMongo
