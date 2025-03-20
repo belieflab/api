@@ -32,11 +32,11 @@
 #'   )
 #'   
 #'   # Create the NDA template
-#'   ndaTemplate("eefrt01")
+#'   createNda("eefrt01")
 #' }
 #'
 #' @export
-ndaTemplate <- function(df) {
+createNda <- function(df) {
   if (!dir.exists("nda")) {
     dir.create("nda")
   }
