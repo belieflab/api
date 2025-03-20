@@ -1,9 +1,9 @@
-#' Data Request
+#' NDA Request
 #'
 #' This function processes requests for clean data sequentially for specified measures.
-#' It makes a request to the appropriate API for the named measure or measures
-#' and runs the associated data cleaning routines. It then runs a series of
-#' unit tests to verify that the data quality standardata are met.
+#' It makes a request to the NIH NDA API for the named data structures
+#' and runs the associated data remediation routines. It then runs a series of
+#' unit tests to verify that the data quality standards are met.
 #'
 #' @param ... Strings, specifying the measures to process, which can be a Mongo collection, REDCap instrument, or Qualtrics survey.
 #' @param csv Optional; Boolean, if TRUE creates a .csv extract in ./tmp.
@@ -13,15 +13,13 @@
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
-#' dataRequest("prl", csv=TRUE)
-#' dataRequest("rgpts", "kamin", rdata=TRUE)
+#' \dontrun{
+#'   ndaRequest("prl", csv=TRUE)
+#'   ndaRequest("rgpts", "kamin", rdata=TRUE)
+#' }
 #' 
-#' #' @author Joshua Kenney <joshua.kenney@yale.edu>
+#' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' 
-#' 
-
-
-
 ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
   
   start_time <- Sys.time()

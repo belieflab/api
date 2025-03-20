@@ -10,6 +10,7 @@
 #' @import httr
 #' @import jsonlite
 #' @import dplyr
+#' @noRd
 
 # Function to handle missing required fields
 handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
