@@ -1,16 +1,3 @@
-#' Request and Validate Data Against NDA Structure
-#'
-#' This function takes a measure name and validates the associated dataframe against 
-#' the NDA data structure by checking field names, types, and requirements against the NDA API.
-#'
-#' @param measure_name Character string of the measure name to validate
-#' @param api_base_url Character string of the NDA API base URL (optional)
-#' @return List containing validation results and any mismatches found
-#'
-#' @import httr
-#' @import jsonlite
-#' @import dplyr
-#' @noRd
 
 # Function to handle missing required fields
 handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
@@ -561,7 +548,7 @@ fetch_structure_elements <- function(structure_name, api_base_url) {
   url <- sprintf("%s/datastructure/%s", api_base_url, structure_name)
   response <- httr::GET(url)
   
-  if (status_code(response) != 200) {
+  if (httr::status_code(response) != 200) {
     stop("Failed to fetch structure elements: ", content(response, "text"))
   }
   
