@@ -344,7 +344,7 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
     prl01 = list(
       path = file.path(path, "nda", "mongo", "prl01.R"),
       content = paste(
-        "prl01 <- wizaRdry::getMongo(collection_name = \"prl\", db_name = \"capr\")",
+        "prl01 <- wizaRdry::getMongo(collection_name = \"prl\", db_name = \"test\")",
         "",
         "# nda remediation code...",
         "",
