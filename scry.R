@@ -442,13 +442,14 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
   }
   
   message("\nYour next enchantments:")
-  message("1. Fill in config.yml with your project-specific settings if needed")
-  message("2. Add your API credentials to secrets.R (DO NOT COMMIT this file)")
-  message("3. Create data cleaning scripts in clean/ (e.g. clean/qualtrics/bdi.R)")
-  message("4. Create NDA remediation scripts in nda/ (e.g. nda/mongo/prl01.R)")
+  message("1.  Fill in config.yml with your study-specific configuration")
+  message("2.  Add your API credentials to secrets.R (DO NOT COMMIT this file)")
+  message("3a. Create data cleaning scripts in clean/ (e.g. clean/qualtrics/bdi.R)")
+  message("3b. Create NDA remediation scripts in nda/ (e.g. nda/mongo/prl01.R)")
+  message("4.  Call these scripts from main.R using dataRequest() and ndaRequest()")
   
   if (create_project && length(rproj_files) == 0) {
-    message("5. Open the newly created .Rproj file to work in this project environment")
+    message("5.  Open the newly created .Rproj file to work in this project environment")
   }
   
   return(invisible(TRUE))
