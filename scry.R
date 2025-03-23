@@ -209,8 +209,9 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
   main_file <- file.path(path, "main.R")
   main_template <- paste(
     "# Main analysis script for this wizaRdry project",
+    "",
     "# Load necessary libraries",
-    "# library(wizaRdry)",
+    "library(wizaRdry)",
     "",
     "# Example data request",
     "# create cleaning script in clean/",
