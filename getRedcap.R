@@ -69,7 +69,8 @@ formatDuration <- function(duration) {
 
 #' Get Data from REDCap
 #'
-#' Retrieves data from a REDCap instrument
+#' Retrieves data from a REDCap instrument and ensures subject identifiers
+#' are propagated across all events
 #'
 #' @param instrument_name Name of the REDCap instrument
 #' @param raw_or_label Whether to return raw or labeled values
@@ -78,26 +79,26 @@ formatDuration <- function(duration) {
 #' @param records Optional vector of specific record IDs
 #' @param fields Optional vector of specific fields
 #'
-#' @importFrom REDCapR redcap_read redcap_instruments redcap_metadata_read
-#' @importFrom cli console_width
-#' @importFrom knitr kable
-#'
 #' @return A data frame containing the requested REDCap data
 #' @export
 getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
                       redcap_event_name = NULL, batch_size = 1000,
                       records = NULL, fields = NULL) {
+  
   start_time <- Sys.time()
   
-  if (!require(config)) install.packages("config"); library(config)
-  if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-  if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
+  #if (!require(config)) install.packages("config"); library(config)
+  #if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
+  #if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
   
-  # Validate secrets
+  # Validate secrets and config
   base::source("api/SecretsEnv.R")
   validate_secrets("redcap")
   
-  # Input validation and config setup
+  base::source("api/ConfigEnv.R")
+  config <- validate_config("redcap")
+  
+  # Input validation
   if (is.null(instrument_name)) {
     forms_data <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
     forms_filtered <- forms_data[!grepl("nda", forms_data$instrument_name), ]
@@ -109,10 +110,6 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
          call. = FALSE)
   }
   
-  # Validate config
-  base::source("api/ConfigEnv.R")
-  config <- validate_config("redcap")
-  
   # Progress bar
   pb <- initializeLoadingAnimation(20)
   message(sprintf("\nImporting records from REDCap form: %s", instrument_name))
@@ -123,30 +120,21 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   completeLoadingAnimation(pb)
   message("")
   
-  # First try the simple approach
-  tryCatch({
-    df <- REDCapR::redcap_read(
-      redcap_uri = uri,
-      token = token,
-      forms = c(config$redcap$super_keys, instrument_name),
-      batch_size = batch_size,
-      records = records,
-      fields = fields,
-      raw_or_label = raw_or_label,
-      raw_or_label_headers = "raw",
-      verbose = TRUE
-    )$data
-    
-    # Quick validation check - if we're missing key data, throw an error to trigger fallback
-    required_cols <- c("src_subject_id", "subjectkey")  # Add other required columns as needed
-    if (!all(required_cols %in% names(df))) {
-      stop("Missing required columns in simple merge")
-    }
-  }, error = function(e) {
-    # If simple approach fails, try the separate keys approach
-    message("\nAttempting alternative data retrieval method...")
-    
-    # Get super_keys data from ALL event forms
+  # Get both instrument data and super keys data separately
+  instrument_data <- REDCapR::redcap_read(
+    redcap_uri = uri,
+    token = token,
+    forms = instrument_name,
+    batch_size = batch_size,
+    records = records,
+    fields = fields,
+    raw_or_label = raw_or_label,
+    raw_or_label_headers = "raw",
+    verbose = TRUE
+  )$data
+  
+  # Get super keys data if the super keys form is defined
+  if (!is.null(config$redcap$super_keys)) {
     super_keys_data <- REDCapR::redcap_read(
       redcap_uri = uri,
       token = token,
@@ -158,74 +146,52 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
       verbose = TRUE
     )$data
     
-    # Get instrument data
-    instrument_data <- REDCapR::redcap_read(
-      redcap_uri = uri,
-      token = token,
-      forms = instrument_name,
-      batch_size = batch_size,
-      records = records,
-      fields = fields,
-      raw_or_label = raw_or_label,
-      raw_or_label_headers = "raw",
-      verbose = TRUE
-    )$data
-    
-    # Get unique identifiers that don't change across event forms
-    id_keys <- base::setdiff(base::intersect(names(super_keys_data), names(instrument_data)),
-                             c("redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
-    
-    # Debug: Print number of unique subjects and event forms
-    message(sprintf("Found %d unique subjects across %d event forms", 
-                    length(unique(super_keys_data[, id_keys[1]])),
-                    length(unique(super_keys_data$redcap_event_name))))
-    
-    # Create a more robust key consolidation approach
-    key_cols <- base::setdiff(names(super_keys_data), 
-                              c(id_keys, "redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
-    
-    # Create an empty data frame to store the combined super keys
-    super_keys_combined <- data.frame(matrix(NA, 
-                                             nrow = length(unique(super_keys_data[, id_keys[1]])), 
-                                             ncol = length(c(id_keys, key_cols))))
-    names(super_keys_combined) <- c(id_keys, key_cols)
-    
-    # Process each subject's data
-    row_idx <- 1
-    for (subject_id in unique(super_keys_data[, id_keys[1]])) {
-      # Get all rows for this subject
-      subject_data <- super_keys_data[super_keys_data[, id_keys[1]] == subject_id, ]
+    # Only process super keys if we have both datasets
+    if (nrow(instrument_data) > 0 && nrow(super_keys_data) > 0) {
+      # Merge instrument data with super keys
+      df <- base::merge(instrument_data, super_keys_data, 
+                  by = c("record_id", "redcap_event_name"), 
+                  all.x = TRUE)
       
-      # Set the ID columns
-      for (key in id_keys) {
-        super_keys_combined[row_idx, key] <- subject_data[1, key]
-      }
-      
-      # For each super key column, find the first non-NA value
-      for (col in key_cols) {
-        if (col %in% names(subject_data)) {
-          non_na_values <- subject_data[!is.na(subject_data[, col]), col]
-          if (length(non_na_values) > 0) {
-            super_keys_combined[row_idx, col] <- non_na_values[1]
+      # Now propagate any super key values across events
+      if ("record_id" %in% names(df)) {
+        # Find all possible super key fields
+        super_key_cols <- setdiff(names(super_keys_data), 
+                                  c("record_id", "redcap_event_name", 
+                                    "redcap_repeat_instrument", "redcap_repeat_instance"))
+        
+        # Keep only fields that exist in our merged data
+        super_key_cols <- super_key_cols[super_key_cols %in% names(df)]
+        
+        if (length(super_key_cols) > 0) {
+          message("Propagating super keys across all events for each subject...")
+          
+          # For each subject
+          for (subject_id in unique(df$record_id)) {
+            # Get all rows for this subject
+            subject_rows <- which(df$record_id == subject_id)
+            
+            # For each super key field, propagate non-NA values
+            for (key_field in super_key_cols) {
+              key_values <- df[subject_rows, key_field]
+              non_na_values <- key_values[!is.na(key_values)]
+              
+              if (length(non_na_values) > 0) {
+                # Use the first non-NA value for all events of this subject
+                df[subject_rows, key_field] <- non_na_values[1]
+              }
+            }
           }
         }
       }
-      
-      row_idx <- row_idx + 1
+    } else {
+      # If either dataset is empty, just use the instrument data
+      df <- instrument_data
     }
-    
-    # Now merge with instrument data preserving redcap_event_name from instrument data
-    df <- dplyr::left_join(instrument_data, super_keys_combined, by = id_keys)
-    
-    # Debug: Check if required columns exist in the merged result
-    required_cols <- c("src_subject_id", "subjectkey")
-    for (col in required_cols) {
-      message(sprintf("Column '%s' exists in result: %s", col, col %in% names(df)))
-    }
-  })
-  
-  # Add measure column
-  # df$measure <- instrument_name
+  } else {
+    # If no super keys form defined, just use the instrument data
+    df <- instrument_data
+  }
   
   # For interview_age columns
   age_cols <- grep("_interview_age$", base::names(df))
@@ -233,9 +199,19 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     base::names(df)[age_cols] <- "interview_age"
   }
   
-  # For interview_date columns
-  date_cols <- grep("_interview_date$", base::names(df))
-  if (length(date_cols) > 0) {
+  # For interview_date columns - more robust handling
+  date_patterns <- c("_interview_date$", "interview_date") 
+  date_cols <- NULL
+  
+  for (pattern in date_patterns) {
+    found_cols <- grep(pattern, base::names(df), ignore.case = TRUE)
+    if (length(found_cols) > 0) {
+      date_cols <- found_cols
+      break  # Stop at first pattern that finds matches
+    }
+  }
+  
+  if (!is.null(date_cols) && length(date_cols) > 0) {
     base::names(df)[date_cols] <- "interview_date"
   }
   
