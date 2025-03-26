@@ -1165,8 +1165,28 @@ ndaValidator <- function(measure_name,
                          verbose = TRUE,
                          debug = FALSE) {
   tryCatch({
-    # Get the dataframe from the global environment
-    df <- base::get(measure_name, envir = .wizaRdry_env)
+    # Initialize the wizaRdry environment if it doesn't exist
+    if (!exists(".wizaRdry_env")) {
+      .wizaRdry_env <- new.env(parent = globalenv())
+    }
+    
+    # Try to get the dataframe from either environment
+    df <- tryCatch({
+      # First try the wizaRdry environment
+      base::get(measure_name, envir = .wizaRdry_env)
+    }, error = function(e) {
+      # If that fails, try the global environment
+      tryCatch({
+        result <- base::get(measure_name, envir = globalenv())
+        # Copy to wizaRdry environment for future use
+        assign(measure_name, result, envir = .wizaRdry_env)
+        return(result)
+      }, error = function(e2) {
+        # If both fail, provide a helpful error message
+        stop(sprintf("Cannot find object '%s' in any environment", measure_name))
+      })
+    })
+    
     debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
