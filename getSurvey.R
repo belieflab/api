@@ -222,8 +222,8 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
 #'
 #' @param qualtrics_df Data frame obtained from Qualtrics.
 #' @return A list containing the mappings of column names to survey questions.
-#' @noRd
-getDictionary <- function(qualtrics_df) {
+#' @export
+getQualtricsDictionary <- function(qualtrics_df) {
   return(qualtRics::extract_colmap(respdata = qualtrics_df))
 }
 
