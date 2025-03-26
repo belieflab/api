@@ -84,8 +84,8 @@ formatDuration <- function(duration) {
 #'
 #' @return A data frame containing the requested REDCap data
 #' @export
-getRedcap <- function(instrument_name = NULL, raw_or_label = "raw", 
-                      redcap_event_name = NULL, batch_size = 1000, 
+getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
+                      redcap_event_name = NULL, batch_size = 1000,
                       records = NULL, fields = NULL) {
   start_time <- Sys.time()
   
@@ -102,7 +102,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     forms_data <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
     forms_filtered <- forms_data[!grepl("nda", forms_data$instrument_name), ]
     random_instrument <- sample(forms_filtered$instrument_name, 1)
-    forms_table <- paste(capture.output(print(getForms())), collapse = "\n")
+    forms_table <- paste(capture.output(print(getRedcapForms())), collapse = "\n")
     example_text <- sprintf("\n\nExample:\n%s <- getRedcap(\"%s\")", random_instrument, random_instrument)
     stop(sprintf("No REDCap Instrument Name provided!\n%s%s",
                  forms_table, example_text),
@@ -112,7 +112,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   # Validate config
   base::source("api/ConfigEnv.R")
   config <- validate_config("redcap")
-
+  
   # Progress bar
   pb <- initializeLoadingAnimation(20)
   message(sprintf("\nImporting records from REDCap form: %s", instrument_name))
@@ -172,17 +172,56 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     )$data
     
     # Get unique identifiers that don't change across event forms
-    id_keys <- base::setdiff(base::intersect(names(super_keys_data), names(instrument_data)), 
-                       c("redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
+    id_keys <- base::setdiff(base::intersect(names(super_keys_data), names(instrument_data)),
+                             c("redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
     
-    # First gather all combinations of super keys by subject ID
-    super_keys_combined <- super_keys_data %>%
-      dplyr::group_by_at(id_keys) %>%
-      dplyr::summarize_all(~ ifelse(all(is.na(.)), NA, na.omit(.)[1])) %>%
-      dplyr::ungroup()
+    # Debug: Print number of unique subjects and event forms
+    message(sprintf("Found %d unique subjects across %d event forms", 
+                    length(unique(super_keys_data[, id_keys[1]])),
+                    length(unique(super_keys_data$redcap_event_name))))
+    
+    # Create a more robust key consolidation approach
+    key_cols <- base::setdiff(names(super_keys_data), 
+                              c(id_keys, "redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
+    
+    # Create an empty data frame to store the combined super keys
+    super_keys_combined <- data.frame(matrix(NA, 
+                                             nrow = length(unique(super_keys_data[, id_keys[1]])), 
+                                             ncol = length(c(id_keys, key_cols))))
+    names(super_keys_combined) <- c(id_keys, key_cols)
+    
+    # Process each subject's data
+    row_idx <- 1
+    for (subject_id in unique(super_keys_data[, id_keys[1]])) {
+      # Get all rows for this subject
+      subject_data <- super_keys_data[super_keys_data[, id_keys[1]] == subject_id, ]
+      
+      # Set the ID columns
+      for (key in id_keys) {
+        super_keys_combined[row_idx, key] <- subject_data[1, key]
+      }
+      
+      # For each super key column, find the first non-NA value
+      for (col in key_cols) {
+        if (col %in% names(subject_data)) {
+          non_na_values <- subject_data[!is.na(subject_data[, col]), col]
+          if (length(non_na_values) > 0) {
+            super_keys_combined[row_idx, col] <- non_na_values[1]
+          }
+        }
+      }
+      
+      row_idx <- row_idx + 1
+    }
     
     # Now merge with instrument data preserving redcap_event_name from instrument data
     df <- dplyr::left_join(instrument_data, super_keys_combined, by = id_keys)
+    
+    # Debug: Check if required columns exist in the merged result
+    required_cols <- c("src_subject_id", "subjectkey")
+    for (col in required_cols) {
+      message(sprintf("Column '%s' exists in result: %s", col, col %in% names(df)))
+    }
   })
   
   # Add measure column
@@ -224,7 +263,6 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
-
   return(df)
   # comment into add prefixes (will break code)
   #return(addPrefixToColumnss(df,instrument_name))
