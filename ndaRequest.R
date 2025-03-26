@@ -135,7 +135,7 @@ processNda <- function(measure, api, csv, rdata, spss, identifier, start_time, l
   
   # Construct the path to the measure's cleaning script
   file_path <- sprintf("./nda/%s/%s.R", api, measure)
-  message("\nFetching ", measure, " with nda/", api, "/", measure,".R\n")
+  message("\nFetching ", measure, " with ./nda/", api, "/", measure,".R\n")
   
   # Setup cleanup on exit
   on.exit({
