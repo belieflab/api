@@ -155,47 +155,69 @@ processNda <- function(measure, api, csv, rdata, spss, identifier, start_time, l
   
   result <- tryCatch({
     base::source(file_path)  # Execute the cleaning script for the measure
-    # Apply date format preservation after processing
-    # Get the data frame from global environment
-    df <- base::get0(measure, envir = .GlobalEnv)
+    
+    # Initialize the wizaRdry environment if it doesn't exist
+    if (!exists(".wizaRdry_env")) {
+      .wizaRdry_env <- new.env(parent = globalenv())
+    }
+    
+    # Try to get the dataframe from global environment
+    df <- tryCatch({
+      # Get the dataframe from the global environment
+      result <- base::get(measure, envir = globalenv())
+      
+      # Copy to wizaRdry environment for future use
+      assign(measure, result, envir = .wizaRdry_env)
+      
+      return(result)
+    }, error = function(e) {
+      # If not in global env, try wizaRdry env
+      tryCatch({
+        base::get(measure, envir = .wizaRdry_env)
+      }, error = function(e2) {
+        stop(sprintf("Cannot find object '%s' in any environment", measure))
+      })
+    })
     
     # Only process if df exists and is a data frame
     if (!is.null(df) && is.data.frame(df)) {
-      # Reassign the processed data frame
-      base::assign(measure, df, envir = .GlobalEnv)
+      # Reassign the processed data frame to both environments
+      base::assign(measure, df, envir = globalenv())
+      base::assign(measure, df, envir = .wizaRdry_env)
     }
     
     if (api == "qualtrics") {
       # Remove specified qualtrics columns
-      cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)", 
-                          "Finished", "RecordedDate", "ResponseId", "DistributionChannel", 
+      cols_to_remove <- c("StartDate", "EndDate", "Status", "Progress", "Duration (in seconds)",
+                          "Finished", "RecordedDate", "ResponseId", "DistributionChannel",
                           "UserLanguage", "candidateId", "studyId", "measure", "ATTN", "ATTN_1", "SC0")
       df <- df[!names(df) %in% cols_to_remove]
       
-      # Reassign the filtered dataframe to the global environment
-      base::assign(measure, df, envir = .GlobalEnv)
+      # Reassign the filtered dataframe to both environments
+      base::assign(measure, df, envir = globalenv())
+      base::assign(measure, df, envir = .wizaRdry_env)
       
       source("api/test/ndaCheckQualtricsDuplicates.R")
-      ndaCheckQualtricsDuplicates(measure,"qualtrics")
+      ndaCheckQualtricsDuplicates(measure, "qualtrics")
       
       # show missing data that needs filled
       missing_data <- df[is.na(df$src_subject_id) | is.na(df$subjectkey) | is.na(df$interview_age) | is.na(df$interview_date) | is.na(df$sex), ]
       if (nrow(missing_data) > 0) {
         View(missing_data)
       }
-     
     }
     
     # Run validation
-    base::source("api/ndaValidator.R")
     validation_results <- ndaValidator(measure, api, limited_dataset)
     
     # Now apply date format preservation AFTER validation
-    df <- base::get0(measure, envir = .GlobalEnv)
-    # if (!is.null(df) && is.data.frame(df)) {
-    #   df <- preserveDateFormat(df, limited_dataset)
-    #   base::assign(measure, df, envir = .GlobalEnv)
-    # }
+    df <- tryCatch({
+      # Try global environment first
+      base::get(measure, envir = globalenv())
+    }, error = function(e) {
+      # Then try wizaRdry environment
+      base::get(measure, envir = .wizaRdry_env)
+    })
     
     # Add limited de-identification summary
     if (limited_dataset == FALSE) {
