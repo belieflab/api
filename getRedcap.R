@@ -87,9 +87,9 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   
   start_time <- Sys.time()
   
-  #if (!require(config)) install.packages("config"); library(config)
-  #if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-  #if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
+  if (!require(config)) install.packages("config"); library(config)
+  if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
+  if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
   
   # Validate secrets and config
   base::source("api/SecretsEnv.R")
@@ -110,9 +110,43 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
          call. = FALSE)
   }
   
+  # Check if the config$redcap$super_keys exists
+  if (is.null(config$redcap$super_keys)) {
+    stop("No super_keys form defined in config. Please check your configuration.")
+  }
+  
+  # Check if the instrument exists before trying to retrieve data
+  tryCatch({
+    forms_data <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
+    
+    # Ensure instrument_name is properly trimmed
+    instrument_name <- trimws(instrument_name)
+    
+    if (instrument_name %in% forms_data$instrument_name) {
+      # Instrument exists, continue
+    } else {
+      # Format available instruments in a readable way
+      available_forms <- paste(sort(forms_data$instrument_name), collapse = "\n- ")
+      stop(sprintf("\nInstrument '%s' not found in REDCap for %s.\n\nAvailable instruments:\n- %s", 
+                   instrument_name, toupper(config$study_alias), available_forms))
+    }
+  }, error = function(e) {
+    if (grepl("not found in REDCap", e$message)) {
+      # This is our custom error, pass it through
+      stop(e$message, call. = FALSE)
+    } else {
+      # This is an unexpected error
+      stop(sprintf("Error connecting to REDCap: %s", e$message), call. = FALSE)
+    }
+  })
+  
   # Progress bar
   pb <- initializeLoadingAnimation(20)
-  message(sprintf("\nImporting records from REDCap form: %s", instrument_name))
+  message(sprintf("\nImporting records from REDCap form: %s%s", 
+                  instrument_name, 
+                  ifelse(!is.null(redcap_event_name), 
+                         sprintf(" %s", redcap_event_name), 
+                         "")))
   for (i in 1:20) {
     updateLoadingAnimation(pb, i)
     Sys.sleep(0.1)
@@ -120,77 +154,61 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   completeLoadingAnimation(pb)
   message("")
   
-  # Get both instrument data and super keys data separately
-  instrument_data <- REDCapR::redcap_read(
+  # Try the one-call approach
+  df <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
-    forms = instrument_name,
+    forms = c(config$redcap$super_keys, instrument_name),
     batch_size = batch_size,
     records = records,
     fields = fields,
     raw_or_label = raw_or_label,
     raw_or_label_headers = "raw",
-    verbose = TRUE
+    verbose = FALSE
   )$data
   
-  # Get super keys data if the super keys form is defined
-  if (!is.null(config$redcap$super_keys)) {
-    super_keys_data <- REDCapR::redcap_read(
-      redcap_uri = uri,
-      token = token,
-      forms = config$redcap$super_keys,
-      batch_size = batch_size,
-      records = records,
-      raw_or_label = raw_or_label,
-      raw_or_label_headers = "raw",
-      verbose = TRUE
-    )$data
+  # Still propagate super key values across events
+  if ("record_id" %in% names(df) && "redcap_event_name" %in% names(df)) {
+    # Get metadata for the super_keys form to identify super key fields
+    super_key_dict <- tryCatch({
+      REDCapR::redcap_metadata_read(
+        redcap_uri = uri, 
+        token = token,
+        forms = config$redcap$super_keys,
+        verbose = FALSE
+      )$data
+    }, error = function(e) {
+      return(NULL)
+    })
     
-    # Only process super keys if we have both datasets
-    if (nrow(instrument_data) > 0 && nrow(super_keys_data) > 0) {
-      # Merge instrument data with super keys
-      df <- base::merge(instrument_data, super_keys_data, 
-                  by = c("record_id", "redcap_event_name"), 
-                  all.x = TRUE)
+    # Extract field names from dictionary or use common fields as fallback
+    if (!is.null(super_key_dict)) {
+      super_key_cols <- super_key_dict$field_name
+    }
+    
+    # Keep only fields that exist in our dataframe
+    super_key_cols <- super_key_cols[super_key_cols %in% names(df)]
+    
+    if (length(super_key_cols) > 0) {
+      message("Propagating superkey across all events for each subject...")
       
-      # Now propagate any super key values across events
-      if ("record_id" %in% names(df)) {
-        # Find all possible super key fields
-        super_key_cols <- setdiff(names(super_keys_data), 
-                                  c("record_id", "redcap_event_name", 
-                                    "redcap_repeat_instrument", "redcap_repeat_instance"))
+      # For each subject
+      for (subject_id in unique(df$record_id)) {
+        # Get all rows for this subject
+        subject_rows <- which(df$record_id == subject_id)
         
-        # Keep only fields that exist in our merged data
-        super_key_cols <- super_key_cols[super_key_cols %in% names(df)]
-        
-        if (length(super_key_cols) > 0) {
-          message("Propagating super keys across all events for each subject...")
+        # For each super key field, find a non-NA value across all events
+        for (key_field in super_key_cols) {
+          key_values <- df[subject_rows, key_field]
+          non_na_values <- key_values[!is.na(key_values)]
           
-          # For each subject
-          for (subject_id in unique(df$record_id)) {
-            # Get all rows for this subject
-            subject_rows <- which(df$record_id == subject_id)
-            
-            # For each super key field, propagate non-NA values
-            for (key_field in super_key_cols) {
-              key_values <- df[subject_rows, key_field]
-              non_na_values <- key_values[!is.na(key_values)]
-              
-              if (length(non_na_values) > 0) {
-                # Use the first non-NA value for all events of this subject
-                df[subject_rows, key_field] <- non_na_values[1]
-              }
-            }
+          if (length(non_na_values) > 0) {
+            # Propagate the first non-NA value to all events for this subject
+            df[subject_rows, key_field] <- non_na_values[1]
           }
         }
       }
-    } else {
-      # If either dataset is empty, just use the instrument data
-      df <- instrument_data
     }
-  } else {
-    # If no super keys form defined, just use the instrument data
-    df <- instrument_data
   }
   
   # For interview_age columns
@@ -239,9 +257,8 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
+  
   return(df)
-  # comment into add prefixes (will break code)
-  #return(addPrefixToColumnss(df,instrument_name))
 }
 
 
