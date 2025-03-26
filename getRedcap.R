@@ -146,7 +146,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     # If simple approach fails, try the separate keys approach
     message("\nAttempting alternative data retrieval method...")
     
-    # Get super_keys data
+    # Get super_keys data from ALL event forms
     super_keys_data <- REDCapR::redcap_read(
       redcap_uri = uri,
       token = token,
@@ -171,12 +171,18 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
       verbose = TRUE
     )$data
     
-    # Get join keys while preserving redcap_event_name
-    join_keys <- base::intersect(names(super_keys_data), names(instrument_data))
-    join_keys <- join_keys[join_keys != "redcap_event_name"]
+    # Get unique identifiers that don't change across event forms
+    id_keys <- base::setdiff(base::intersect(names(super_keys_data), names(instrument_data)), 
+                       c("redcap_event_name", "redcap_repeat_instrument", "redcap_repeat_instance"))
     
-    # Merge while preserving the instrument data's redcap_event_name
-    df <- base::merge(super_keys_data, instrument_data, by = join_keys, all.y = TRUE)
+    # First gather all combinations of super keys by subject ID
+    super_keys_combined <- super_keys_data %>%
+      dplyr::group_by_at(id_keys) %>%
+      dplyr::summarize_all(~ ifelse(all(is.na(.)), NA, na.omit(.)[1])) %>%
+      dplyr::ungroup()
+    
+    # Now merge with instrument data preserving redcap_event_name from instrument data
+    df <- dplyr::left_join(instrument_data, super_keys_combined, by = id_keys)
   })
   
   # Add measure column
@@ -225,8 +231,15 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
 }
 
 
-
-getForms <- function() {
+#' Get Available REDCap Forms
+#' 
+#' Retrieves a list of all available REDCap forms as a formatted table
+#' 
+#' @return A formatted table (kable) of available REDCap instruments/forms
+#' @importFrom REDCapR redcap_instruments
+#' @importFrom knitr kable
+#' @export
+getRedcapForms <- function() {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(knitr)) install.packages("knitr"); library(knitr)
 
@@ -240,9 +253,16 @@ getForms <- function() {
   return(knitr::kable(forms, format = "simple"))
 }
 
-getDictionary <- function(instrument_name) {
+#' Get REDCap Data Dictionary for an Instrument
+#' 
+#' Retrieves the data dictionary (metadata) for a specific REDCap instrument
+#' 
+#' @param instrument_name Name of the REDCap instrument to retrieve dictionary for
+#' @return A data frame containing the data dictionary/metadata for the specified instrument
+#' @importFrom REDCapR redcap_metadata_read
+#' @export
+getRedcapDictionary <- function(instrument_name) {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-
   # Validate secrets
   base::source("api/SecretsEnv.R")
   validate_secrets("redcap")
