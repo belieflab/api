@@ -51,7 +51,7 @@ getQualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
     }
   }
   
-  message(sprintf("Retrieving '%s' survey from %s Qualtrics.", qualtrics_alias, institution))
+  message(sprintf("Retrieving '%s' survey from %s Qualtrics...", qualtrics_alias, institution))
   
   # Connect to Qualtrics
   connectQualtrics()
