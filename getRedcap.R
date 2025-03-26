@@ -110,9 +110,9 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
          call. = FALSE)
   }
   
-  # Check if the config$redcap$super_keys exists
-  if (is.null(config$redcap$super_keys)) {
-    stop("No super_keys form defined in config. Please check your configuration.")
+  # Check if the config$redcap$superkey_form exists
+  if (is.null(config$redcap$superkey_form)) {
+    stop("No superkey_form form defined in ./config.yml. Please check your REDCap configuration.")
   }
   
   # Check if the instrument exists before trying to retrieve data
@@ -158,7 +158,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   df <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
-    forms = c(config$redcap$super_keys, instrument_name),
+    forms = c(config$redcap$superkey_form, instrument_name),
     batch_size = batch_size,
     records = records,
     fields = fields,
@@ -174,7 +174,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
       REDCapR::redcap_metadata_read(
         redcap_uri = uri, 
         token = token,
-        forms = config$redcap$super_keys,
+        forms = config$redcap$superkey_form,
         verbose = FALSE
       )$data
     }, error = function(e) {

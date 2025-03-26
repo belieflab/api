@@ -22,7 +22,7 @@ ConfigEnv <- R6::R6Class("ConfigEnv",
                                required = c("survey_ids")
                              ),
                              redcap = list(
-                               required = c("super_keys")
+                               required = c("superkey_form")
                              ),
                              sql = list(
                                required = c()  # Add required fields for SQL as needed
