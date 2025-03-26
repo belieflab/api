@@ -1165,14 +1165,8 @@ ndaValidator <- function(measure_name,
                          verbose = TRUE,
                          debug = FALSE) {
   tryCatch({
-    
-    # Initialize the wizaRdry environment if it doesn't exist
-    if (!exists(".wizaRdry_env")) {
-      .wizaRdry_env <- new.env(parent = globalenv())
-    }
     # Get the dataframe from the global environment
     df <- base::get(measure_name, envir = .wizaRdry_env)
-    
     debug_print("Initial dataframe loaded", df, debug = debug)
     
     # Get structure name
