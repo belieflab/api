@@ -14,14 +14,14 @@
 #' @importFrom base source
 #' @examples
 #' createExtract(mtcars, "mtcars_export", csv = TRUE, rds = TRUE, spss = FALSE)
-#' @export
+#' @noRd
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 
 createExtract <- function(df, df_name, csv=NULL, rdata=NULL, spss=NULL) {
   
-  base::source("api/src/createCsv.R")
-  base::source("api/src/createRda.R")
-  base::source("api/src/createSpss.R")
+  source("api/src/createCsv.R")
+  source("api/src/createRda.R")
+  source("api/src/createSpss.R")
   
   if (!is.null(csv) && csv) {
     createCsv(df, df_name)
