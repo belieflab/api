@@ -542,10 +542,13 @@ parse_array_string <- function(value) {
 # Helper function to fetch structure elements from API
 fetch_structure_elements <- function(structure_name, nda_base_url) {
   
+  # Save the URL parameter to a local variable with a different name to avoid conflicts
+  api_url <- nda_base_url
+  
   if (!require(httr)) {install.packages("httr")}; library(httr)
   if (!require(jsonlite)) {install.packages("jsonlite")}; library(jsonlite)
   
-  url <- sprintf("%s/datastructure/%s", nda_base_url, structure_name)
+  url <- sprintf("%s/datastructure/%s", api_url, structure_name)
   response <- httr::GET(url)
   
   if (httr::status_code(response) != 200) {
