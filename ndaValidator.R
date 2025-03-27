@@ -1164,19 +1164,9 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
 ndaValidator <- function(measure_name,
                          source,
                          limited_dataset = FALSE,
-                         nda_base_url = NULL,  # Change parameter default
+                         nda_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE) {
-  # Get nda_base_url from package environment if not provided
-  if (is.null(nda_base_url)) {
-    if (exists(".wizaRdry_env") && exists("nda_base_url", envir = .wizaRdry_env)) {
-      nda_base_url <- get("nda_base_url", envir = .wizaRdry_env)
-    } else {
-      nda_base_url <- "https://nda.nih.gov/api/datadictionary/v2"  # Fallback default
-    }
-  }
-  
-  # Rest of function remains the same...
   tryCatch({
     if (!exists(".wizaRdry_env")) {
       .wizaRdry_env <- new.env(parent = globalenv())
