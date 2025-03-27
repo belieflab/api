@@ -11,7 +11,6 @@
 #' @param csv Logical; if TRUE, a CSV file is created using the `createCsv` function.
 #' @param rdata Logical; if TRUE, an RDS file is created using the `createRda` function.
 #' @param spss Logical; if TRUE, an SPSS file is created using the `createSpss` function.
-#' @importFrom base source
 #' @examples
 #' createExtract(mtcars, "mtcars_export", csv = TRUE, rds = TRUE, spss = FALSE)
 #' @noRd
