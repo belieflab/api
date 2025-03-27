@@ -736,7 +736,7 @@ get_violations <- function(value, range_str) {
 
 # Main validation logic function
 # Modified validate_structure function with better error handling
-validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
+validate_structure <- function(df, elements, measure_name, api, verbose = FALSE) {
   if(verbose) cat("\nValidating data structure...")
   
   results <- list(
@@ -769,14 +769,144 @@ validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
     # }
     
     # Check for unknown fields
+    # results$unknown_fields <- setdiff(df_cols, valid_fields)
+    # if(length(results$unknown_fields) > 0) {
+    #   if(verbose) {
+    #     cat("\n\nUnknown fields detected:")
+    #     cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
+    #   }
+    #   # No longer dropping fields here
+    #   results$valid <- FALSE  # Keep failing validation if unknown fields exist
+    # }
+    
+    # Check for unknown fields, allow user to drop and append to cleaning script
+    # Check for unknown fields
     results$unknown_fields <- setdiff(df_cols, valid_fields)
     if(length(results$unknown_fields) > 0) {
       if(verbose) {
         cat("\n\nUnknown fields detected:")
         cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
+        
+        # Ask user if they want to drop unknown fields
+        user_choice <- readline(prompt = "Do you want to drop these unknown fields? (y/n): ")
+        
+        if(tolower(user_choice) == "y" || tolower(user_choice) == "yes") {
+          # Drop the unknown fields
+          df <- df[, !names(df) %in% results$unknown_fields]
+          
+          # Determine which environment contains the original dataframe
+          env_to_use <- NULL
+          if(exists(measure_name, envir = globalenv())) {
+            env_to_use <- globalenv()
+          } else if(exists(".wizaRdry_env") && exists(measure_name, envir = .wizaRdry_env)) {
+            env_to_use <- .wizaRdry_env
+          }
+          
+          # Update the dataframe in the appropriate environment
+          if(!is.null(env_to_use)) {
+            assign(measure_name, df, envir = env_to_use)
+            cat("\nUnknown fields have been dropped.")
+            
+            # Generate R code to remove these columns and append to the cleaning script
+            # Generate R code to remove these columns and append to the cleaning script
+            tryCatch({
+              # Make sure api and measure_name are character strings
+              api_str <- as.character(api)
+              measure_name_str <- as.character(measure_name)
+              
+              # First try the expected path in nda directory
+              cleaning_script_path <- file.path(".", "nda", api_str, paste0(measure_name_str, ".R"))
+              
+              # If not found, also check in clean directory (common alternative location)
+              if (!file.exists(cleaning_script_path)) {
+                alt_path <- file.path(".", "clean", api_str, paste0(measure_name_str, ".R"))
+                if (file.exists(alt_path)) {
+                  cleaning_script_path <- alt_path
+                  cat("\nFound cleaning script in alternative location:", cleaning_script_path)
+                }
+              }
+              
+              cat("\nAttempting to update cleaning script at:", cleaning_script_path)
+              cat("\nFile exists:", file.exists(cleaning_script_path))
+              
+              if(file.exists(cleaning_script_path)) {
+                # Read existing content
+                existing_content <- readLines(cleaning_script_path)
+                cat("\nExisting script has", length(existing_content), "lines")
+                
+                # Create the code to remove columns
+                unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
+                
+                removal_code <- c(
+                  "",
+                  "# Auto-generated code to remove unknown fields",
+                  paste0(measure_name_str, " <- ", measure_name_str, "[, !names(", 
+                         measure_name_str, ") %in% c(", 
+                         unknown_fields_str, ")]")
+                )
+                
+                # Write back the entire file with the new code appended
+                writeLines(c(existing_content, removal_code), cleaning_script_path)
+                
+                cat("\nSuccessfully updated cleaning script with code to remove unknown fields")
+              } else {
+                cat("\nWarning: Could not find cleaning script at expected locations.")
+                cat("\nWorking directory:", getwd())
+                
+                # Create the removal code anyway and display it for the user to manually add
+                unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
+                removal_code <- paste0(measure_name_str, " <- ", measure_name_str, "[, !names(", 
+                                       measure_name_str, ") %in% c(", 
+                                       unknown_fields_str, ")]")
+                
+                cat("\n\nPlease add the following code to your cleaning script manually:")
+                cat("\n", removal_code)
+                
+                # List directories to help diagnose path issues
+                cat("\n\nDirectory structure:")
+                for (dir_path in c(".", "./nda", "./clean")) {
+                  if(dir.exists(dir_path)) {
+                    cat("\n  Files in", dir_path, "directory:", paste(list.files(dir_path), collapse=", "))
+                  } else {
+                    cat("\n  Directory", dir_path, "does not exist")
+                  }
+                }
+              }
+            }, error = function(e) {
+              cat("\nError updating cleaning script:", e$message)
+              cat("\nTraceback:", paste(capture.output(traceback()), collapse="\n"))
+            })
+          } else {
+            cat("\nWarning: Could not update the original dataframe in any environment.")
+          }
+          
+          # Reset unknown fields list
+          results$unknown_fields <- character(0)
+          
+          # Update column names after dropping fields
+          df_cols <- names(df)
+          
+          # Re-check required fields with updated columns
+          missing_required <- required_fields[!required_fields %in% df_cols]
+          if(length(missing_required) > 0) {
+            results$valid <- FALSE
+            results$missing_required <- missing_required
+            if(verbose) {
+              cat("\n\nMissing required fields after dropping unknown fields:")
+              cat(sprintf("\n  %s", paste(missing_required, collapse=", ")))
+            }
+          } else {
+            # If no missing required fields, validation can proceed as valid
+            results$valid <- TRUE
+          }
+        } else {
+          cat("\nKeeping unknown fields. Validation will fail.")
+          results$valid <- FALSE  # Keep failing validation
+        }
+      } else {
+        # If not in verbose mode, just fail validation
+        results$valid <- FALSE
       }
-      # No longer dropping fields here
-      results$valid <- FALSE  # Keep failing validation if unknown fields exist
     }
     
     # Update field lists after renaming
@@ -866,8 +996,9 @@ validate_structure <- function(df, elements, measure_name, verbose = FALSE) {
                       if(results$valid) "PASSED" else "FAILED"))
       
       if(length(results$unknown_fields) > 0) {
-        message(sprintf("- Unknown fields: %d", 
-                        length(results$unknown_fields)))
+        message(sprintf("- Unknown fields: %d (%s)", 
+                        length(results$unknown_fields), 
+                        paste(results$unknown_fields, collapse=", ")))
       }
       
       if(length(results$missing_required) > 0) {
@@ -1162,7 +1293,7 @@ transform_value_ranges <- function(df, elements, verbose = FALSE) {
 
 # Modified ndaValidator to include column name standardization
 ndaValidator <- function(measure_name,
-                         source,
+                         api,
                          limited_dataset = FALSE,
                          nda_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
@@ -1243,7 +1374,7 @@ ndaValidator <- function(measure_name,
     }
     
     # Now validate the complete dataset
-    validation_results <- validate_structure(df, elements, measure_name, verbose = verbose)
+    validation_results <- validate_structure(df, elements, measure_name, api, verbose = verbose)
     return(validation_results)
     
   }, error = function(e) {
