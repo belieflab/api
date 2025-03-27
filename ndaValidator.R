@@ -317,7 +317,7 @@ apply_type_conversions <- function(df, elements, verbose = FALSE) {
 }
 
 # Demonstrate with standardize_dates as well
-standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = limited_dataset) {
+standardize_dates <- function(df, date_cols = c("interview_date"), verbose = TRUE, limited_dataset = FALSE) {
   date_summary <- list()
   
   for (col in date_cols) {
@@ -1180,7 +1180,7 @@ ndaValidator <- function(measure_name,
     structure_name <- measure_name
     
     # Add explicit date standardization step to make data de-identified
-    df <- standardize_dates(df, verbose = verbose, limited_dataset = limited_dataset)
+    df <- standardize_dates(df, verbose = verbose, limited_dataset = FALSE)
     
     # Add explicit age standardization step to make data de-identified
     df <- standardize_age(df, verbose = verbose, limited_dataset = limited_dataset)
