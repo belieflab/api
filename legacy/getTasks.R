@@ -26,18 +26,12 @@ progress_callback <- function(count, total) {
 }
 
 getTasks <- function(task, studyAlias) {
-  if (!require(config)) {
-    install.packages("config")
-  }
-  library(config)
+  if (!require(config)) {install.packages("config")}; library(config)
 
   config <- config::get()
 
   # installs mongolite if not already installed; load mongolite
-  if (!require(mongolite)) {
-    install.packages("mongolite")
-  }
-  library(mongolite)
+  if (!require(mongolite)) {install.packages("mongolite")}; library(mongolite)
 
   # check to see if secrets.R exists; if it does not, create it
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add connectionString")

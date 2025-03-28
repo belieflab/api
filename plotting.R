@@ -1,7 +1,5 @@
-if (!require(ggplot2)) install.packages("ggplot2")
-library(ggplot2)
-if (!require(ggpubr)) install.packages("ggpubr")
-library(ggpubr)
+if (!require(ggplot2)) install.packages("ggplot2"); library(ggplot2)
+if (!require(ggpubr)) install.packages("ggpubr"); library(ggpubr)
 
 createBarPlot <- function(df, outcome, arm = NULL) {
   # Default arm to "all" if not specified

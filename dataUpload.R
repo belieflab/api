@@ -1,15 +1,9 @@
 dataUpload <- function(data, collection, identifier = "src_subject_id") {
   
   # Ensure the required packages are loaded
-  if (!require(config)) {
-    install.packages("config")
-  }
-  library(config)
+  if (!require(config)) {install.packages("config")}; library(config)
   
-  if (!require(mongolite)) {
-    install.packages("mongolite")
-  }
-  library(mongolite)
+  if (!require(mongolite)) {install.packages("mongolite")}; library(mongolite)
   
   # Load configuration for MongoDB connection
   config <- config::get()
