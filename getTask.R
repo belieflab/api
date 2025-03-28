@@ -566,7 +566,7 @@ getMongoData <- function(Mongo, identifier, batch_info) {
 #' converted interview dates, and added 'measure' column based on the task.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Create a sample dataset
 #' df <- data.frame(
 #'   src_subject_id = 1:3,
@@ -636,7 +636,7 @@ getCollections <- function() {
 #' @inherit getMongo return
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' survey_data <- getTask("task_alias")
 #' }
 getTask <- getMongo
@@ -649,7 +649,7 @@ getTask <- getMongo
 #' @inherit getMongo return
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' survey_data <- mongo("task_alias")
 #' }
 mongo <- getMongo

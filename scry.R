@@ -32,7 +32,7 @@
 #' It also creates template config.yml and secrets.R files, and optionally an R project file.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Initialize in current directory
 #' scry()
 #' 

@@ -22,7 +22,7 @@
 #' }
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'   testSuite("rgpts", "qualtrics", "./clean/qualtrics/rgpts.R", "src_subject_id")
 #' }
 #'

@@ -22,7 +22,7 @@
 #'       It will not perform any data validation or transformation before creating the template.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'   # First create some sample data
 #'   eefrt01 <- data.frame(
 #'     src_subject_id = c("SUB001", "SUB002"),

@@ -14,7 +14,7 @@
 #' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Perform an OUTER JOIN on 'prl' and 'rgpts' using default keys:
 #' dataMerge(prl, rgpts, all = TRUE)
 #' # Perform an INNER JOIN using 'subjectkey' as the merge key:

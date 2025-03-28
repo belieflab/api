@@ -14,7 +14,7 @@
 #' A vector containing source subject IDs with phenotype discrepancies.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' ids <- phenotypeDiscrepancy()
 #' }
 #'

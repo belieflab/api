@@ -313,7 +313,7 @@ getRedcapDictionary <- function(instrument_name) {
 #' @inherit getRedcap return
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' survey_data <- redcap("your_survey_alias")
 #' }
 redcap <- getRedcap

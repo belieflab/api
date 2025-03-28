@@ -12,7 +12,7 @@
 #' @return The function writes a CSV file to the specified path and prints a message 
 #'   indicating the file's location. This function does not return a value.
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' createCsv(prl)
 #' }
 #' @export

@@ -13,7 +13,7 @@
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #'   ndaRequest("prl", csv=TRUE)
 #'   ndaRequest("rgpts", "kamin", rdata=TRUE)
 #' }

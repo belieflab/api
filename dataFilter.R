@@ -28,7 +28,7 @@
 #'         are specified, returns the entire dataframe with applied row filters.
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' filtered <- dataFilter(df, 
 #'                             rows_of_interest = c("foo","bar"),
 #'                             columns_of_interest = c("src_subject_id", "phenotype"), 
