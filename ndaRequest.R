@@ -116,7 +116,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_da
   
   # Clean up and record processing time
   # performCleanup()
-  # print(Sys.time() - start_time)  # Print time taken for processing
+  # message(Sys.time() - start_time)  # Print time taken for processing
 }
 
 processNda <- function(measure, api, csv, rdata, spss, identifier, start_time, limited_dataset = FALSE) {

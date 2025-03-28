@@ -135,11 +135,11 @@ getTaskLegacy <- function(task, identifier = "src_subject_id") {
   
   end_time <- Sys.time()
   time_taken <- end_time - start_time
-  print(time_taken)
+  message(time_taken)
 }
 
 # alias
 getMongo <- getTask
 
-# print(time_taken)
+# message(time_taken)
 

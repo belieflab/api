@@ -36,7 +36,7 @@ findTextInScript <- function(script_path, text_to_search) {
   matches_grep <- any(sapply(text_to_search, function(text) any(grepl(text, script_contents, fixed = TRUE))))
   
   # Print the result
-  print(matches_grep)
+  message(matches_grep)
   
   tryCatch({
     # Create a test that fails only if none of the strings are found

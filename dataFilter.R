@@ -45,8 +45,8 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   if (!require(lubridate, quietly = TRUE)) {install.packages("lubridate")}; library(lubridate)
   
-  # print("Initial dataframe head:")
-  # print(head(df))
+  # message("Initial dataframe head:")
+  # message(head(df))
   
   parseAnyDate <- function(date_string) {
     if (grepl("-", date_string)) {

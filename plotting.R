@@ -171,7 +171,7 @@ createScatterplot <- function(data, x_var, y_var, x_label = NULL, y_label = NULL
   outlier_data <- outliers %>% filter(is_outlier)
   cat("\nOutliers (more than 2 standard deviations from the mean):\n")
   if (nrow(outlier_data) > 0) {
-    print(outlier_data %>% select(all_of(c(x_var, y_var, "x_outlier", "y_outlier"))))
+    message(outlier_data %>% select(all_of(c(x_var, y_var, "x_outlier", "y_outlier"))))
     cat(sprintf("\nTotal number of outliers: %d\n\n", nrow(outlier_data)))
   } else {
     cat("No outliers detected.\n\n")
