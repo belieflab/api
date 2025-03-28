@@ -44,12 +44,12 @@ testSuite <- function(measure_alias, measure_type, script_path, super_key) {
   checkInterviewAge(measure_alias) # <240 >860
   
   
-  if (exists(measure_alias, envir = .GlobalEnv)) {
+  if (exists(measure_alias)) {
     message("Raw data found. Looking for super keys...")
     # Check for presence of super_key variables in the raw data
     candidate_keys <- checkKeys(measure_alias, super_key, "raw")
     # Assuming you still want to verify these keys are present in the cleaned data
-    if (exists(paste0(measure_alias, "_clean"), envir = .GlobalEnv)) {
+    if (exists(paste0(measure_alias, "_clean"))) {
       message("Clean data found. Looking for candidate keys... ")
       candidate_keys <- checkKeys(paste0(measure_alias, "_clean"), candidate_keys, "clean")
     }

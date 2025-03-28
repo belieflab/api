@@ -48,7 +48,7 @@ createNda <- function(df) {
   path <- file.path('./nda/tmp', paste0(df, '_template.csv'))
   
   # Get the dataframe
-  template <- base::get(df, envir = .GlobalEnv)
+  template <- base::get(df)
   
   # Open a connection to overwrite the file
   con <- file(path, "w")

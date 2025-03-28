@@ -138,7 +138,6 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                       fixed_uri <- paste0(uri_value, "/")
                                       
                                       # Update the variable in memory
-                                      # assign("uri", fixed_uri, envir = .GlobalEnv)
                                       assign("uri", fixed_uri, envir = .wizaRdry_env)
                                       
                                       # Update the secrets.R file
