@@ -22,7 +22,7 @@
 #'       It will not perform any data validation or transformation before creating the template.
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #'   # First create some sample data
 #'   eefrt01 <- data.frame(
 #'     src_subject_id = c("SUB001", "SUB002"),
@@ -37,8 +37,12 @@
 #'
 #' @export
 createNda <- function(df) {
+  # Create directory structure if it doesn't exist
   if (!dir.exists("nda")) {
     dir.create("nda")
+  }
+  if (!dir.exists("nda/tmp")) {
+    dir.create("nda/tmp")
   }
   
   # Define structure_name explicitly

@@ -81,6 +81,11 @@ formatDuration <- function(duration) {
 #'
 #' @return A data frame containing the requested REDCap data
 #' @export
+#' @examples
+#' \dontrun{
+#' # Get data from a specific instrument
+#' data <- getRedcap("demographics")
+#' }
 getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
                       redcap_event_name = NULL, batch_size = 1000,
                       records = NULL, fields = NULL) {
@@ -313,7 +318,7 @@ getRedcapDictionary <- function(instrument_name) {
 #' @inherit getRedcap return
 #' @export
 #' @examples
-#' \donttest{
-#' survey_data <- redcap("your_survey_alias")
+#' \dontrun{
+#' survey_data <- redcap("demographics")
 #' }
 redcap <- getRedcap

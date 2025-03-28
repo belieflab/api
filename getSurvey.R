@@ -7,7 +7,7 @@
 #' @importFrom dplyr %>% select mutate
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' # Get survey by alias (will search all institutions)
 #' survey_data <- getQualtrics("rgpts")
 #' }
@@ -195,7 +195,7 @@ getQualtricsDictionary <- function(qualtrics_df) {
 #' @inherit getQualtrics return
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' survey_data <- getSurvey("your_survey_alias")
 #' }
 getSurvey <- getQualtrics
@@ -208,7 +208,7 @@ getSurvey <- getQualtrics
 #' @inherit getQualtrics return
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' survey_data <- qualtrics("your_survey_alias")
 #' }
 qualtrics <- getQualtrics

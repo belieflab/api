@@ -237,6 +237,11 @@ formatDuration <- function(duration) {
 #'
 #' @return A data frame containing the MongoDB data
 #' @export
+#' @examples
+#' \dontrun{
+#' # Get data from MongoDB collection
+#' data <- getMongo("collection_name")
+#' }
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL) {
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
@@ -636,7 +641,7 @@ getCollections <- function() {
 #' @inherit getMongo return
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' survey_data <- getTask("task_alias")
 #' }
 getTask <- getMongo
@@ -649,7 +654,7 @@ getTask <- getMongo
 #' @inherit getMongo return
 #' @export
 #' @examples
-#' \donttest{
-#' survey_data <- mongo("task_alias")
+#' \dontrun{
+#' survey_data <- getTask("task_alias")
 #' }
 mongo <- getMongo

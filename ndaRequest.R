@@ -13,13 +13,12 @@
 #' @return Prints the time taken for the data request process.
 #' @export
 #' @examples
-#' \donttest{
+#' \dontrun{
 #'   ndaRequest("prl", csv=TRUE)
 #'   ndaRequest("rgpts", "kamin", rdata=TRUE)
 #' }
 #' 
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
-#' 
 ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
   
   start_time <- Sys.time()

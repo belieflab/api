@@ -1305,8 +1305,6 @@ ndaValidator <- function(measure_name,
     # Get the dataframe from the global environment
     df <- base::get(measure_name, envir = .wizaRdry_env)
     
-    debug_message("Initial dataframe loaded", df, debug = debug)
-    
     # Get structure name
     structure_name <- measure_name
     
