@@ -105,3 +105,17 @@ dataParse <- function(qualtrics_alias, label){
   
   return(list2env(output, globalenv()))
 }
+
+#' Alias for 'dataParse'
+#'
+#' This is a legacy alias for the 'dataParse' function to maintain compatibility with older code.
+#'
+#' @inheritParams dataParse
+#' @inherit dataParse return
+#' @export
+#' @examples
+#' \dontrun{
+#' rune("qualtrics_collection")
+#' }
+decipher <- dataParse
+

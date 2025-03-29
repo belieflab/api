@@ -46,3 +46,18 @@ createSpss <- function(df, df_name = NULL) {
   # Notify user of file creation
   message(paste0("Extract created at ", path, "\n"))
 }
+
+#' Alias for 'createSpss'
+#'
+#' This is a legacy alias for the 'createSpss' function to maintain compatibility with older code.
+#'
+#' @inheritParams createSpss
+#' @inherit createSpss return
+#' @export
+#' @examples
+#' \dontrun{
+#' to.sav(prl01)
+#' }
+to.sav <- createSpss
+
+

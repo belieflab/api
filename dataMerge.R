@@ -100,3 +100,17 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   
   return(dfs)
 }
+
+
+#' Alias for 'dataMerge'
+#'
+#' This is a legacy alias for the 'dataMerge' function to maintain compatibility with older code.
+#'
+#' @inheritParams dataMerge
+#' @inherit dataMerge return
+#' @export
+#' @examples
+#' \dontrun{
+#' merged <- meld(df1_clean, df2_clean)
+#' }
+meld <- dataMerge

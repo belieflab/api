@@ -120,3 +120,17 @@ dataFilter <- function(df, rows_of_interest = NULL, columns_of_interest = NULL,
   
   return(df)
 }
+
+#' Alias for 'dataFilter'
+#'
+#' This is a legacy alias for the 'dataFilter' function to maintain compatibility with older code.
+#'
+#' @inheritParams dataFilter
+#' @inherit dataFilter return
+#' @export
+#' @examples
+#' \dontrun{
+#' filtered <- sift(df, sex="F")
+#' }
+sift <- dataFilter
+

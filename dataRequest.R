@@ -172,3 +172,17 @@ disconnectMongo <- function(mongo) {
   }
   
 }
+
+#' Alias for 'dataRequest'
+#'
+#' This is a legacy alias for the 'dataRequest' function to maintain compatibility with older code.
+#'
+#' @inheritParams dataRequest
+#' @inherit dataRequest return
+#' @export
+#' @examples
+#' \dontrun{
+#' instrument_dict <- redcap_dict()
+#' }
+clean <- dataRequest
+

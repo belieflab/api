@@ -763,6 +763,6 @@ mongo <- getMongo
 #' @export
 #' @examples
 #' \dontrun{
-#' mongo_list()
+#' mongo.index()
 #' }
-mongo_list <- getMongoCollections
+mongo.index <- getMongoCollections

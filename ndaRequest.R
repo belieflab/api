@@ -261,3 +261,17 @@ formatElapsedTime <- function(start_time) {
   
   message("Formatted for NDA in ", formatted_time, ".")
 }
+
+#' Alias for 'ndaRequest'
+#'
+#' This is a legacy alias for the 'ndaRequest' function to maintain compatibility with older code.
+#'
+#' @inheritParams ndaRequest
+#' @inherit ndaRequest return
+#' @export
+#' @examples
+#' \dontrun{
+#' prl01 <- clean.nda("prl01")
+#' }
+nda <- ndaRequest
+

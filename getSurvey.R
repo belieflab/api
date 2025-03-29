@@ -206,7 +206,6 @@ getQualtricsDictionary <- function(qualtrics_data) {
     }
     
     # Not a variable or not a data frame, treat as survey alias
-    message(sprintf("Retrieving survey data for '%s' from Qualtrics...", qualtrics_data))
     # When calling getQualtrics, pass NULL for institution and FALSE for label (default values)
     survey_data <- getQualtrics(qualtrics_data)
     return(qualtRics::extract_colmap(respdata = survey_data))
@@ -253,9 +252,9 @@ qualtrics <- getQualtrics
 #' \dontrun{
 #' # Get dictionary from existing data frame
 #' survey <- qualtrics("your_survey_alias")
-#' survey_dict <- qualtrics_dict(my_survey)
+#' survey_dict <- qualtrics_codex(my_survey)
 #' # or:
 #' # Get dictionary from variable name as string
-#' survey_dict <- qualtrics_dict("my_survey")
+#' survey_dict <- qualtrics.codex("my_survey")
 #' }
-qualtrics_dict <- getQualtricsDictionary
+qualtrics.codex <- getQualtricsDictionary

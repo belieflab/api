@@ -160,7 +160,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
   message("")
   
   # Try the one-call approach
-  df <- REDCapR::redcap_read(
+  response <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
     forms = c(config$redcap$superkey, instrument_name),
@@ -170,7 +170,9 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     raw_or_label = raw_or_label,
     raw_or_label_headers = "raw",
     verbose = FALSE
-  )$data
+  )
+  
+  df <- response$data
   
   # Still propagate super key values across events
   if ("record_id" %in% names(df) && "redcap_event_name" %in% names(df)) {
@@ -258,12 +260,16 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
     df <- processCaprData(df, instrument_name)
   }
   
+  # Attach the instrument name as an attribute without an extra parameter
+  attr(df, "redcap_instrument") <- instrument_name
+  
   # Show duration
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
   
   return(df)
+  
 }
 
 
@@ -289,24 +295,101 @@ getRedcapForms <- function() {
   return(knitr::kable(forms, format = "simple"))
 }
 
-#' Get REDCap Data Dictionary for an Instrument
-#' 
-#' Retrieves the data dictionary (metadata) for a specific REDCap instrument
-#' 
-#' @param instrument_name Name of the REDCap instrument to retrieve dictionary for
+#' Extract Dictionary from REDCap Data
+#'
+#' This function extracts metadata/dictionary information from REDCap. It can accept
+#' either an instrument name to fetch new data, an existing data frame with instrument
+#' attributes, or a variable name as string.
+#'
+#' @param redcap_data Can either be an instrument name to fetch new data, a data frame 
+#'   returned by getRedcap(), or a variable name as string
 #' @return A data frame containing the data dictionary/metadata for the specified instrument
 #' @importFrom REDCapR redcap_metadata_read
 #' @export
-getRedcapDictionary <- function(instrument_name) {
-  if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
-  # Validate secrets
-  base::source("api/SecretsEnv.R")
-  validate_secrets("redcap")
+getRedcapDictionary <- function(redcap_data) {
+  # Check if input is a data frame with redcap_instrument attribute
+  if (is.data.frame(redcap_data) && !is.null(attr(redcap_data, "redcap_instrument"))) {
+    instrument_name <- attr(redcap_data, "redcap_instrument")
+    message(sprintf("Retrieving metadata for instrument '%s' from data frame attributes.", instrument_name))
+    
+    # Fetch metadata using the instrument name
+    if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
+    # Validate secrets
+    base::source("api/SecretsEnv.R")
+    validate_secrets("redcap")
+    
+    metadata <- REDCapR::redcap_metadata_read(
+      redcap_uri = uri, 
+      token = token,
+      forms = instrument_name,
+      verbose = FALSE
+    )$data
+    
+    return(metadata)
+  }
   
-  metadata <- REDCapR::redcap_metadata_read(redcap_uri = uri, token = token, verbose = TRUE, config_options = NULL)$data
-  dictionary <- metadata[metadata$form_name == instrument_name, ]
-  # View(dictionary)
-  return(dictionary)
+  # Check if input is a regular data frame
+  if (is.data.frame(redcap_data)) {
+    message("Using provided REDCap metadata data frame.")
+    return(redcap_data)
+  }
+  
+  # Input is a string
+  if (is.character(redcap_data)) {
+    # Check if it's a variable name in the global environment
+    if (exists(redcap_data)) {
+      var_data <- base::get(redcap_data)
+      
+      # Check if the variable is a data frame with instrument attribute
+      if (is.data.frame(var_data) && !is.null(attr(var_data, "redcap_instrument"))) {
+        instrument_name <- attr(var_data, "redcap_instrument")
+        message(sprintf("Retrieving metadata for instrument '%s' from variable '%s'.", 
+                        instrument_name, redcap_data))
+        
+        # Fetch metadata using the instrument name
+        if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
+        # Validate secrets
+        base::source("api/SecretsEnv.R")
+        validate_secrets("redcap")
+        
+        metadata <- REDCapR::redcap_metadata_read(
+          redcap_uri = uri, 
+          token = token,
+          forms = instrument_name,
+          verbose = FALSE
+        )$data
+        
+        return(metadata)
+      }
+      
+      # Check if the variable is just a data frame
+      if (is.data.frame(var_data)) {
+        message(sprintf("Using existing metadata data frame '%s' from environment.", redcap_data))
+        return(var_data)
+      }
+    }
+    
+    # Not a variable or not a data frame, treat as instrument name
+    if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
+    # Validate secrets
+    base::source("api/SecretsEnv.R")
+    validate_secrets("redcap")
+    
+    # Fetch metadata from REDCap
+    metadata <- REDCapR::redcap_metadata_read(
+      redcap_uri = uri, 
+      token = token,
+      verbose = FALSE
+    )$data
+    
+    dictionary <- metadata[metadata$form_name == redcap_data, ]
+    
+    message(sprintf("Retrieved metadata for instrument '%s' from REDCap.", redcap_data))
+    return(dictionary)
+  }
+  
+  # Invalid input type
+  stop("Input must be either a data frame, a string variable name, or an instrument name string.")
 }
 
 
@@ -327,14 +410,13 @@ redcap <- getRedcap
 #'
 #' This is a legacy alias for the 'getRedcapForms' function to maintain compatibility with older code.
 #'
-#' @inheritParams getRedcapForms
 #' @inherit getRedcapForms return
 #' @export
 #' @examples
 #' \dontrun{
-#' measure_dict <- redcap_list("instrument_name")
+#' redcap.index()
 #' }
-redcap_list <- getRedcapForms
+redcap.index <- getRedcapForms
 
 #' Alias for 'getRedcapDictionary'
 #'
@@ -345,6 +427,6 @@ redcap_list <- getRedcapForms
 #' @export
 #' @examples
 #' \dontrun{
-#' instrument_dict <- redcap_dict()
+#' instrument_dict <- redcap.codex()
 #' }
-redcap_dict <- getRedcapDictionary
+redcap.codex <- getRedcapDictionary
