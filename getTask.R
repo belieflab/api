@@ -460,7 +460,7 @@ ConnectMongo <- function(collection_name, db_name) {
   
   # Create connection without specifying collection first
   base_connection <- mongolite::mongo(
-    collection = "system.namespaces", # This is a system collection that always exists
+    collection = collection_name, # This is a system collection that always exists
     db = db_name,
     url = connectionString,
     verbose = FALSE,
@@ -663,7 +663,7 @@ getMongoCollections <- function(db_name = NULL) {
   })
   
   # Connect to any default collection just to get connection
-  Mongo <- ConnectMongo("system.namespaces", db_name)
+  Mongo <- ConnectMongo("", db_name)
   collections <- getCollectionsFromConnection(Mongo)
   return(collections)
 }
