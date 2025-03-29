@@ -246,10 +246,10 @@ getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_s
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
-  # # Setup cleanup on exit
-  # on.exit({
-  #   disconnectMongo(Mongo)
-  # })
+  # Setup cleanup on exit
+  on.exit({
+    disconnectMongo(Mongo)
+  })
   
   # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
@@ -366,7 +366,7 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
       on.exit({
         sink()
         unlink(temp)
-        #disconnectMongo(chunk_mongo)  # Cleanup connection in worker
+        disconnectMongo(chunk_mongo)  # Cleanup connection in worker
       })
       
       tryCatch({
@@ -502,12 +502,26 @@ ConnectMongo <- function(collection_name, db_name) {
 #' Safely close MongoDB connection
 #' @param mongo A mongolite::mongo connection object
 #' @noRd
-disconnectMongo <- function(mongo) {
-  if (!is.null(mongo)) {
+# Update the disconnectMongo function to use stronger warning suppression
+disconnectMongo <- function(mongo_conn) {
+  if (!is.null(mongo_conn)) {
+    # Create a temporary sink to capture all output during disconnect
+    temp <- tempfile()
+    sink(file = temp, type = "output")
+    sink(file = temp, type = "message")
+    
+    # Try disconnect with warning suppression
     tryCatch({
-      mongo$disconnect()
+      suppressWarnings({
+        mongo$disconnect()
+      })
     }, error = function(e) {
-      warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
+      # Do nothing, we'll handle errors after restoring output
+    }, finally = {
+      # Restore output streams
+      sink(type = "message")
+      sink(type = "output")
+      unlink(temp)
     })
   }
 }
@@ -628,25 +642,28 @@ getCollectionsFromConnection <- function(mongo_connection) {
 #' Retrieves a list of all available collections in the configured MongoDB database.
 #' This function is maintained for backward compatibility.
 #'
+#' @param db_name Optional; the name of the database to connect to. If NULL, uses the database 
+#'   specified in the configuration file.
+#'
 #' @return A character vector containing the names of all available collections
 #'   in the configured MongoDB database.
 #'
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' # Get all available MongoDB collections
 #' collections <- getMongoCollections()
 #' print(collections)
 #' }
 #'
 #' @export
-getMongoCollections <- function() {
+getMongoCollections <- function(db_name = NULL) {
   Mongo <- NULL
-  # on.exit({
-  #   disconnectMongo(Mongo)
-  # })
+  on.exit({
+    disconnectMongo(Mongo)
+  })
   
   # Connect to any default collection just to get connection
-  Mongo <- ConnectMongo("system.namespaces")
+  Mongo <- ConnectMongo("system.namespaces", db_name)
   collections <- getCollectionsFromConnection(Mongo)
   return(collections)
 }
