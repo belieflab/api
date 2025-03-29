@@ -179,12 +179,41 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
 #' Extract Column Mapping from Qualtrics Data Frame
 #'
 #' This function extracts column mappings from the metadata of a Qualtrics survey data frame.
+#' It can accept either a data frame containing Qualtrics data, a variable name as string,
+#' or a survey alias string.
 #'
-#' @param qualtrics_df Data frame obtained from Qualtrics.
+#' @param qualtrics_data Can either be an existing dataframe, variable name as string, or survey alias string
 #' @return A list containing the mappings of column names to survey questions.
 #' @export
-getQualtricsDictionary <- function(qualtrics_df) {
-  return(qualtRics::extract_colmap(respdata = qualtrics_df))
+getQualtricsDictionary <- function(qualtrics_data) {
+  # Check if input is a data frame
+  if (is.data.frame(qualtrics_data)) {
+    # Input is already a data frame, use it directly
+    return(qualtRics::extract_colmap(respdata = qualtrics_data))
+  }
+  
+  # Input is a string
+  if (is.character(qualtrics_data)) {
+    # First, check if it's a variable name in the global environment
+    if (exists(qualtrics_data)) {
+      var_data <- base::get(qualtrics_data)
+      
+      # Check if the variable is a data frame
+      if (is.data.frame(var_data)) {
+        message(sprintf("Using existing data frame '%s' from environment.", qualtrics_data))
+        return(qualtRics::extract_colmap(respdata = var_data))
+      }
+    }
+    
+    # Not a variable or not a data frame, treat as survey alias
+    message(sprintf("Retrieving survey data for '%s' from Qualtrics...", qualtrics_data))
+    # When calling getQualtrics, pass NULL for institution and FALSE for label (default values)
+    survey_data <- getQualtrics(qualtrics_data)
+    return(qualtRics::extract_colmap(respdata = survey_data))
+  }
+  
+  # Invalid input type
+  stop("Input must be either a data frame or a string (survey alias or variable name).")
 }
 
 #' Alias for 'getQualtrics'
@@ -212,3 +241,21 @@ getSurvey <- getQualtrics
 #' survey_data <- qualtrics("your_survey_alias")
 #' }
 qualtrics <- getQualtrics
+
+#' Alias for 'getQualtricsDictionary'
+#'
+#' This is a legacy alias for the 'getQualtricsDictionary' function to maintain compatibility with older code.
+#'
+#' @inheritParams getQualtricsDictionary
+#' @inherit getQualtricsDictionary return
+#' @export
+#' @examples
+#' \dontrun{
+#' # Get dictionary from existing data frame
+#' survey <- qualtrics("your_survey_alias")
+#' survey_dict <- qualtrics_dict(my_survey)
+#' # or:
+#' # Get dictionary from variable name as string
+#' survey_dict <- qualtrics_dict("my_survey")
+#' }
+qualtrics_dict <- getQualtricsDictionary
