@@ -243,26 +243,13 @@ formatDuration <- function(duration) {
 #' data <- getMongo("collection_name")
 #' }
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE) {
-  # Set up warning handling for MongoDB endSessions errors
-  old_warn_handler <- getOption("warning.expression")
-  on.exit(options(warning.expression = old_warn_handler))
-  options(warning.expression = {
-    function(w) {
-      if (!grepl("endSessions", conditionMessage(w), fixed = TRUE)) {
-        if (!is.null(old_warn_handler)) 
-          eval(old_warn_handler)
-        else 
-          warning(w)
-      }
-    }
-  })
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
-  # Setup cleanup on exit
-  on.exit({
-    disconnectMongo(Mongo)
-  })
+  # # Setup cleanup on exit
+  # on.exit({
+  #   disconnectMongo(Mongo)
+  # })
   
   # Suppress MongoDB messages globally
   options(mongolite.quiet = TRUE)
@@ -379,7 +366,7 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
       on.exit({
         sink()
         unlink(temp)
-        disconnectMongo(chunk_mongo)  # Cleanup connection in worker
+        #disconnectMongo(chunk_mongo)  # Cleanup connection in worker
       })
       
       tryCatch({
@@ -541,22 +528,12 @@ disconnectMongo <- function(mongo) {
 #' # df <- getMongoData(Mongo, "src_subject_id", batch_info)
 #' @noRd
 getMongoData <- function(Mongo, identifier, batch_info, verbose = FALSE) {
-  
-  # Use a wrapper to suppress endSessions warnings for all Mongo operations
-  mongo_quiet <- function(expr) {
-    withCallingHandlers(expr,
-                        warning = function(w) {
-                          if (grepl("endSessions", conditionMessage(w), fixed = TRUE))
-                            invokeRestart("muffleWarning")
-                        })
-  }
-  
   # Check for both exists AND non-empty
   query_json <- sprintf('{"%s": {"$exists": true, "$ne": ""}}', identifier)
   if(verbose) message(paste("Using query:", query_json))
   
   # Get initial data
-  df <- mongo_quiet(Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size))
+  df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
   if(verbose) message(paste("Initial rows:", nrow(df)))
   
   # Only proceed with filtering if we have data
@@ -646,15 +623,29 @@ getCollectionsFromConnection <- function(mongo_connection) {
   return(collections$cursor$firstBatch$name)
 }
 
-# Maintain original getCollections function for backward compatibility
-getCollections <- function() {
+#' Get Available MongoDB Collections
+#'
+#' Retrieves a list of all available collections in the configured MongoDB database.
+#' This function is maintained for backward compatibility.
+#'
+#' @return A character vector containing the names of all available collections
+#'   in the configured MongoDB database.
+#'
+#' @examples
+#' \donttest{
+#' # Get all available MongoDB collections
+#' collections <- getMongoCollections()
+#' print(collections)
+#' }
+#'
+#' @export
+getMongoCollections <- function() {
   Mongo <- NULL
-  on.exit({
-    disconnectMongo(Mongo)
-  })
+  # on.exit({
+  #   disconnectMongo(Mongo)
+  # })
   
   # Connect to any default collection just to get connection
-  # Mongo <- ConnectMongo("system.namespaces", silent_validation = TRUE)
   Mongo <- ConnectMongo("system.namespaces")
   collections <- getCollectionsFromConnection(Mongo)
   return(collections)
