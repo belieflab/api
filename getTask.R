@@ -366,7 +366,9 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
       on.exit({
         sink()
         unlink(temp)
-        disconnectMongo(chunk_mongo)  # Cleanup connection in worker
+        suppressWarnings({
+          disconnectMongo(chunk_mongo)  # Cleanup connection in worker
+        })
       })
       
       tryCatch({
@@ -488,9 +490,6 @@ ConnectMongo <- function(collection_name, db_name) {
   on.exit({
     sink()
     unlink(temp)
-    suppressWarnings({
-      disconnectMongo(chunk_mongo)  # Cleanup connection in worker
-    })
   })
   
   Mongo <- mongolite::mongo(
