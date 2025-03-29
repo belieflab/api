@@ -40,7 +40,7 @@ ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_da
   task_list <- tools::file_path_sans_ext(list.files("./nda/mongo"))
   
   # Get identifier from config
-  config <- config::get()
+  config <- validate_config()
   identifier <- config$identifier
   if (is.null(identifier) || identifier == "") {
     stop("No identifier specified in the config file.")

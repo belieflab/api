@@ -44,7 +44,7 @@ dataMerge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, 
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
   
-  config <- config::get()
+  config <- validate_config()
   
   if (config$study_alias == "capr") {
     # NDA variables suitable for merging fromr capr

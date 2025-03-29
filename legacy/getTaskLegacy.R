@@ -31,7 +31,7 @@ getTaskLegacy <- function(task, identifier = "src_subject_id") {
   
   if (!require(config)) {install.packages("config")}; library(config)
 
-  config <- config::get()
+  config <- validate_config()
 
   # installs mongolite if not already installed; load mongolite
   if (!require(mongolite)) {install.packages("mongolite")}; library(mongolite)

@@ -6,7 +6,7 @@ dataUpload <- function(data, collection, identifier = "src_subject_id") {
   if (!require(mongolite)) {install.packages("mongolite")}; library(mongolite)
   
   # Load configuration for MongoDB connection
-  config <- config::get()
+  config <- validate_config()
   
   # Check if the secrets file exists for MongoDB connection string
   if (!file.exists("secrets.R")) message("secrets.R file not found, please create it and add connectionString")
