@@ -322,3 +322,29 @@ getRedcapDictionary <- function(instrument_name) {
 #' survey_data <- redcap("demographics")
 #' }
 redcap <- getRedcap
+
+#' Alias for 'getRedcapForms'
+#'
+#' This is a legacy alias for the 'getRedcapForms' function to maintain compatibility with older code.
+#'
+#' @inheritParams getRedcapForms
+#' @inherit getRedcapForms return
+#' @export
+#' @examples
+#' \dontrun{
+#' measure_dict <- redcap_list("instrument_name")
+#' }
+redcap_list <- getRedcapForms
+
+#' Alias for 'getRedcapDictionary'
+#'
+#' This is a legacy alias for the 'getRedcapDictionary' function to maintain compatibility with older code.
+#'
+#' @inheritParams getRedcapDictionary
+#' @inherit getRedcapDictionary return
+#' @export
+#' @examples
+#' \dontrun{
+#' instrument_dict <- redcap_dict()
+#' }
+redcap_dict <- getRedcapDictionary
