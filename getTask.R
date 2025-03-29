@@ -505,7 +505,10 @@ ConnectMongo <- function(collection_name, db_name) {
 disconnectMongo <- function(mongo) {
   if (!is.null(mongo)) {
     tryCatch({
-      mongo$disconnect()
+      # Suppress the specific warning about endSessions not being supported
+      suppressWarnings({
+        mongo$disconnect()
+      })
     }, error = function(e) {
       warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
     })
