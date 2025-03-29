@@ -639,27 +639,17 @@ getCollectionsFromConnection <- function(mongo_connection) {
 
 #' Get Available MongoDB Collections
 #'
-#' Retrieves and displays a list of all available collections in the configured MongoDB database
-#' without requiring a specific collection name.
+#' Retrieves a list of all available collections in the configured MongoDB database.
+#' This function is maintained for backward compatibility.
 #'
 #' @param db_name Optional; the name of the database to connect to. If NULL, uses the database 
 #'   specified in the configuration file.
 #'
-#' @return Invisibly returns a character vector containing the names of all available collections
-#'   in the configured MongoDB database, while printing a formatted table to the console.
-#'
+#' @return A character vector containing the names of all available collections
+#'   in the configured MongoDB database.
+#'   
 #' @export
 getMongoCollections <- function(db_name = NULL) {
-  # Save current warning state
-  oldw <- getOption("warn")
-  # Set warning level to -1 to suppress warnings
-  options(warn = -1)
-  
-  # Ensure warnings are restored on exit
-  on.exit({
-    options(warn = oldw)
-  })
-  
   base::source("api/SecretsEnv.R")
   validate_secrets("mongo")
   
@@ -691,42 +681,20 @@ getMongoCollections <- function(db_name = NULL) {
     collections <- base_connection$run('{"listCollections":1,"nameOnly":true}')
     collection_names <- collections$cursor$firstBatch$name
     
-    # Clean up - use suppressWarnings specifically for disconnect
+    # Clean up
     suppressWarnings(base_connection$disconnect())
     
     sink()
     unlink(temp)
     
-    # Format and print collections as a table
-    if (length(collection_names) > 0) {
-      # Calculate how many columns to display based on the longest collection name
-      max_len <- max(nchar(collection_names))
-      term_width <- as.integer(Sys.getenv("COLUMNS", "80"))
-      n_cols <- max(1, floor(term_width / (max_len + 2)))
-      
-      # Create data frame for nice printing
-      collections_df <- data.frame(
-        Collection = collection_names,
-        stringsAsFactors = FALSE
-      )
-      
-      # Print header
-      cat("\nAvailable collections in database '", db_name, "':\n", sep = "")
-      
-      # Print formatted table
-      print(collections_df, row.names = FALSE)
-    } else {
-      cat("\nNo collections found in database '", db_name, "'.\n", sep = "")
-    }
-    
-    # Return collection names invisibly
-    invisible(collection_names)
+    return(collection_names)
   }, error = function(e) {
     sink()
     unlink(temp)
     stop(paste("Error connecting to MongoDB:", e$message))
   })
 }
+
 
 #' Alias for 'getMongo'
 #'
