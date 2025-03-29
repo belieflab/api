@@ -513,7 +513,7 @@ disconnectMongo <- function(mongo_conn) {
     # Try disconnect with warning suppression
     tryCatch({
       suppressWarnings({
-        mongo$disconnect()
+        mongo_conn$disconnect()
       })
     }, error = function(e) {
       # Do nothing, we'll handle errors after restoring output
@@ -639,8 +639,8 @@ getCollectionsFromConnection <- function(mongo_connection) {
 
 #' Get Available MongoDB Collections
 #'
-#' Retrieves a list of all available collections in the configured MongoDB database.
-#' This function is maintained for backward compatibility.
+#' Retrieves a list of all available collections in the configured MongoDB database
+#' without requiring a specific collection name.
 #'
 #' @param db_name Optional; the name of the database to connect to. If NULL, uses the database 
 #'   specified in the configuration file.
@@ -657,17 +657,50 @@ getCollectionsFromConnection <- function(mongo_connection) {
 #'
 #' @export
 getMongoCollections <- function(db_name = NULL) {
-  Mongo <- NULL
-  on.exit({
-    disconnectMongo(Mongo)
-  })
+  base::source("api/SecretsEnv.R")
+  validate_secrets("mongo")
   
-  # Connect to any default collection just to get connection
-  Mongo <- ConnectMongo("", db_name)
-  collections <- getCollectionsFromConnection(Mongo)
-  return(collections)
+  base::source("api/ConfigEnv.R")
+  config <- validate_config("mongo")
+  
+  if (is.null(db_name)) {
+    db_name = config$mongo$collection
+  }
+  
+  options <- ssl_options(weak_cert_validation = TRUE, key = "rds-combined-ca-bundle.pem")
+  
+  # Create a temporary sink to capture MongoDB connection messages
+  temp <- tempfile()
+  sink(temp)
+  
+  # Create a direct connection to the database without specifying a collection
+  tryCatch({
+    # Connect directly to the database, not a specific collection
+    base_connection <- mongolite::mongo(
+      collection = "system.namespaces", # This is a system collection that always exists
+      db = db_name,
+      url = connectionString,
+      verbose = FALSE,
+      options = options
+    )
+    
+    # Get the list of collections
+    collections <- base_connection$run('{"listCollections":1,"nameOnly":true}')
+    collection_names <- collections$cursor$firstBatch$name
+    
+    # Clean up
+    suppressWarnings(base_connection$disconnect())
+    
+    sink()
+    unlink(temp)
+    
+    return(collection_names)
+  }, error = function(e) {
+    sink()
+    unlink(temp)
+    stop(paste("Error connecting to MongoDB:", e$message))
+  })
 }
-
 
 #' Alias for 'getMongo'
 #'
