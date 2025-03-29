@@ -242,7 +242,7 @@ formatDuration <- function(duration) {
 #' # Get data from MongoDB collection
 #' data <- getMongo("collection_name")
 #' }
-getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL) {
+getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE) {
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
@@ -373,7 +373,7 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
         chunk_mongo <- ConnectMongo(collection_name, db_name)
         batch_info <- chunks[[i]]
         if (!is.null(batch_info) && !is.null(batch_info$start) && !is.null(batch_info$size)) {
-          data_chunk <- getMongoData(chunk_mongo, identifier, batch_info)
+          data_chunk <- getMongoData(chunk_mongo, identifier, batch_info, verbose)
         } else {
           warning("Invalid batch info, skipping chunk")
           return(NULL)
@@ -520,36 +520,41 @@ disconnectMongo <- function(mongo) {
 #' @param Mongo The MongoDB connection object.
 #' @param identifier The document field to check for existence and non-emptiness.
 #' @param batch_info List containing 'start' and 'size' defining the batch to fetch.
+#' @param verbose Logical; if TRUE, displays detailed progress messages. Default is FALSE.
 #' @return A data.frame with the filtered data or NULL if no valid data is found or in case of error.
 #' @examples
 #' # This example assumes 'Mongo' is a MongoDB connection
 #' # batch_info <- list(start = 0, size = 100)
 #' # df <- getMongoData(Mongo, "src_subject_id", batch_info)
 #' @noRd
-getMongoData <- function(Mongo, identifier, batch_info) {
+getMongoData <- function(Mongo, identifier, batch_info, verbose = FALSE) {
   # Check for both exists AND non-empty
   query_json <- sprintf('{"%s": {"$exists": true, "$ne": ""}}', identifier)
-  message(paste("Using query:", query_json))
+  if(verbose) message(paste("Using query:", query_json))
   
   # Get initial data
   df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
-  message(paste("Initial rows:", nrow(df)))
+  if(verbose) message(paste("Initial rows:", nrow(df)))
   
   # Only proceed with filtering if we have data
   if (!is.null(df) && nrow(df) > 0) {
     # Print sample of data before filtering
-    message("Sample before filtering:")
-    message(head(df[[identifier]]))
+    if(verbose) {
+      message("Sample before filtering:")
+      message(head(df[[identifier]]))
+    }
     
     # Apply both NA and empty string filtering
     df <- df[!is.na(df[[identifier]]) & df[[identifier]] != "", ]
-    message(paste("Rows after complete filtering:", nrow(df)))
+    if(verbose) message(paste("Rows after complete filtering:", nrow(df)))
     
     # Print sample after filtering
-    message("Sample after filtering:")
-    message(head(df[[identifier]]))
+    if(verbose) {
+      message("Sample after filtering:")
+      message(head(df[[identifier]]))
+    }
   } else {
-    message("No data found in initial query")
+    if(verbose) message("No data found in initial query")
   }
   
   return(df)
