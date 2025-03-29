@@ -243,6 +243,7 @@ formatDuration <- function(duration) {
 #' data <- getMongo("collection_name")
 #' }
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE) {
+  options(mongolite.quiet = TRUE)
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
