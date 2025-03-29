@@ -753,3 +753,16 @@ getTask <- getMongo
 #' survey_data <- getTask("task_alias")
 #' }
 mongo <- getMongo
+
+#' Alias for 'getMongoCollections'
+#'
+#' This is a legacy alias for the 'getMongoCollections' function to maintain compatibility with older code.
+#'
+#' @inheritParams getMongoCollections
+#' @inherit getMongoCollections return
+#' @export
+#' @examples
+#' \dontrun{
+#' mongo_list()
+#' }
+mongo_list <- getMongoCollections
