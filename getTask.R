@@ -225,7 +225,7 @@ formatDuration <- function(duration) {
 #' @param db_name The database name (optional)
 #' @param identifier Field to use as identifier (optional)
 #' @param chunk_size Number of records per chunk (optional)
-#'
+#' @param verbose Logical; if TRUE, displays detailed progress messages. Default is FALSE.
 #' @importFrom mongolite mongo ssl_options
 #' @importFrom parallel detectCores
 #' @importFrom future plan multisession
