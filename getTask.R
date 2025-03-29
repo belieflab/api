@@ -243,7 +243,19 @@ formatDuration <- function(duration) {
 #' data <- getMongo("collection_name")
 #' }
 getMongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE) {
-  options(mongolite.quiet = TRUE)
+  # Set up warning handling for MongoDB endSessions errors
+  old_warn_handler <- getOption("warning.expression")
+  on.exit(options(warning.expression = old_warn_handler))
+  options(warning.expression = {
+    function(w) {
+      if (!grepl("endSessions", conditionMessage(w), fixed = TRUE)) {
+        if (!is.null(old_warn_handler)) 
+          eval(old_warn_handler)
+        else 
+          warning(w)
+      }
+    }
+  })
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
@@ -367,9 +379,7 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
       on.exit({
         sink()
         unlink(temp)
-        suppressWarnings({
-          disconnectMongo(chunk_mongo)  # Cleanup connection in worker
-        })
+        disconnectMongo(chunk_mongo)  # Cleanup connection in worker
       })
       
       tryCatch({
@@ -474,9 +484,7 @@ ConnectMongo <- function(collection_name, db_name) {
   collections_list <- getCollectionsFromConnection(base_connection)
   
   # Close the base connection
-  suppressWarnings({
-    base_connection$disconnect()
-  })
+  base_connection$disconnect()
   sink()
   unlink(temp)
   
@@ -510,10 +518,7 @@ ConnectMongo <- function(collection_name, db_name) {
 disconnectMongo <- function(mongo) {
   if (!is.null(mongo)) {
     tryCatch({
-      # Suppress the specific warning about endSessions not being supported
-      suppressWarnings({
-        mongo$disconnect()
-      })
+      mongo$disconnect()
     }, error = function(e) {
       warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
     })
@@ -536,12 +541,22 @@ disconnectMongo <- function(mongo) {
 #' # df <- getMongoData(Mongo, "src_subject_id", batch_info)
 #' @noRd
 getMongoData <- function(Mongo, identifier, batch_info, verbose = FALSE) {
+  
+  # Use a wrapper to suppress endSessions warnings for all Mongo operations
+  mongo_quiet <- function(expr) {
+    withCallingHandlers(expr,
+                        warning = function(w) {
+                          if (grepl("endSessions", conditionMessage(w), fixed = TRUE))
+                            invokeRestart("muffleWarning")
+                        })
+  }
+  
   # Check for both exists AND non-empty
   query_json <- sprintf('{"%s": {"$exists": true, "$ne": ""}}', identifier)
   if(verbose) message(paste("Using query:", query_json))
   
   # Get initial data
-  df <- Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size)
+  df <- mongo_quiet(Mongo$find(query = query_json, skip = batch_info$start, limit = batch_info$size))
   if(verbose) message(paste("Initial rows:", nrow(df)))
   
   # Only proceed with filtering if we have data
