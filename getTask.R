@@ -471,7 +471,9 @@ ConnectMongo <- function(collection_name, db_name) {
   collections_list <- getCollectionsFromConnection(base_connection)
   
   # Close the base connection
-  base_connection$disconnect()
+  suppressWarnings({
+    base_connection$disconnect()
+  })
   sink()
   unlink(temp)
   
@@ -486,6 +488,9 @@ ConnectMongo <- function(collection_name, db_name) {
   on.exit({
     sink()
     unlink(temp)
+    suppressWarnings({
+      disconnectMongo(chunk_mongo)  # Cleanup connection in worker
+    })
   })
   
   Mongo <- mongolite::mongo(
