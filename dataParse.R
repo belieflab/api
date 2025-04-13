@@ -24,7 +24,7 @@
 #' @examples
 #' \dontrun{
 #' # Parse a Qualtrics export containing multiple surveys
-#' dataParse("combined_surveys", label = FALSE)
+#' rune("combined_surveys", label = FALSE)
 #' 
 #' # After running, access individual survey dataframes directly:
 #' head(pss)  # Access the PSS survey dataframe
@@ -33,7 +33,7 @@
 #'
 #' @importFrom dplyr filter select
 #' @export
-dataParse <- function(qualtrics_alias, label){
+rune <- function(qualtrics_alias, label){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
   source("api/getSurvey.R")
@@ -106,16 +106,16 @@ dataParse <- function(qualtrics_alias, label){
   return(list2env(output, globalenv()))
 }
 
-#' Alias for 'dataParse'
+#' Alias for 'rune'
 #'
-#' This is a legacy alias for the 'dataParse' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'rune' function to maintain compatibility with older code.
 #'
-#' @inheritParams dataParse
-#' @inherit dataParse return
+#' @inheritParams rune
+#' @inherit rune return
 #' @export
 #' @examples
 #' \dontrun{
-#' rune("qualtrics_collection")
+#' dataParse("qualtrics_collection")
 #' }
-decipher <- dataParse
+dataParse <- rune
 
