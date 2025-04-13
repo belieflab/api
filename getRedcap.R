@@ -1,5 +1,5 @@
 #
-# function: getRedcap(instrument_name)
+# function: redcap(instrument_name)
 # input: instrument_name from table below
 #
 
@@ -84,9 +84,9 @@ formatDuration <- function(duration) {
 #' @examples
 #' \dontrun{
 #' # Get data from a specific instrument
-#' data <- getRedcap("demographics")
+#' data <- redcap("demographics")
 #' }
-getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
+redcap <- function(instrument_name = NULL, raw_or_label = "raw",
                       redcap_event_name = NULL, batch_size = 1000,
                       records = NULL, fields = NULL) {
   
@@ -281,7 +281,7 @@ getRedcap <- function(instrument_name = NULL, raw_or_label = "raw",
 #' @importFrom REDCapR redcap_instruments
 #' @importFrom knitr kable
 #' @export
-getRedcapForms <- function() {
+redcap.index <- function() {
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(knitr)) install.packages("knitr"); library(knitr)
 
@@ -302,11 +302,12 @@ getRedcapForms <- function() {
 #' attributes, or a variable name as string.
 #'
 #' @param redcap_data Can either be an instrument name to fetch new data, a data frame 
-#'   returned by getRedcap(), or a variable name as string
+#'   returned by redcap(), or a variable name as string
 #' @return A data frame containing the data dictionary/metadata for the specified instrument
 #' @importFrom REDCapR redcap_metadata_read
 #' @export
-getRedcapDictionary <- function(redcap_data) {
+
+redcap.dict <- function(redcap_data) {
   # Check if input is a data frame with redcap_instrument attribute
   if (is.data.frame(redcap_data) && !is.null(attr(redcap_data, "redcap_instrument"))) {
     instrument_name <- attr(redcap_data, "redcap_instrument")
@@ -393,40 +394,16 @@ getRedcapDictionary <- function(redcap_data) {
 }
 
 
-#' Alias for 'getRedcap'
+#' Alias for 'redcap'
 #'
-#' This is a legacy alias for the 'getRedcap' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'redcap' function to maintain compatibility with older code.
 #'
-#' @inheritParams getRedcap
-#' @inherit getRedcap return
+#' @inheritParams redcap
+#' @inherit redcap return
 #' @export
 #' @examples
 #' \dontrun{
-#' survey_data <- redcap("demographics")
+#' survey_data <- getRedcap("demographics")
 #' }
-redcap <- getRedcap
+getRedcap <- redcap
 
-#' Alias for 'getRedcapForms'
-#'
-#' This is a legacy alias for the 'getRedcapForms' function to maintain compatibility with older code.
-#'
-#' @inherit getRedcapForms return
-#' @export
-#' @examples
-#' \dontrun{
-#' redcap.index()
-#' }
-redcap.index <- getRedcapForms
-
-#' Alias for 'getRedcapDictionary'
-#'
-#' This is a legacy alias for the 'getRedcapDictionary' function to maintain compatibility with older code.
-#'
-#' @inheritParams getRedcapDictionary
-#' @inherit getRedcapDictionary return
-#' @export
-#' @examples
-#' \dontrun{
-#' instrument_dict <- redcap.codex()
-#' }
-redcap.codex <- getRedcapDictionary
