@@ -87,11 +87,9 @@ formatDuration <- function(duration) {
 #' data <- redcap("demographics")
 #' }
 redcap <- function(instrument_name = NULL, raw_or_label = "raw",
-                      redcap_event_name = NULL, batch_size = 1000,
-                      records = NULL, fields = NULL) {
-  
+                   redcap_event_name = NULL, batch_size = 1000,
+                   records = NULL, fields = NULL) {
   start_time <- Sys.time()
-  
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
@@ -132,7 +130,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     } else {
       # Format available instruments in a readable way
       available_forms <- paste(sort(forms_data$instrument_name), collapse = "\n- ")
-      stop(sprintf("\nInstrument '%s' not found in REDCap for %s.\n\nAvailable instruments:\n- %s", 
+      stop(sprintf("\nInstrument '%s' not found in REDCap for %s.\n\nAvailable instruments:\n- %s",
                    instrument_name, toupper(config$study_alias), available_forms))
     }
   }, error = function(e) {
@@ -147,10 +145,10 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   
   # Progress bar
   pb <- initializeLoadingAnimation(20)
-  message(sprintf("\nImporting records from REDCap form: %s%s", 
-                  instrument_name, 
-                  ifelse(!is.null(redcap_event_name), 
-                         sprintf(" %s", redcap_event_name), 
+  message(sprintf("\nImporting records from REDCap form: %s%s",
+                  instrument_name,
+                  ifelse(!is.null(redcap_event_name),
+                         sprintf(" %s", redcap_event_name),
                          "")))
   for (i in 1:20) {
     updateLoadingAnimation(pb, i)
@@ -159,40 +157,99 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   completeLoadingAnimation(pb)
   message("")
   
-  # Try the one-call approach
-  response <- REDCapR::redcap_read(
+  # MODIFIED APPROACH: Make separate calls for superkey and instrument
+  
+  # 1. First, get the superkey data (always using "label")
+  superkey_response <- REDCapR::redcap_read(
     redcap_uri = uri,
     token = token,
-    forms = c(config$redcap$superkey, instrument_name),
+    forms = config$redcap$superkey,
     batch_size = batch_size,
     records = records,
-    fields = fields,
-    raw_or_label = raw_or_label,
+    raw_or_label = "label",  # Always use label for superkey
     raw_or_label_headers = "raw",
     verbose = FALSE
   )
   
-  df <- response$data
+  # 2. Then, get the instrument data with user's raw_or_label preference
+  instrument_response <- REDCapR::redcap_read(
+    redcap_uri = uri,
+    token = token,
+    forms = instrument_name,
+    batch_size = batch_size,
+    records = records,
+    fields = fields,
+    raw_or_label = raw_or_label,  # Use user's preference
+    raw_or_label_headers = "raw",
+    verbose = FALSE
+  )
   
-  # Still propagate super key values across events
-  if ("record_id" %in% names(df) && "redcap_event_name" %in% names(df)) {
-    # Get metadata for the super_keys form to identify super key fields
-    super_key_dict <- tryCatch({
-      REDCapR::redcap_metadata_read(
-        redcap_uri = uri, 
-        token = token,
-        forms = config$redcap$superkey,
-        verbose = FALSE
-      )$data
-    }, error = function(e) {
-      return(NULL)
-    })
+  # Get the superkey metadata to identify which fields to keep
+  super_key_dict <- tryCatch({
+    REDCapR::redcap_metadata_read(
+      redcap_uri = uri, 
+      token = token,
+      forms = config$redcap$superkey,
+      verbose = FALSE
+    )$data
+  }, error = function(e) {
+    return(NULL)
+  })
+  
+  # Extract field names from dictionary
+  if (!is.null(super_key_dict)) {
+    super_key_cols <- super_key_dict$field_name
+  } else {
+    # Fallback if metadata retrieval failed
+    super_key_cols <- c("record_id") # Add known superkey columns here
+  }
+  
+  # Add redcap_event_name to super_key_cols if it exists in either dataset
+  if ("redcap_event_name" %in% names(superkey_response$data) || 
+      "redcap_event_name" %in% names(instrument_response$data)) {
+    super_key_cols <- c(super_key_cols, "redcap_event_name")
+  }
+  
+  # Keep only superkey fields that exist in our dataset
+  super_key_cols <- super_key_cols[super_key_cols %in% names(superkey_response$data)]
+  
+  # 3. Process superkey data to ensure it's available for all subjects regardless of event
+  # First, create a consolidated superkey dataset with one row per subject
+  if ("redcap_event_name" %in% names(superkey_response$data)) {
+    # For each subject, collect all non-NA values across events
+    subjects <- unique(superkey_response$data$record_id)
+    consolidated_superkey <- data.frame(record_id = subjects)
     
-    # Extract field names from dictionary or use common fields as fallback
-    if (!is.null(super_key_dict)) {
-      super_key_cols <- super_key_dict$field_name
+    for (col in super_key_cols) {
+      if (col != "record_id" && col != "redcap_event_name") {
+        consolidated_superkey[[col]] <- NA
+        
+        for (subject_id in subjects) {
+          # Get all values for this subject across all events
+          subject_rows <- superkey_response$data[superkey_response$data$record_id == subject_id, ]
+          non_na_values <- subject_rows[[col]][!is.na(subject_rows[[col]])]
+          
+          if (length(non_na_values) > 0) {
+            consolidated_superkey[consolidated_superkey$record_id == subject_id, col] <- non_na_values[1]
+          }
+        }
+      }
     }
-    
+  } else {
+    # If no redcap_event_name, just use the superkey data as is
+    consolidated_superkey <- superkey_response$data[, super_key_cols, drop = FALSE]
+  }
+  
+  # Now merge the consolidated superkey with the instrument data
+  df <- merge(
+    consolidated_superkey,
+    instrument_response$data,
+    by = "record_id",
+    all.y = TRUE
+  )
+  
+  # Continue with the existing propagation logic
+  if ("record_id" %in% names(df) && "redcap_event_name" %in% names(df)) {
     # Keep only fields that exist in our dataframe
     super_key_cols <- super_key_cols[super_key_cols %in% names(df)]
     
@@ -225,7 +282,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   }
   
   # For interview_date columns - more robust handling
-  date_patterns <- c("_interview_date$", "interview_date") 
+  date_patterns <- c("_interview_date$", "interview_date")
   date_cols <- NULL
   
   for (pattern in date_patterns) {
@@ -269,7 +326,6 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   message(sprintf("\nData frame '%s' retrieved in %s.", instrument_name, formatDuration(duration)))
   
   return(df)
-  
 }
 
 
