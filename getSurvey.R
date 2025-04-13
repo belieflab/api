@@ -325,32 +325,32 @@ qualtrics.index <- function(institution = NULL) {
 #' It can accept either a data frame containing Qualtrics data, a variable name as string,
 #' or a survey alias string.
 #'
-#' @param qualtrics_data Can either be an existing dataframe, variable name as string, or survey alias string
+#' @param survey_alias Can either be an existing dataframe, variable name as string, or survey alias string
 #' @return A list containing the mappings of column names to survey questions.
 #' @export
-qualtrics.dict <- function(qualtrics_data) {
+qualtrics.dict <- function(survey_alias) {
   # Check if input is a data frame
-  if (is.data.frame(qualtrics_data)) {
+  if (is.data.frame(survey_alias)) {
     # Input is already a data frame, use it directly
-    return(qualtRics::extract_colmap(respdata = qualtrics_data))
+    return(qualtRics::extract_colmap(respdata = survey_alias))
   }
   
   # Input is a string
-  if (is.character(qualtrics_data)) {
+  if (is.character(survey_alias)) {
     # First, check if it's a variable name in the global environment
-    if (exists(qualtrics_data)) {
-      var_data <- base::get(qualtrics_data)
+    if (exists(survey_alias)) {
+      var_data <- base::get(survey_alias)
       
       # Check if the variable is a data frame
       if (is.data.frame(var_data)) {
-        message(sprintf("Using existing data frame '%s' from environment.", qualtrics_data))
+        message(sprintf("Using existing data frame '%s' from environment.", survey_alias))
         return(qualtRics::extract_colmap(respdata = var_data))
       }
     }
     
     # Not a variable or not a data frame, treat as survey alias
     # When calling qualtrics, pass NULL for institution and FALSE for label (default values)
-    survey_data <- wizaRdry::qualtrics(qualtrics_data)
+    survey_data <- wizaRdry::qualtrics(survey_alias)
     return(qualtRics::extract_colmap(respdata = survey_data))
   }
   
