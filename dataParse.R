@@ -24,7 +24,7 @@
 #' @examples
 #' \dontrun{
 #' # Parse a Qualtrics export containing multiple surveys
-#' rune("combined_surveys", label = FALSE)
+#' qualtrics.rune("combined_surveys", label = FALSE)
 #' 
 #' # After running, access individual survey dataframes directly:
 #' head(pss)  # Access the PSS survey dataframe
@@ -37,7 +37,7 @@ qualtrics.rune <- function(qualtrics_alias, label = TRUE){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
   #source("api/getSurvey.R")
-  df <- getSurvey(qualtrics_alias, label = label)
+  df <- qualtrics(qualtrics_alias, label = label)
   
   # Define potential identifiers
   super_keys <- c("participantId", "workerId", "PROLIFIC_PID", "src_subject_id")
@@ -131,7 +131,7 @@ qualtrics.rune <- function(qualtrics_alias, label = TRUE){
 #' @examples
 #' \dontrun{
 #' # Parse a Qualtrics export containing multiple surveys
-#' rune("combined_surveys", label = FALSE)
+#' rune(combined_df)
 #' 
 #' # After running, access individual survey dataframes directly:
 #' head(pss)  # Access the PSS survey dataframe
