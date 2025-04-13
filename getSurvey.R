@@ -383,8 +383,43 @@ qualtrics.dict <- function(survey_alias) {
     
     # Not a variable or not a data frame, treat as survey alias
     message(sprintf("Fetching survey data for alias '%s' from Qualtrics.", survey_alias))
-    survey_data <- wizaRdry::qualtrics(survey_alias)
-    return(qualtRics::extract_colmap(respdata = survey_data))
+    
+    # Use wizaRdry::qualtrics with no progress bar - directly set options
+    # Disable progress bars globally before calling anything
+    old_opt <- options(qualtRics.progress = FALSE)
+    on.exit(options(old_opt), add = TRUE)
+    
+    # Modify wizaRdry::qualtrics call to suppress output temporarily
+    old_sink <- NULL
+    sink_file <- NULL
+    
+    # Try to redirect output to suppress progress messages
+    tryCatch({
+      sink_file <- tempfile()
+      old_sink <- sink(sink_file)
+      
+      # Call wizaRdry::qualtrics
+      survey_data <- wizaRdry::qualtrics(survey_alias)
+      
+      # Restore output
+      sink(NULL)
+      if (!is.null(sink_file) && file.exists(sink_file)) {
+        file.remove(sink_file)
+      }
+      
+      return(qualtRics::extract_colmap(respdata = survey_data))
+    }, error = function(e) {
+      # Restore output in case of error
+      if (!is.null(old_sink)) {
+        sink(NULL)
+      }
+      if (!is.null(sink_file) && file.exists(sink_file)) {
+        file.remove(sink_file)
+      }
+      
+      # If we're here, something went wrong; rethrow the error
+      stop(e$message)
+    })
   }
   
   # Invalid input type
