@@ -307,11 +307,35 @@ redcap.index <- function() {
 #' @importFrom REDCapR redcap_metadata_read
 #' @export
 
-redcap.dict <- function(redcap_data) {
+#' Get REDCap Data Dictionary for an Instrument
+#'
+#' This function retrieves the data dictionary (metadata) for a specific REDCap instrument.
+#' It accepts either an instrument name as a string, a variable containing REDCap data,
+#' or a REDCap data frame directly.
+#'
+#' @param instrument_name Character string naming the REDCap instrument to retrieve metadata for,
+#'        or a data frame containing REDCap data with a "redcap_instrument" attribute,
+#'        or a variable name (as string) that contains such a data frame.
+#'
+#' @return A data frame containing the REDCap metadata/data dictionary for the specified instrument.
+#'
+#' @examples
+#' \dontrun{
+#' # Get dictionary by instrument name
+#' metadata <- redcap.dict("demographics")
+#' 
+#' # Get dictionary from a REDCap data frame
+#' dsm_data <- redcap("dsm_5")
+#' metadata <- redcap.dict(dsm_data)
+#' 
+#' # Get dictionary using variable name
+#' metadata <- redcap.dict("dsm_data")
+#' }
+redcap.dict <- function(instrument_name) {
   # Check if input is a data frame with redcap_instrument attribute
-  if (is.data.frame(redcap_data) && !is.null(attr(redcap_data, "redcap_instrument"))) {
-    instrument_name <- attr(redcap_data, "redcap_instrument")
-    message(sprintf("Retrieving metadata for instrument '%s' from data frame attributes.", instrument_name))
+  if (is.data.frame(instrument_name) && !is.null(attr(instrument_name, "redcap_instrument"))) {
+    form_name <- attr(instrument_name, "redcap_instrument")
+    message(sprintf("Retrieving metadata for instrument '%s' from data frame attributes.", form_name))
     
     # Fetch metadata using the instrument name
     if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
@@ -322,7 +346,7 @@ redcap.dict <- function(redcap_data) {
     metadata <- REDCapR::redcap_metadata_read(
       redcap_uri = uri, 
       token = token,
-      forms = instrument_name,
+      forms = form_name,
       verbose = FALSE
     )$data
     
@@ -330,22 +354,22 @@ redcap.dict <- function(redcap_data) {
   }
   
   # Check if input is a regular data frame
-  if (is.data.frame(redcap_data)) {
+  if (is.data.frame(instrument_name)) {
     message("Using provided REDCap metadata data frame.")
-    return(redcap_data)
+    return(instrument_name)
   }
   
   # Input is a string
-  if (is.character(redcap_data)) {
+  if (is.character(instrument_name)) {
     # Check if it's a variable name in the global environment
-    if (exists(redcap_data)) {
-      var_data <- base::get(redcap_data)
+    if (exists(instrument_name)) {
+      var_data <- base::get(instrument_name)
       
       # Check if the variable is a data frame with instrument attribute
       if (is.data.frame(var_data) && !is.null(attr(var_data, "redcap_instrument"))) {
-        instrument_name <- attr(var_data, "redcap_instrument")
+        form_name <- attr(var_data, "redcap_instrument")
         message(sprintf("Retrieving metadata for instrument '%s' from variable '%s'.", 
-                        instrument_name, redcap_data))
+                        form_name, instrument_name))
         
         # Fetch metadata using the instrument name
         if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
@@ -356,7 +380,7 @@ redcap.dict <- function(redcap_data) {
         metadata <- REDCapR::redcap_metadata_read(
           redcap_uri = uri, 
           token = token,
-          forms = instrument_name,
+          forms = form_name,
           verbose = FALSE
         )$data
         
@@ -365,7 +389,7 @@ redcap.dict <- function(redcap_data) {
       
       # Check if the variable is just a data frame
       if (is.data.frame(var_data)) {
-        message(sprintf("Using existing metadata data frame '%s' from environment.", redcap_data))
+        message(sprintf("Using existing metadata data frame '%s' from environment.", instrument_name))
         return(var_data)
       }
     }
@@ -380,13 +404,17 @@ redcap.dict <- function(redcap_data) {
     metadata <- REDCapR::redcap_metadata_read(
       redcap_uri = uri, 
       token = token,
+      forms = instrument_name,
       verbose = FALSE
     )$data
     
-    dictionary <- metadata[metadata$form_name == redcap_data, ]
+    if (nrow(metadata) == 0) {
+      warning(sprintf("No metadata found for instrument '%s'.", instrument_name))
+    } else {
+      message(sprintf("Retrieved metadata for instrument '%s' from REDCap.", instrument_name))
+    }
     
-    message(sprintf("Retrieved metadata for instrument '%s' from REDCap.", redcap_data))
-    return(dictionary)
+    return(metadata)
   }
   
   # Invalid input type
