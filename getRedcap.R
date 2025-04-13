@@ -282,17 +282,36 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
 #' @importFrom knitr kable
 #' @export
 redcap.index <- function() {
+  # Load required packages
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(knitr)) install.packages("knitr"); library(knitr)
-
+  
   # Validate secrets
-  base::source("api/SecretsEnv.R")
-  validate_secrets("redcap")
+  tryCatch({
+    base::source("api/SecretsEnv.R")
+    validate_secrets("redcap")
+  }, error = function(e) {
+    message("Error loading or validating REDCap secrets: ", e$message)
+    return(NULL)
+  })
   
-  forms <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
-  
-  # Option 1: Using knitr::kable for a clean table
-  return(knitr::kable(forms, format = "simple"))
+  # Attempt to fetch instruments from REDCap
+  tryCatch({
+    forms_result <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)
+    
+    # Check if the operation was successful
+    if (forms_result$success) {
+      return(knitr::kable(forms_result$data, format = "simple"))
+    } else {
+      message("REDCap API returned an error: ", forms_result$status_message)
+      return(NULL)
+    }
+  }, error = function(e) {
+    message("Error connecting to REDCap: ", e$message)
+    return(NULL)
+  }, warning = function(w) {
+    message("Warning during REDCap connection: ", w$message)
+  })
 }
 
 #' Extract Dictionary from REDCap Data
