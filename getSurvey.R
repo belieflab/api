@@ -176,6 +176,149 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
   suppressWarnings(return(df))
 }
 
+#' Get Available Qualtrics Surveys
+#'
+#' Retrieves a list of all available surveys in the configured Qualtrics account.
+#'
+#' @param institution Optional; the institution identifier to use. If NULL, uses all
+#'   institutions specified in the configuration file.
+#'
+#' @return A data frame containing the IDs and names of all available surveys
+#'   in the configured Qualtrics account. Can be used to identify surveys for
+#'   further data retrieval.
+#'   
+#' @export
+qualtrics.index <- function(institution = NULL) {
+  # Temporarily suppress warnings
+  old_warn <- options("warn")
+  options(warn = -1)
+  
+  tryCatch({
+    # Load necessary source files for helper functions
+    lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
+    
+    # Load required secrets and configuration
+    base::source("api/SecretsEnv.R")
+    validate_secrets("qualtrics")
+    
+    base::source("api/ConfigEnv.R")
+    cfg <- validate_config("qualtrics")
+    
+    # Connect to Qualtrics using the existing helper function
+    connectQualtrics()
+    
+    # Get all surveys
+    message("Fetching available Qualtrics surveys...")
+    surveys <- qualtRics::all_surveys()
+    
+    # Filter by institution if specified
+    if (!is.null(institution) && !is.null(cfg$qualtrics$survey_ids)) {
+      if (institution %in% names(cfg$qualtrics$survey_ids)) {
+        # Extract the survey IDs for the specified institution
+        inst_surveys <- cfg$qualtrics$survey_ids[[institution]]
+        
+        # Create a mapping of configured surveys for this institution
+        configured_surveys <- data.frame(
+          id = unlist(inst_surveys),
+          alias = names(inst_surveys),
+          stringsAsFactors = FALSE
+        )
+        
+        # Filter and merge with alias information
+        surveys <- merge(surveys, configured_surveys, by = "id", all.y = TRUE)
+        message(paste0("Filtered to ", nrow(surveys), " surveys from institution '", institution, "'"))
+      } else {
+        warning(paste0("Institution '", institution, "' not found in configuration. Returning all surveys."))
+      }
+    } else if (!is.null(cfg$qualtrics$survey_ids)) {
+      # Create a complete mapping of all configured surveys across institutions
+      all_mapped_surveys <- data.frame(
+        id = character(0),
+        alias = character(0),
+        institution = character(0),
+        stringsAsFactors = FALSE
+      )
+      
+      for (inst in names(cfg$qualtrics$survey_ids)) {
+        inst_surveys <- cfg$qualtrics$survey_ids[[inst]]
+        if (length(inst_surveys) > 0) {
+          inst_df <- data.frame(
+            id = unlist(inst_surveys),
+            alias = names(inst_surveys),
+            institution = rep(inst, length(inst_surveys)),
+            stringsAsFactors = FALSE
+          )
+          all_mapped_surveys <- rbind(all_mapped_surveys, inst_df)
+        }
+      }
+      
+      # Merge with the surveys data
+      if (nrow(all_mapped_surveys) > 0) {
+        surveys <- merge(surveys, all_mapped_surveys, by = "id", all = TRUE)
+      }
+    }
+    
+    # Format the output
+    if (nrow(surveys) > 0) {
+      # Sort by name for easier reading
+      surveys <- surveys[order(surveys$name), ]
+      
+      # Create output table
+      if ("alias" %in% colnames(surveys)) {
+        if ("institution" %in% colnames(surveys)) {
+          # Full output with institution information
+          result <- data.frame(
+            ID = surveys$id,
+            Alias = surveys$alias,
+            Institution = surveys$institution,
+            Name = surveys$name,
+            Last_Modified = surveys$lastModified,
+            stringsAsFactors = FALSE
+          )
+        } else {
+          # Output for specific institution
+          result <- data.frame(
+            ID = surveys$id,
+            Alias = surveys$alias,
+            Name = surveys$name,
+            Last_Modified = surveys$lastModified,
+            stringsAsFactors = FALSE
+          )
+        }
+      } else {
+        # Basic output for unconfigured surveys
+        result <- data.frame(
+          ID = surveys$id,
+          Name = surveys$name,
+          Last_Modified = surveys$lastModified,
+          stringsAsFactors = FALSE
+        )
+      }
+      
+      # Print the results in a user-friendly format
+      message(paste0("\nFound ", nrow(result), " Qualtrics surveys:"))
+      print(result, row.names = TRUE)
+      
+      # Restore previous warning setting
+      options(old_warn)
+      
+      return(invisible(surveys))
+    } else {
+      message("No surveys found.")
+      
+      # Restore previous warning setting
+      options(old_warn)
+      
+      return(invisible(NULL))
+    }
+  }, error = function(e) {
+    # Restore previous warning setting before stopping
+    options(old_warn)
+    
+    stop(paste("Error connecting to Qualtrics:", e$message))
+  })
+}
+
 #' Extract Column Mapping from Qualtrics Data Frame
 #'
 #' This function extracts column mappings from the metadata of a Qualtrics survey data frame.
