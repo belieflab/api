@@ -210,16 +210,16 @@ rune <- function(df){
   return(list2env(output, globalenv()))
 }
 
-#' Alias for 'rune'
+#' Alias for 'rune.qualtrics'
 #'
 #' This is a legacy alias for the 'rune' function to maintain compatibility with older code.
 #'
-#' @inheritParams rune
-#' @inherit rune return
+#' @inheritParams rune.qualtrics
+#' @inherit rune.qualtrics return
 #' @export
 #' @examples
 #' \dontrun{
 #' dataParse("qualtrics_collection")
 #' }
-dataParse <- rune
+dataParse <- rune.qualtrics
 
