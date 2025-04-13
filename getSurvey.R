@@ -342,50 +342,48 @@ qualtrics.index <- function(institution = NULL) {
 #' @return A list containing the mappings of column names to survey questions.
 #' @export
 qualtrics.dict <- function(survey_alias) {
-  # Try to capture the input name if it's a non-existent variable
-  survey_name <- tryCatch({
-    # If we can deparse the substitute, we're dealing with a variable name
-    if (!is.character(survey_alias)) {
-      # Get the string representation of the variable name
-      var_name <- deparse(substitute(survey_alias))
-      
-      # If the variable doesn't exist, use its name as a string instead
-      if (!exists(var_name)) {
-        message(sprintf("Object '%s' not found, using as survey alias instead.", var_name))
-        return(var_name)
-      }
-    }
-    # Otherwise, just use what was passed in
-    survey_alias
-  }, error = function(e) {
-    # On any error, return the survey_alias as is
-    survey_alias
-  })
+  # First handle the case of a non-existent variable being passed without quotes
+  var_name <- NULL
   
-  # Now proceed with the original function logic using survey_name
+  # Only try to get the name if survey_alias is missing
+  if (missing(survey_alias)) {
+    stop("Survey alias is required")
+  }
+  
+  # Capture the actual call
+  call_expr <- substitute(survey_alias)
+  
+  # Check if it's a symbol (variable name) that doesn't exist
+  if (is.symbol(call_expr) && !exists(as.character(call_expr))) {
+    var_name <- as.character(call_expr)
+    message(sprintf("Object '%s' not found, using as survey alias instead.", var_name))
+    survey_alias <- var_name
+  }
+  
+  # Now proceed with normal function logic
   
   # Check if input is a data frame
-  if (is.data.frame(survey_name)) {
+  if (is.data.frame(survey_alias)) {
     # Input is already a data frame, use it directly
-    return(qualtRics::extract_colmap(respdata = survey_name))
+    return(qualtRics::extract_colmap(respdata = survey_alias))
   }
   
   # Input is a string (either originally or after substitution)
-  if (is.character(survey_name)) {
+  if (is.character(survey_alias)) {
     # First, check if it's a variable name in the global environment
-    if (exists(survey_name)) {
-      var_data <- base::get(survey_name)
+    if (exists(survey_alias)) {
+      var_data <- base::get(survey_alias)
       
       # Check if the variable is a data frame
       if (is.data.frame(var_data)) {
-        message(sprintf("Using existing data frame '%s' from environment.", survey_name))
+        message(sprintf("Using existing data frame '%s' from environment.", survey_alias))
         return(qualtRics::extract_colmap(respdata = var_data))
       }
     }
     
     # Not a variable or not a data frame, treat as survey alias
-    message(sprintf("Fetching survey data for alias '%s' from Qualtrics.", survey_name))
-    survey_data <- wizaRdry::qualtrics(survey_name)
+    message(sprintf("Fetching survey data for alias '%s' from Qualtrics.", survey_alias))
+    survey_data <- wizaRdry::qualtrics(survey_alias)
     return(qualtRics::extract_colmap(respdata = survey_data))
   }
   
