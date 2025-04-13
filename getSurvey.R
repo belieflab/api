@@ -9,9 +9,9 @@
 #' @examples
 #' \dontrun{
 #' # Get survey by alias (will search all institutions)
-#' survey_data <- getQualtrics("rgpts")
+#' survey_data <- qualtrics("rgpts")
 #' }
-getQualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
+qualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
   # Load necessary source files
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   
@@ -185,7 +185,7 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
 #' @param qualtrics_data Can either be an existing dataframe, variable name as string, or survey alias string
 #' @return A list containing the mappings of column names to survey questions.
 #' @export
-getQualtricsDictionary <- function(qualtrics_data) {
+qualtrics.dict <- function(qualtrics_data) {
   # Check if input is a data frame
   if (is.data.frame(qualtrics_data)) {
     # Input is already a data frame, use it directly
@@ -215,46 +215,15 @@ getQualtricsDictionary <- function(qualtrics_data) {
   stop("Input must be either a data frame or a string (survey alias or variable name).")
 }
 
-#' Alias for 'getQualtrics'
+#' Alias for 'qualtrics'
 #'
-#' This is a legacy alias for the 'getQualtrics' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'qualtrics' function to maintain compatibility with older code.
 #'
-#' @inheritParams getQualtrics
-#' @inherit getQualtrics return
+#' @inheritParams qualtrics
+#' @inherit qualtrics return
 #' @export
 #' @examples
 #' \dontrun{
 #' survey_data <- getSurvey("your_survey_alias")
 #' }
-getSurvey <- getQualtrics
-
-#' Alias for 'getQualtrics'
-#'
-#' This is a legacy alias for the 'getQualtrics' function to maintain compatibility with older code.
-#'
-#' @inheritParams getQualtrics
-#' @inherit getQualtrics return
-#' @export
-#' @examples
-#' \dontrun{
-#' survey_data <- qualtrics("your_survey_alias")
-#' }
-qualtrics <- getQualtrics
-
-#' Alias for 'getQualtricsDictionary'
-#'
-#' This is a legacy alias for the 'getQualtricsDictionary' function to maintain compatibility with older code.
-#'
-#' @inheritParams getQualtricsDictionary
-#' @inherit getQualtricsDictionary return
-#' @export
-#' @examples
-#' \dontrun{
-#' # Get dictionary from existing data frame
-#' survey <- qualtrics("your_survey_alias")
-#' survey_dict <- qualtrics_codex(my_survey)
-#' # or:
-#' # Get dictionary from variable name as string
-#' survey_dict <- qualtrics.codex("my_survey")
-#' }
-qualtrics.codex <- getQualtricsDictionary
+getSurvey <- qualtrics
