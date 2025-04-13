@@ -367,6 +367,11 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
       }
     }
     
+    # After creating new scripts in validateMeasures, update the lists
+    redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
+    qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
+    mongo_list <- tools::file_path_sans_ext(list.files("./clean/mongo"))
+    
     # Return the data_list invisibly instead of stopping execution
     return(invisible(data_list))
   }
