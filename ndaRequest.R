@@ -14,12 +14,12 @@
 #' @export
 #' @examples
 #' \dontrun{
-#'   ndaRequest("prl", csv=TRUE)
-#'   ndaRequest("rgpts", "kamin", rdata=TRUE)
+#'   nda("prl", csv=TRUE)
+#'   nda("rgpts", "kamin", rdata=TRUE)
 #' }
 #' 
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
-ndaRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
+nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
   
   start_time <- Sys.time()
   
@@ -262,16 +262,16 @@ formatElapsedTime <- function(start_time) {
   message("Formatted for NDA in ", formatted_time, ".")
 }
 
-#' Alias for 'ndaRequest'
+#' Alias for 'nda'
 #'
-#' This is a legacy alias for the 'ndaRequest' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'nda' function to maintain compatibility with older code.
 #'
-#' @inheritParams ndaRequest
-#' @inherit ndaRequest return
+#' @inheritParams nda
+#' @inherit nda return
 #' @export
 #' @examples
 #' \dontrun{
-#' prl01 <- clean.nda("prl01")
+#' prl01 <- ndaRequest("prl01")
 #' }
-nda <- ndaRequest
+ndaRequest <- nda
 
