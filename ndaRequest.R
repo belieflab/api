@@ -69,11 +69,244 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
     }
     
     # Validate measures against predefined lists
-    invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, task_list), data_list)
+    invalid_script <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, mongo_list), data_list)
     
-    if (length(invalid_list) > 0) {
-      stop(paste(invalid_list, collapse = ", "), " does not have a cleaning script, please create one in nda/.\n")
+    if (length(invalid_script) > 0) {
+      message(paste(invalid_script, collapse = ", "), " does not have a cleaning script, please create one in clean/.\n")
+      
+      response <- readline(prompt = sprintf("Would you like to create a cleaning script for %s now? y/n ", 
+                                            paste(invalid_script, collapse = ", ")))
+      
+      while (!tolower(response) %in% c("y", "n")) {
+        response <- readline(prompt = "Please enter either y or n: ")
+      }
+      
+      if (tolower(response) == "n") {
+        stop("Script creation cancelled.")
+      }
+      
+      # user names the script
+      # After getting the script name from the user
+      script_name <- readline(prompt = "What would you like to name the cleaning script?")
+      
+      # Validate against NDA data dictionary
+      validate_script_name <- function(script_name, nda_base_url = "https://nda.nih.gov/api/datadictionary/v2") {
+        if (!require(httr)) {install.packages("httr")}; library(httr)
+        if (!require(jsonlite)) {install.packages("jsonlite")}; library(jsonlite)
+        
+        # First, check if it's a valid structure name directly
+        url <- sprintf("%s/datastructure/%s", nda_base_url, script_name)
+        response <- httr::GET(url)
+        
+        if (httr::status_code(response) == 200) {
+          content <- jsonlite::fromJSON(rawToChar(response$content))
+          if ("dataElements" %in% names(content)) {
+            message(sprintf("Successfully validated '%s' - found in NDA data dictionary", script_name))
+            return(TRUE)
+          }
+        }
+        
+        # If not found directly, search for similar structures
+        search_url <- sprintf("%s/datastructure", nda_base_url)
+        search_response <- httr::GET(search_url)
+        
+        if (httr::status_code(search_response) == 200) {
+          all_structures <- jsonlite::fromJSON(rawToChar(search_response$content))
+          
+          if (length(all_structures) > 0) {
+            # Look for exact or similar matches
+            exact_match <- all_structures[which(all_structures$shortName == script_name)]
+            
+            if (nrow(exact_match) > 0) {
+              message(sprintf("Found exact match for '%s' in NDA data dictionary", script_name))
+              return(TRUE)
+            } else {
+              # Show closest matches
+              similarities <- sapply(all_structures$shortName, function(name) {
+                calculate_similarity(script_name, name)
+              })
+              
+              top_matches <- head(sort(similarities, decreasing = TRUE), 5)
+              
+              if (length(top_matches) > 0 && top_matches[1] > 0.7) {
+                message("\nScript name not found in NDA dictionary. Did you mean one of these?")
+                for (i in seq_along(top_matches)) {
+                  match_name <- names(top_matches)[i]
+                  match_score <- top_matches[i]
+                  message(sprintf("%d. %s (%.1f%% match)", i, match_name, match_score * 100))
+                }
+                
+                use_suggested <- readline(prompt = "Use one of these instead? (enter number or 'n' to keep original): ")
+                
+                if (grepl("^[0-9]+$", use_suggested)) {
+                  selection <- as.numeric(use_suggested)
+                  if (selection >= 1 && selection <= length(top_matches)) {
+                    script_name <- names(top_matches)[selection]
+                    message(sprintf("Using '%s' instead", script_name))
+                    return(script_name)
+                  }
+                }
+              } else {
+                message(sprintf("Warning: '%s' not found in NDA data dictionary", script_name))
+                proceed <- readline(prompt = "Proceed anyway? (y/n): ")
+                if (tolower(proceed) == "y") {
+                  return(script_name)  # Return the original name
+                } else {
+                  return(FALSE)  # Indicate validation failed
+                }
+              }
+            }
+          }
+        }
+        
+        message(sprintf("Warning: Unable to validate '%s' against NDA data dictionary", script_name))
+        proceed <- readline(prompt = "Proceed anyway? (y/n): ")
+        if (tolower(proceed) == "y") {
+          return(script_name)  # Return the original name
+        } else {
+          return(FALSE)  # Indicate validation failed
+        }
+      }
+      
+      # Validate the script name
+      validated_name <- validate_script_name(script_name)
+      
+      if (is.logical(validated_name) && !validated_name) {
+        message("Script creation cancelled due to validation failure.")
+        stop("Script creation cancelled.")
+      } else if (is.character(validated_name)) {
+        # A different name was selected
+        script_name <- validated_name
+      }
+      
+      # If response is "y", allow user to select api:
+      api_selection <- function() {
+        options <- c("mongo", "qualtrics", "redcap")
+        selections <- rep(FALSE, 3)
+        names(selections) <- options
+        
+        cat("Select script type(s):\n")
+        
+        while(TRUE) {
+          # Show current status
+          for (i in 1:length(options)) {
+            status <- ifelse(selections[i], "[x]", "[ ]")
+            cat(i, ":", status, options[i], "\n")
+          }
+          cat(length(options) + 1, ": Done\n")
+          
+          # Get user choice
+          choice <- as.numeric(readline("Enter number to toggle selection: "))
+          
+          if (is.na(choice)) {
+            cat("Please enter a valid number\n")
+          } else if (choice == length(options) + 1) {
+            break
+          } else if (choice >= 1 && choice <= length(options)) {
+            selections[choice] <- !selections[choice]
+          } else {
+            cat("Invalid choice\n")
+          }
+          cat("\n")
+        }
+        
+        return(options[selections])
+      }
+      
+      # Use the function
+      selected_api <- api_selection()
+      
+      # Define base path
+      path <- "." # Or whatever directory you're working from
+      
+      clean_templates <- list(
+        mongo = list(
+          path = sprintf(file.path(path, "nda", "mongo", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# nda/mongo/%s.R", script_name),
+            "#",
+            '# config:  database name is defined in config.yml',
+            '# secrets: connectionString is defined in secrets.R',
+            '# encrypt: the *.pem file must be placed in the root of this repository',
+            "#",
+            "# return a list of the instrument_name(s) from MongoDB",
+            "mongo.index()",
+            "#",
+            "# get collection from MongoDB",
+            "# IMPORTANT: both variable name and script filename must match",
+            sprintf("%s <- mongo(\"%s\")", script_name, script_name),
+            "",
+            "# nda remediation code...",
+            "",
+            "# IMPORTANT: final df name must still match the NDA data structure alias",
+            "",
+            sep = "\n"
+          )
+        ),
+        qualtrics = list(
+          path = sprintf(file.path(path, "nda", "qualtrics", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# nda/qualtrics/%s.R", script_name),
+            "#",
+            "# get survey from Qualtrics database",
+            "# config:  surveys are defined in config.yml as key-value pairs",
+            "# secrets: baseUrls and apiKeys are defined in secrets.R",
+            "#",
+            "# return a list of the instrument_name(s) from MongoDB",
+            "qualtrics.index()",
+            "#",
+            "# get collection from Qualtrics",
+            "# IMPORTANT: both variable name and script filename must match",
+            sprintf("%s <- qualtrics(\"%s\")", script_name, script_name),
+            "",
+            "# nda remediation code...",
+            "",
+            "# IMPORTANT: final df name must still match the NDA data structure alias",
+            "",
+            sep = "\n"
+          )
+        ),
+        redcap = list(
+          path = sprintf(file.path(path, "nda", "redcap", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# nda/redcap/%s.R", script_name),
+            "#",
+            "# config:  superkey instrument is defined in config.yml",
+            "# secrets: uri and token are defined in secrets.R",
+            "#",
+            "# return a list of the instrument_name(s) from REDCap",
+            "redcap.index()",
+            "#",
+            "# get the instrument_name from REDCap",
+            "# IMPORTANT: both variable name and script filename must match the NDA data structure alias",
+            sprintf("%s <- redcap(\"%s\")", script_name, script_name),
+            "",
+            "# nda remediation code...",
+            "",
+            "# IMPORTANT: final df name must still match the NDA data structure alias",
+            "",
+            sep = "\n"
+          )
+        )
+      )
+      
+      # Initialize array to track created files
+      created <- character(0)
+      
+      template <- clean_templates[[selected_api]]
+      if (!file.exists(template$path)) {
+        writeLines(template$content, template$path)
+        created <- c(created, template$path)
+      } else {
+        created <- c(created, paste0(template$path, " (skipped, already exists)"))
+      }
+      
     }
+    # kill rest of script execution since script is not complete
+    stop()
   }
   
   # Compile data list and validate measures
