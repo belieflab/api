@@ -295,18 +295,6 @@ redcap.index <- function() {
   return(knitr::kable(forms, format = "simple"))
 }
 
-#' Extract Dictionary from REDCap Data
-#'
-#' This function extracts metadata/dictionary information from REDCap. It can accept
-#' either an instrument name to fetch new data, an existing data frame with instrument
-#' attributes, or a variable name as string.
-#'
-#' @param redcap_data Can either be an instrument name to fetch new data, a data frame 
-#'   returned by redcap(), or a variable name as string
-#' @return A data frame containing the data dictionary/metadata for the specified instrument
-#' @importFrom REDCapR redcap_metadata_read
-#' @export
-
 #' Get REDCap Data Dictionary for an Instrument
 #'
 #' This function retrieves the data dictionary (metadata) for a specific REDCap instrument.
