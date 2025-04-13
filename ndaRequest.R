@@ -90,74 +90,142 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
       for (script_name in invalid_scripts) {
         message(sprintf("\nProcessing script: %s", script_name))
         
-        # Validate against NDA data dictionary
+        # Improved validation function for NDA data structure names
         validate_script_name <- function(script_name, nda_base_url = "https://nda.nih.gov/api/datadictionary/v2") {
           if (!require(httr)) {install.packages("httr")}; library(httr)
           if (!require(jsonlite)) {install.packages("jsonlite")}; library(jsonlite)
           
           # First, check if it's a valid structure name directly
           url <- sprintf("%s/datastructure/%s", nda_base_url, script_name)
-          response <- httr::GET(url)
           
-          if (httr::status_code(response) == 200) {
-            content <- jsonlite::fromJSON(rawToChar(response$content))
-            if ("dataElements" %in% names(content)) {
-              message(sprintf("Successfully validated '%s' - found in NDA data dictionary", script_name))
-              return(TRUE)
+          # Add proper error handling for the API request
+          response <- tryCatch({
+            httr::GET(url, timeout(10))
+          }, error = function(e) {
+            message("Network error when connecting to NDA API: ", e$message)
+            message("Check your internet connection or try again later.")
+            return(NULL)
+          })
+          
+          # If we got a response, check if it's valid
+          if (!is.null(response)) {
+            status_code <- httr::status_code(response)
+            
+            if (status_code == 200) {
+              # Try to parse the JSON with error handling
+              content <- tryCatch({
+                jsonlite::fromJSON(rawToChar(response$content))
+              }, error = function(e) {
+                message("Error parsing API response: ", e$message)
+                return(NULL)
+              })
+              
+              if (!is.null(content) && "dataElements" %in% names(content)) {
+                message(sprintf("Successfully validated '%s' - found in NDA data dictionary", script_name))
+                return(TRUE)
+              } else if (!is.null(content)) {
+                message(sprintf("API returned content but no dataElements for '%s'", script_name))
+              }
+            } else if (status_code == 404) {
+              message(sprintf("Data structure '%s' not found in NDA data dictionary", script_name))
+            } else {
+              message(sprintf("API returned status code %d for '%s'", status_code, script_name))
             }
+          } else {
+            message("Couldn't connect to NDA API")
+            return(FALSE)
           }
           
-          # If not found directly, search for similar structures
+          # If we get here, the direct lookup failed, so search for similar structures
           search_url <- sprintf("%s/datastructure", nda_base_url)
-          search_response <- httr::GET(search_url)
           
-          if (httr::status_code(search_response) == 200) {
-            all_structures <- jsonlite::fromJSON(rawToChar(search_response$content))
+          search_response <- tryCatch({
+            httr::GET(search_url, timeout(10))
+          }, error = function(e) {
+            message("Network error when searching NDA API: ", e$message)
+            return(NULL)
+          })
+          
+          if (!is.null(search_response) && httr::status_code(search_response) == 200) {
+            # Try to parse the JSON with error handling
+            all_structures <- tryCatch({
+              content <- jsonlite::fromJSON(rawToChar(search_response$content))
+              if (is.data.frame(content)) {
+                content
+              } else {
+                message("Unexpected API response format: not a data frame")
+                return(data.frame())
+              }
+            }, error = function(e) {
+              message("Error parsing API response: ", e$message)
+              return(data.frame())
+            })
             
-            if (length(all_structures) > 0) {
+            if (nrow(all_structures) > 0) {
               # Look for exact or similar matches
-              exact_match <- all_structures[which(all_structures$shortName == script_name)]
+              exact_match <- all_structures[which(all_structures$shortName == script_name), ]
               
               if (nrow(exact_match) > 0) {
                 message(sprintf("Found exact match for '%s' in NDA data dictionary", script_name))
                 return(TRUE)
               } else {
                 # Show closest matches
-                similarities <- sapply(all_structures$shortName, function(name) {
-                  calculate_similarity(script_name, name)
+                # Safely calculate similarities
+                similarities <- tryCatch({
+                  sapply(all_structures$shortName, function(name) {
+                    calculate_similarity(script_name, name)
+                  })
+                }, error = function(e) {
+                  message("Error calculating similarities: ", e$message)
+                  return(numeric(0))
                 })
                 
-                top_matches <- head(sort(similarities, decreasing = TRUE), 5)
-                
-                if (length(top_matches) > 0 && top_matches[1] > 0.7) {
-                  message("\nScript name not found in NDA dictionary. Did you mean one of these?")
-                  for (i in seq_along(top_matches)) {
-                    match_name <- names(top_matches)[i]
-                    match_score <- top_matches[i]
-                    message(sprintf("%d. %s (%.1f%% match)", i, match_name, match_score * 100))
-                  }
+                if (length(similarities) > 0) {
+                  # Get top matches but handle possible errors
+                  top_matches <- tryCatch({
+                    sorted_similarities <- sort(similarities, decreasing = TRUE)
+                    head(sorted_similarities, 5)
+                  }, error = function(e) {
+                    message("Error sorting similarities: ", e$message)
+                    return(numeric(0))
+                  })
                   
-                  use_suggested <- readline(prompt = "Use one of these instead? (enter number or 'n' to keep original): ")
-                  
-                  if (grepl("^[0-9]+$", use_suggested)) {
-                    selection <- as.numeric(use_suggested)
-                    if (selection >= 1 && selection <= length(top_matches)) {
-                      script_name <- names(top_matches)[selection]
-                      message(sprintf("Using '%s' instead", script_name))
-                      return(script_name)
+                  if (length(top_matches) > 0 && top_matches[1] > 0.7) {
+                    message("\nData structure name not found in NDA dictionary. Did you mean one of these?")
+                    for (i in seq_along(top_matches)) {
+                      match_name <- names(top_matches)[i]
+                      match_score <- top_matches[i]
+                      message(sprintf("%d. %s (%.1f%% match)", i, match_name, match_score * 100))
+                    }
+                    
+                    use_suggested <- readline(prompt = "Use one of these instead? (enter number or 'n' to keep original): ")
+                    
+                    if (grepl("^[0-9]+$", use_suggested)) {
+                      selection <- as.numeric(use_suggested)
+                      if (selection >= 1 && selection <= length(top_matches)) {
+                        script_name <- names(top_matches)[selection]
+                        message(sprintf("Using '%s' instead", script_name))
+                        return(script_name)
+                      }
+                    }
+                  } else {
+                    message(sprintf("Warning: '%s' not found in NDA data dictionary and no close matches found", script_name))
+                    proceed <- readline(prompt = "Proceed anyway? (y/n): ")
+                    if (tolower(proceed) == "y") {
+                      return(script_name)  # Return the original name
+                    } else {
+                      return(FALSE)  # Indicate validation failed
                     }
                   }
                 } else {
-                  message(sprintf("Warning: '%s' not found in NDA data dictionary", script_name))
-                  proceed <- readline(prompt = "Proceed anyway? (y/n): ")
-                  if (tolower(proceed) == "y") {
-                    return(script_name)  # Return the original name
-                  } else {
-                    return(FALSE)  # Indicate validation failed
-                  }
+                  message(sprintf("No similarity data available for '%s'", script_name))
                 }
               }
+            } else {
+              message("No data structures returned from NDA API")
             }
+          } else {
+            message("Failed to search NDA data dictionary")
           }
           
           message(sprintf("Warning: Unable to validate '%s' against NDA data dictionary", script_name))
