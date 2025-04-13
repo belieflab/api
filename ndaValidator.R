@@ -1,4 +1,23 @@
 
+# Safe readline function that works in non-interactive environments too
+safe_readline <- function(prompt = "", default = "y") {
+  tryCatch({
+    if (interactive()) {
+      result <- suppressWarnings(readline(prompt))
+      if (result == "") return(default)
+      return(result)
+    } else {
+      # In non-interactive mode, just return the default
+      message(paste0(prompt, " (Using default: ", default, ")"))
+      return(default)
+    }
+  }, error = function(e) {
+    # If there's any error, return the default
+    message(paste0("Error in readline: ", e$message, " (Using default: ", default, ")"))
+    return(default)
+  })
+}
+
 # Function to handle missing required fields
 handle_missing_fields <- function(df, elements, missing_required, verbose = FALSE) {
   if(verbose) {
@@ -606,7 +625,9 @@ fetch_structure_elements <- function(structure_name, nda_base_url) {
 # Calculate similarity with more accurate prefix handling
 # Calculate similarity with more accurate prefix handling
 # Modified find_and_rename_fields function with automatic unknown field handling
-find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE, auto_drop_unknown = FALSE) {
+find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE, 
+                                   auto_drop_unknown = FALSE,
+                                   interactive_mode = TRUE) {
   renamed <- list(
     df = df,
     renames = character(),
@@ -676,33 +697,66 @@ find_and_rename_fields <- function(df, elements, structure_name, verbose = TRUE,
         best_score <- max(similarities)
         
         if (best_score > 0.9) {  # Increased threshold for more conservative matching
-          if(verbose) {
-            message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
-                            field, best_match, best_score * 100))
+          # Present option to rename in interactive mode
+          rename_field <- TRUE
+          
+          if(interactive_mode) {
+            rename_input <- safe_readline(prompt = sprintf("Rename '%s' to '%s' (similarity: %.2f%%)? (y/n): ", 
+                                                           field, best_match, best_score * 100), default = "y")
+            rename_field <- tolower(rename_input) %in% c("y", "yes")
           }
           
-          # Add the new column with renamed data
-          renamed$df[[best_match]] <- renamed$df[[field]]
-          
-          # Mark original column for dropping
-          renamed$columns_to_drop <- c(renamed$columns_to_drop, field)
-          
-          # Store the rename operation
-          renamed$renames <- c(renamed$renames,
-                               sprintf("%s -> %s (%.2f%%)",
-                                       field, best_match, best_score * 100))
-        } else if(verbose) {
-          cat(sprintf("No automatic rename - best match below 90%% threshold\n"))
+          if(rename_field) {
+            if(verbose) {
+              message(sprintf("\nRENAMING: '%s' to '%s' (similarity: %.2f%%)\n",
+                              field, best_match, best_score * 100))
+            }
+            
+            # Add the new column with renamed data
+            renamed$df[[best_match]] <- df[[field]]
+            
+            # Mark original column for dropping
+            renamed$columns_to_drop <- c(renamed$columns_to_drop, field)
+            
+            # Store the rename operation
+            renamed$renames <- c(renamed$renames,
+                                 sprintf("%s -> %s (%.2f%%)",
+                                         field, best_match, best_score * 100))
+          }
+        } else {
+          if(verbose) {
+            cat(sprintf("No automatic rename - best match below 90%% threshold\n"))
+          }
           
           # Mark this as a column to drop if auto_drop_unknown is TRUE
-          if(auto_drop_unknown) {
+          drop_field <- auto_drop_unknown
+          
+          if(interactive_mode) {
+            drop_input <- safe_readline(prompt = sprintf("Drop field '%s'? (y/n): ", field), default = if(auto_drop_unknown) "y" else "n")
+            drop_field <- tolower(drop_input) %in% c("y", "yes")
+          }
+          
+          if(drop_field) {
             renamed$columns_to_drop <- c(renamed$columns_to_drop, field)
+            if(verbose) cat(sprintf("Will drop field '%s'\n", field))
+          } else if(verbose) {
+            cat(sprintf("Keeping field '%s'\n", field))
           }
         }
       } else {
         # No matches found
-        if(auto_drop_unknown) {
+        drop_field <- auto_drop_unknown
+        
+        if(interactive_mode) {
+          drop_input <- safe_readline(prompt = sprintf("No matches found for '%s'. Drop this field? (y/n): ", field), default = if(auto_drop_unknown) "y" else "n")
+          drop_field <- tolower(drop_input) %in% c("y", "yes")
+        }
+        
+        if(drop_field) {
           renamed$columns_to_drop <- c(renamed$columns_to_drop, field)
+          if(verbose) cat(sprintf("Will drop field '%s'\n", field))
+        } else if(verbose) {
+          cat(sprintf("Keeping field '%s'\n", field))
         }
       }
     }
@@ -785,7 +839,11 @@ get_violations <- function(value, range_str) {
 
 # Main validation logic function
 # Modified validate_structure function with better error handling
-validate_structure <- function(df, elements, measure_name, api, verbose = FALSE, auto_drop_unknown = TRUE, missing_required_fields = character(0)) {
+validate_structure <- function(df, elements, measure_name, api, verbose = FALSE, 
+                               auto_drop_unknown = FALSE, 
+                               missing_required_fields = character(0),
+                               interactive_mode = TRUE,
+                               collect_only = FALSE) {
   if(verbose) cat("\nValidating data structure...")
   
   results <- list(
@@ -793,6 +851,7 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
     missing_required = character(0),
     value_range_violations = list(),
     unknown_fields = character(0),
+    unknown_fields_dropped = character(0),  # Track which fields were dropped
     warnings = character(0)
   )
   
@@ -808,7 +867,6 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
     }
   }
   
-  
   tryCatch({
     # Get field lists
     required_fields <- elements$name[elements$required == "Required"]
@@ -823,12 +881,27 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
         cat(sprintf("\n  %s", paste(results$unknown_fields, collapse=", ")))
       }
       
-      if(auto_drop_unknown) {
-        # Drop the unknown fields automatically
+      drop_fields <- FALSE
+      
+      if(interactive_mode) {
+        # Prompt user for confirmation
+        user_input <- safe_readline(prompt = "Do you want to drop these unknown fields? (y/n): ", 
+                                    default = if(auto_drop_unknown) "y" else "n")
+        drop_fields <- tolower(user_input) %in% c("y", "yes")
+      } else {
+        # Use the auto_drop_unknown setting
+        drop_fields <- auto_drop_unknown
+      }
+      
+      if(drop_fields) {
+        # Track which fields were dropped
+        results$unknown_fields_dropped <- results$unknown_fields
+        
+        # Drop the unknown fields
         df <- df[, !names(df) %in% results$unknown_fields]
         
         if(verbose) {
-          cat("\nAutomatically dropping unknown fields")
+          cat("\nDropping unknown fields")
         }
         
         # Determine which environment contains the original dataframe
@@ -843,56 +916,73 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
         if(!is.null(env_to_use)) {
           assign(measure_name, df, envir = env_to_use)
           
-          # Generate R code for cleanup script
-          tryCatch({
-            api_str <- as.character(api)
-            measure_name_str <- as.character(measure_name)
+          # Only update the cleaning script if not in collect_only mode
+          if(!collect_only) {
+            # Ask about updating cleaning script
+            update_cleaning_script <- FALSE
             
-            # First try the expected path
-            cleaning_script_path <- file.path(".", "nda", api_str, paste0(measure_name_str, ".R"))
-            
-            # If not found, also check alternative location
-            if (!file.exists(cleaning_script_path)) {
-              alt_path <- file.path(".", "clean", api_str, paste0(measure_name_str, ".R"))
-              if (file.exists(alt_path)) {
-                cleaning_script_path <- alt_path
-                if(verbose) cat("\nFound cleaning script in alternative location:", cleaning_script_path)
-              }
+            if(interactive_mode) {
+              update_input <- safe_readline(prompt = "Update cleaning script with code to drop these fields? (y/n): ", 
+                                            default = "y")
+              update_cleaning_script <- tolower(update_input) %in% c("y", "yes")
+            } else {
+              update_cleaning_script <- TRUE  # Always update in non-interactive mode
             }
             
-            if(verbose) cat("\nAttempting to update cleaning script at:", cleaning_script_path)
-            
-            if(file.exists(cleaning_script_path)) {
-              # Read existing content
-              existing_content <- readLines(cleaning_script_path)
-              
-              # Create the code to remove columns
-              unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
-              
-              removal_code <- c(
-                "",
-                "# Auto-generated code to remove unknown fields",
-                paste0(measure_name_str, " <- ", measure_name_str, "[, !names(",
-                       measure_name_str, ") %in% c(",
-                       unknown_fields_str, ")]")
-              )
-              
-              # Write back the entire file with the new code appended
-              writeLines(c(existing_content, removal_code), cleaning_script_path)
-              
-              if(verbose) cat("\nSuccessfully updated cleaning script with code to remove unknown fields")
-            } else if(verbose) {
-              cat("\nCould not find cleaning script at expected locations.")
-              unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
-              removal_code <- paste0(measure_name_str, " <- ", measure_name_str, "[, !names(",
-                                     measure_name_str, ") %in% c(",
-                                     unknown_fields_str, ")]")
-              cat("\n\nSuggested code for cleaning script:")
-              cat("\n", removal_code)
+            if(update_cleaning_script) {
+              # Generate R code for cleanup script
+              tryCatch({
+                api_str <- as.character(api)
+                measure_name_str <- as.character(measure_name)
+                
+                # First try the expected path
+                cleaning_script_path <- file.path(".", "nda", api_str, paste0(measure_name_str, ".R"))
+                
+                # If not found, also check alternative location
+                if (!file.exists(cleaning_script_path)) {
+                  alt_path <- file.path(".", "clean", api_str, paste0(measure_name_str, ".R"))
+                  if (file.exists(alt_path)) {
+                    cleaning_script_path <- alt_path
+                    if(verbose) cat("\nFound cleaning script in alternative location:", cleaning_script_path)
+                  }
+                }
+                
+                if(verbose) cat("\nAttempting to update cleaning script at:", cleaning_script_path)
+                
+                if(file.exists(cleaning_script_path)) {
+                  # Read existing content
+                  existing_content <- readLines(cleaning_script_path)
+                  
+                  # Create the code to remove columns
+                  unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
+                  
+                  # ensure case-insensitive matching in the removal command
+                  removal_code <- c(
+                    "",
+                    "# Auto-generated code to remove unknown fields",
+                    paste0(measure_name_str, " <- ", measure_name_str, "[, !tolower(names(",
+                           measure_name_str, ")) %in% tolower(c(",
+                           unknown_fields_str, "))]")
+                  )
+                  
+                  # Write back the entire file with the new code appended
+                  writeLines(c(existing_content, removal_code), cleaning_script_path)
+                  
+                  if(verbose) cat("\nSuccessfully updated cleaning script with code to remove unknown fields")
+                } else if(verbose) {
+                  cat("\nCould not find cleaning script at expected locations.")
+                  unknown_fields_str <- paste(shQuote(results$unknown_fields), collapse=", ")
+                  removal_code <- paste0(measure_name_str, " <- ", measure_name_str, "[, !names(",
+                                         measure_name_str, ") %in% c(",
+                                         unknown_fields_str, ")]")
+                  cat("\n\nSuggested code for cleaning script:")
+                  cat("\n", removal_code)
+                }
+              }, error = function(e) {
+                if(verbose) cat("\nError updating cleaning script:", e$message)
+              })
             }
-          }, error = function(e) {
-            if(verbose) cat("\nError updating cleaning script:", e$message)
-          })
+          }
         }
         
         # Reset unknown fields list
@@ -901,7 +991,25 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
         # Update column names after dropping fields
         df_cols <- names(df)
       } else {
-        results$valid <- FALSE  # Keep failing validation if auto_drop_unknown is FALSE
+        if(verbose) cat("\nKeeping unknown fields in the dataset")
+        
+        # Ask if validation should fail due to unknown fields
+        fail_validation <- FALSE
+        
+        if(interactive_mode) {
+          fail_input <- safe_readline(prompt = "Should validation fail because of unknown fields? (y/n): ", 
+                                      default = "n")
+          fail_validation <- tolower(fail_input) %in% c("y", "yes")
+        } else {
+          fail_validation <- TRUE  # Always fail in non-interactive mode when fields aren't dropped
+        }
+        
+        if(fail_validation) {
+          results$valid <- FALSE
+          if(verbose) cat("\nValidation will fail due to unknown fields")
+        } else {
+          if(verbose) cat("\nValidation will proceed despite unknown fields")
+        }
       }
     }
     
@@ -909,7 +1017,7 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
     missing_required <- required_fields[!required_fields %in% df_cols]
     if(length(missing_required) > 0) {
       results$valid <- FALSE
-      results$missing_required <- missing_required
+      results$missing_required <- c(results$missing_required, missing_required)
       if(verbose) {
         cat("\n\nMissing required fields:")
         cat(sprintf("\n  %s", paste(missing_required, collapse=", ")))
@@ -966,12 +1074,6 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
         })
         
         if(length(violating_values) > 0) {
-          results$valid <- FALSE
-          results$value_range_violations[[col]] <- list(
-            expected = element$valueRange,
-            actual = violating_values
-          )
-          
           if(verbose) {
             cat("\n  Value range violations found:")
             cat(sprintf("\n    Invalid values: %s",
@@ -980,6 +1082,25 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
               cat(sprintf(" (and %d more...)",
                           length(violating_values) - 5))
             }
+          }
+          
+          # Ask if these violations should cause validation to fail
+          fail_due_to_violations <- TRUE
+          
+          if(interactive_mode) {
+            violation_input <- safe_readline(prompt = sprintf("Should violations in field '%s' cause validation to fail? (y/n): ", col), default = "y")
+            fail_due_to_violations <- tolower(violation_input) %in% c("y", "yes")
+          }
+          
+          if(fail_due_to_violations) {
+            results$valid <- FALSE
+            results$value_range_violations[[col]] <- list(
+              expected = element$valueRange,
+              actual = violating_values
+            )
+            if(verbose) cat(sprintf("\n  Validation will fail due to violations in %s", col))
+          } else {
+            if(verbose) cat(sprintf("\n  Ignoring violations in %s for validation purposes", col))
           }
         } else if(verbose) {
           cat("\n  All values within expected range")
@@ -1003,13 +1124,15 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
       }
       
       if(length(results$missing_required) > 0) {
-        message(sprintf("- Missing required fields: %d",
-                        length(results$missing_required)))
+        message(sprintf("- Missing required fields: %d (%s)",
+                        length(results$missing_required),
+                        paste(results$missing_required, collapse=", ")))
       }
       
       if(length(results$value_range_violations) > 0) {
-        message(sprintf("- Fields with range violations: %d",
-                        length(results$value_range_violations)))
+        message(sprintf("- Fields with range violations: %d (%s)",
+                        length(results$value_range_violations),
+                        paste(names(results$value_range_violations), collapse=", ")))
       }
       
       if(length(results$warnings) > 0) {
@@ -1036,6 +1159,8 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
   
   return(results)
 }
+
+
 
 
 # Modify the main validation function to include date standardization
@@ -1333,8 +1458,13 @@ ndaValidator <- function(measure_name,
                          nda_base_url = "https://nda.nih.gov/api/datadictionary/v2",
                          verbose = TRUE,
                          debug = FALSE,
-                         auto_drop_unknown = TRUE) {
+                         auto_drop_unknown = FALSE,
+                         interactive_mode = TRUE) {
+  
   tryCatch({
+    # Initialize a list to track all columns to be removed
+    all_columns_to_drop <- character(0)
+    
     if (!exists(".wizaRdry_env")) {
       .wizaRdry_env <- new.env(parent = globalenv())
     }
@@ -1342,7 +1472,43 @@ ndaValidator <- function(measure_name,
     # Get the dataframe from the environment
     df <- base::get(measure_name, envir = .wizaRdry_env)
     
-    # Get structure name and fetch elements early
+    # Force all complex/problematic data types to character immediately
+    for (col in names(df)) {
+      tryCatch({
+        # Convert POSIXct and other complex classes to character
+        if (inherits(df[[col]], "POSIXt") || 
+            inherits(df[[col]], "Date") || 
+            length(class(df[[col]])) > 1) {
+          
+          if(verbose) message(sprintf("Column '%s' has a complex class structure. Converting to character.", col))
+          df[[col]] <- as.character(df[[col]])
+        }
+        
+        # Test if column is accessible
+        dummy <- df[[col]][1]
+      }, error = function(e) {
+        # If any error, convert to character
+        if(verbose) message(sprintf("Column '%s' has an unusable type. Converting to character.", col))
+        
+        # Try three different approaches to fix problematic columns
+        tryCatch({
+          df[[col]] <- as.character(df[[col]])
+        }, error = function(e2) {
+          tryCatch({
+            df[[col]] <- as.character(unlist(df[[col]]))
+          }, error = function(e3) {
+            # Last resort - replace with NAs
+            if(verbose) message(sprintf("Could not convert column '%s'. Replacing with NAs.", col))
+            df[[col]] <- rep(NA, nrow(df))
+          })
+        })
+      })
+    }
+    
+    # Save the cleaned dataframe
+    assign(measure_name, df, envir = .wizaRdry_env)
+    
+    # Get structure name and fetch elements
     structure_name <- measure_name
     message("\n\nFetching ", structure_name, " Data Structure from NDA API...")
     elements <- fetch_structure_elements(structure_name, nda_base_url)
@@ -1351,23 +1517,7 @@ ndaValidator <- function(measure_name,
       stop("No elements found in the structure definition")
     }
     
-    # Inside ndaValidator function, replace the type checking section with this:
-    # Handle any unusual column types by converting to character
-    for(col in names(df)) {
-      # Check for problematic column types
-      if(!is.character(df[[col]]) && 
-         !is.numeric(df[[col]]) && 
-         !is.logical(df[[col]]) && 
-         !is.factor(df[[col]]) &&
-         !inherits(df[[col]], "Date")) {  # Use inherits() instead of is.Date()
-        
-        if(verbose) cat(sprintf("\nConversion: %s to character (unusual type)", col))
-        # Force to character
-        df[[col]] <- as.character(df[[col]])
-      }
-    }
-    
-    # 1. HANDLE NA VALUES FIRST
+    # PHASE 1: NA Value Mapping
     if(verbose) message("\n\n--- PHASE 1: NA Value Mapping ---")
     
     # Apply null transformations first
@@ -1380,33 +1530,45 @@ ndaValidator <- function(measure_name,
       df <- handle_missing_fields(df, elements, missing_required, verbose = verbose)
     }
     
-    # 2. IDENTIFY AND HANDLE OUT-OF-SPEC VARIABLES
+    # PHASE 2: Column Standardization
     if(verbose) message("\n\n--- PHASE 2: Column Standardization ---")
     
-    # First standardize column names for better matching
+    # Standardize column names
     df <- standardize_column_names(df, structure_name, verbose = verbose)
     df <- standardize_field_names(df, measure_name, verbose = verbose)
     
-    # Try to rename fields that are close matches to valid fields
-    renamed_results <- find_and_rename_fields(df, elements, structure_name, verbose, auto_drop_unknown)
+    # Rename fields with close matches - track columns to drop
+    renamed_results <- find_and_rename_fields(df, elements, structure_name, 
+                                              verbose = verbose, 
+                                              auto_drop_unknown = auto_drop_unknown, 
+                                              interactive_mode = interactive_mode)
     df <- renamed_results$df
     
-    # 3. TRANSFORM VALUES BASED ON SPECS
+    # Collect columns that were dropped during renaming
+    all_columns_to_drop <- c(all_columns_to_drop, renamed_results$columns_to_drop)
+    
+    # PHASE 3: Value Transformation
     if(verbose) message("\n\n--- PHASE 3: Value Transformation ---")
     
-    # [type conversion code]
+    # Convert logical values to character
+    for(col in names(df)) {
+      if(is.logical(df[[col]])) {
+        if(verbose) cat(sprintf("\nConverting logical column %s to character", col))
+        df[[col]] <- as.character(df[[col]])
+      }
+    }
     
-    # Transform value ranges based on specs
+    # Transform value ranges
     df <- transform_value_ranges(df, elements, verbose = verbose)
     
     # Extract missing required fields from attributes
     missing_required_fields <- attr(df, "missing_required_fields")
     if(is.null(missing_required_fields)) missing_required_fields <- character(0)
     
-    # Apply type conversions after NA handling and column standardization
+    # Apply type conversions
     df <- apply_type_conversions(df, elements, verbose = verbose)
     
-    # 4. VALIDATION AND DE-IDENTIFICATION
+    # PHASE 4: Validation and De-Identification
     if(verbose) message("\n\n--- PHASE 4: Validation and De-Identification ---")
     
     # De-identification steps
@@ -1416,16 +1578,113 @@ ndaValidator <- function(measure_name,
     # Save processed dataframe back to environment
     assign(measure_name, df, envir = .wizaRdry_env)
     
-    # Final validation with auto dropping of unknown fields
-    # Pass the missing_required_fields to ensure validation fails when required fields have missing values
-    validation_results <- validate_structure(df, elements, measure_name, api, verbose = verbose, 
+    # Final validation - also collects unknown fields to drop
+    validation_results <- validate_structure(df, elements, measure_name, api, 
+                                             verbose = verbose,
                                              auto_drop_unknown = auto_drop_unknown,
-                                             missing_required_fields = missing_required_fields)
+                                             missing_required_fields = missing_required_fields,
+                                             interactive_mode = interactive_mode,
+                                             collect_only = TRUE)  # Don't update script yet
+    
+    # Add the unknown fields that were identified during validation
+    if(length(validation_results$unknown_fields_dropped) > 0) {
+      all_columns_to_drop <- c(all_columns_to_drop, validation_results$unknown_fields_dropped)
+    }
+    
+    # Final check for missing required values
+    if(!validation_results$valid && length(validation_results$missing_required) > 0) {
+      if(verbose) message("\nValidation FAILED: Required fields are missing or contain NA values")
+    }
+    
+    # Now update the cleaning script with ALL columns to drop in one operation
+    if(length(all_columns_to_drop) > 0) {
+      update_cleaning_script <- FALSE
+      
+      if(interactive_mode) {
+        update_input <- safe_readline(
+          prompt = sprintf("Update cleaning script with code to drop %d fields? (y/n): ", 
+                           length(all_columns_to_drop)), 
+          default = "y")
+        update_cleaning_script <- tolower(update_input) %in% c("y", "yes")
+      } else {
+        update_cleaning_script <- TRUE
+      }
+      
+      if(update_cleaning_script) {
+        if(verbose) {
+          cat("\nUpdating cleaning script with all fields to drop:")
+          cat(sprintf("\n  %s", paste(all_columns_to_drop, collapse=", ")))
+        }
+        
+        # Update the cleaning script
+        update_result <- tryCatch({
+          api_str <- as.character(api)
+          measure_name_str <- as.character(measure_name)
+          
+          # First try the expected path
+          cleaning_script_path <- file.path(".", "nda", api_str, paste0(measure_name_str, ".R"))
+          
+          # If not found, also check alternative location
+          if (!file.exists(cleaning_script_path)) {
+            alt_path <- file.path(".", "clean", api_str, paste0(measure_name_str, ".R"))
+            if (file.exists(alt_path)) {
+              cleaning_script_path <- alt_path
+              if(verbose) cat("\nFound cleaning script in alternative location:", cleaning_script_path)
+            }
+          }
+          
+          if(verbose) cat("\nAttempting to update cleaning script at:", cleaning_script_path)
+          
+          if(file.exists(cleaning_script_path)) {
+            # Read existing content
+            existing_content <- readLines(cleaning_script_path)
+            
+            # Create the code to remove columns
+            unknown_fields_str <- paste(shQuote(unique(all_columns_to_drop)), collapse=", ")
+            
+            removal_code <- c(
+              "",
+              "# Auto-generated code to remove unknown fields",
+              paste0(measure_name_str, " <- ", measure_name_str, "[, !names(",
+                     measure_name_str, ") %in% c(",
+                     unknown_fields_str, ")]")
+            )
+            
+            # Write back the entire file with the new code appended
+            writeLines(c(existing_content, removal_code), cleaning_script_path)
+            
+            if(verbose) cat("\nSuccessfully updated cleaning script with code to remove unknown fields")
+            TRUE
+          } else {
+            if(verbose) {
+              cat("\nCould not find cleaning script at expected locations.")
+              unknown_fields_str <- paste(shQuote(unique(all_columns_to_drop)), collapse=", ")
+              removal_code <- paste0(measure_name_str, " <- ", measure_name_str, "[, !names(",
+                                     measure_name_str, ") %in% c(",
+                                     unknown_fields_str, ")]")
+              cat("\n\nSuggested code for cleaning script:")
+              cat("\n", removal_code)
+            }
+            FALSE
+          }
+        }, error = function(e) {
+          if(verbose) cat("\nError updating cleaning script:", e$message)
+          FALSE
+        })
+        
+        if(verbose && update_result) {
+          cat("\nCleaning script updated with all", length(all_columns_to_drop), "fields to drop")
+        }
+      }
+    }
     
     return(validation_results)
   }, error = function(e) {
     message("Error in ndaValidator: ", e$message)
-    message(paste(capture.output(traceback()), collapse="\n"))
+    if(debug) {
+      message("Traceback:")
+      message(paste(capture.output(traceback()), collapse="\n"))
+    }
     return(NULL)
   })
 }
