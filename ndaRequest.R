@@ -100,7 +100,7 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
           
           # Add proper error handling for the API request
           response <- tryCatch({
-            httr::GET(url, timeout(10))
+            httr::GET(url, httr::timeout(10))
           }, error = function(e) {
             message("Network error when connecting to NDA API: ", e$message)
             message("Check your internet connection or try again later.")
@@ -140,7 +140,7 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
           search_url <- sprintf("%s/datastructure", nda_base_url)
           
           search_response <- tryCatch({
-            httr::GET(search_url, timeout(10))
+            httr::GET(search_url, httr::timeout(10))
           }, error = function(e) {
             message("Network error when searching NDA API: ", e$message)
             return(NULL)
