@@ -13,13 +13,13 @@
 #' @export
 #' @examples
 #' \dontrun{
-#'   dataRequest("prl", csv=TRUE)
-#'   dataRequest("rgpts", "kamin", rdata=TRUE)
+#'   clean("prl", csv=TRUE)
+#'   clean("rgpts", "kamin", rdata=TRUE)
 #' }
 #' 
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' 
-dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
+clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   base::source("api/testSuite.R")
   
@@ -79,7 +79,7 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   #or a list of strings 
   #in other words it let's you do this:
   #vars_i_want <- c('demo','sps','sips_p')
-  #dataRequest(vars_i_want)
+  #clean(vars_i_want)
   if (length(data_list) == 1){
     data_list = data_list[[1]]
   }
@@ -88,7 +88,7 @@ dataRequest <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Process each measure using processData function
   for (measure in data_list) {
     sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
-    base::source("api/dataRequest.R")
+    base::source("api/clean.R")
     processData(measure, sourceCategory, csv, rdata, spss, identifier)
   }
   
@@ -173,16 +173,16 @@ disconnectMongo <- function(mongo) {
   
 }
 
-#' Alias for 'dataRequest'
+#' Alias for 'clean'
 #'
-#' This is a legacy alias for the 'dataRequest' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'clean' function to maintain compatibility with older code.
 #'
-#' @inheritParams dataRequest
-#' @inherit dataRequest return
+#' @inheritParams clean
+#' @inherit clean return
 #' @export
 #' @examples
 #' \dontrun{
-#' instrument_dict <- redcap_dict()
+#' prl <- clean("prl")
 #' }
-clean <- dataRequest
+dataRequest <- clean
 
