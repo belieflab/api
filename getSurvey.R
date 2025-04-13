@@ -90,7 +90,7 @@ qualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
 #' Connect to Qualtrics API
 #'
 #' This helper function sets up the connection to the Qualtrics API using credentials stored in a file or environment variables.
-#' It is called internally by the 'getQualtrics' function.
+#' It is called internally by the 'qualtrics' function.
 #'
 #' @importFrom config get
 #' @import qualtRics
@@ -206,8 +206,8 @@ qualtrics.dict <- function(qualtrics_data) {
     }
     
     # Not a variable or not a data frame, treat as survey alias
-    # When calling getQualtrics, pass NULL for institution and FALSE for label (default values)
-    survey_data <- getQualtrics(qualtrics_data)
+    # When calling qualtrics, pass NULL for institution and FALSE for label (default values)
+    survey_data <- wizaRdry::qualtrics(qualtrics_data)
     return(qualtRics::extract_colmap(respdata = survey_data))
   }
   
