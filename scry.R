@@ -50,7 +50,7 @@
 #'
 #' @export
 scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
-                 create_project = FALSE, examples = !repair) {
+                 create_project = FALSE, examples = FALSE) {
   # Define directory structure
   expected_dirs <- c(
     file.path(path, "clean"),
