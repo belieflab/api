@@ -1189,17 +1189,16 @@ standardize_column_names <- function(df, structure_name, verbose = FALSE) {
   
   # Create name mapping function
   standardize_name <- function(name) {
-    # Convert to lowercase
-    name <- tolower(name)
-    # Replace hyphens with underscores
+    # Replace hyphens with underscores (but don't lowercase)
     name <- gsub("-", "_", name)
     # Handle prefix if present
-    if (grepl(paste0("^", prefix, "[_-]?\\d+$"), name)) {
+    if (grepl(paste0("^", prefix, "[_-]?\\d+$"), name, ignore.case = TRUE)) {
       # Ensure consistent underscore between prefix and number
-      name <- gsub(paste0("^(", prefix, ")[_-]?(\\d+)$"), "\\1_\\2", name)
+      name <- gsub(paste0("^(", prefix, ")[_-]?(\\d+)$"), "\\1_\\2", name, ignore.case = TRUE)
     }
     return(name)
   }
+  
   
   # Standardize column names
   old_names <- names(df)
