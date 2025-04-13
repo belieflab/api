@@ -20,7 +20,6 @@
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' 
 clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
-  
   base::source("api/testSuite.R")
   
   # Required Libraries Setup
@@ -50,6 +49,9 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Source necessary R scripts from the 'api' directory
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
+  
+  # Create a mapping to store the source type for newly created scripts
+  new_script_sources <- list()
   
   # Validate Measures Function
   validateMeasures <- function(data_list) {
@@ -113,6 +115,9 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
       # Process each invalid script
       for (script_name in invalid_scripts) {
         message(sprintf("\nProcessing script: %s", script_name))
+        
+        # Store the selected API for this script in our mapping
+        new_script_sources[[script_name]] <<- selected_api
         
         clean_templates <- list(
           mongo = list(
@@ -206,9 +211,9 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
     }
     
     # After creating new scripts in validateMeasures, update the lists
-    redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
-    qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
-    mongo_list <- tools::file_path_sans_ext(list.files("./clean/mongo"))
+    redcap_list <<- tools::file_path_sans_ext(list.files("./clean/redcap"))
+    qualtrics_list <<- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
+    mongo_list <<- tools::file_path_sans_ext(list.files("./clean/mongo"))
     
     # Return the data_list invisibly instead of stopping execution
     return(invisible(data_list))
@@ -217,19 +222,29 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   # Compile data list and validate measures
   data_list <- list(...)
   
-  #this is so the function doesn't break if user enters a variable storing a character vector 
-  #or a list of strings 
-  #in other words it let's you do this:
-  #vars_i_want <- c('demo','sps','sips_p')
-  #clean(vars_i_want)
-  if (length(data_list) == 1){
+  # This is so the function doesn't break if user enters a variable storing a character vector
+  # or a list of strings
+  # in other words it let's you do this:
+  # vars_i_want <- c('demo','sps','sips_p')
+  # clean(vars_i_want)
+  if (length(data_list) == 1) {
     data_list = data_list[[1]]
   }
+  
+  # Validate measures and potentially create new scripts
   validateMeasures(data_list)
   
   # Process each measure using processData function
   for (measure in data_list) {
-    sourceCategory <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
+    # Check if this is a newly created script with a known source
+    if (measure %in% names(new_script_sources)) {
+      sourceCategory <- new_script_sources[[measure]]
+    } else {
+      # Otherwise determine the source from updated lists
+      sourceCategory <- ifelse(measure %in% redcap_list, "redcap",
+                               ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
+    }
+    
     base::source("api/clean.R")
     processData(measure, sourceCategory, csv, rdata, spss, identifier)
   }
@@ -241,7 +256,6 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
   base::source("api/env/cleanup.R")
   
   return(invisible(NULL))
-  
 }
 
 processData <- function(measure, source, csv, rdata, spss, identifier) {
@@ -299,9 +313,6 @@ processData <- function(measure, source, csv, rdata, spss, identifier) {
   return(result)  # Return the result of the processing
 }
 
-
-
-
 # Add helper function for MongoDB cleanup
 disconnectMongo <- function(mongo) {
   if (!is.null(mongo)) {
@@ -312,7 +323,6 @@ disconnectMongo <- function(mongo) {
       warning(sprintf("Error disconnecting from MongoDB: %s", e$message))
     })
   }
-  
 }
 
 #' Alias for 'clean'
@@ -327,4 +337,3 @@ disconnectMongo <- function(mongo) {
 #' prl <- clean("prl")
 #' }
 dataRequest <- clean
-

@@ -20,7 +20,6 @@
 #' 
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE) {
-  
   start_time <- Sys.time()
   
   base::source("api/getRedcap.R")
@@ -54,6 +53,9 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
   # Source necessary R scripts from the 'api' directory
   lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
   lapply(list.files("api/fn", pattern = "\\.R$", full.names = TRUE), base::source)
+  
+  # Create a mapping to store the API type for newly created scripts
+  new_script_apis <- list()
   
   # Validate Measures Function
   validateMeasures <- function(data_list) {
@@ -90,6 +92,7 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
       for (script_name in invalid_scripts) {
         message(sprintf("\nProcessing script: %s", script_name))
         
+        # Improved validation function for NDA data structure names
         # Improved validation function for NDA data structure names
         validate_script_name <- function(script_name, nda_base_url = "https://nda.nih.gov/api/datadictionary/v2") {
           if (!require(httr)) {install.packages("httr")}; library(httr)
@@ -273,6 +276,9 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
         # Use the function
         selected_api <- api_selection()
         
+        # Store the selected API for this script in our mapping
+        new_script_apis[[script_name]] <<- selected_api
+        
         # Define base path
         path <- "."
         
@@ -368,9 +374,9 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
     }
     
     # After creating new scripts in validateMeasures, update the lists
-    redcap_list <- tools::file_path_sans_ext(list.files("./clean/redcap"))
-    qualtrics_list <- tools::file_path_sans_ext(list.files("./clean/qualtrics"))
-    mongo_list <- tools::file_path_sans_ext(list.files("./clean/mongo"))
+    redcap_list <<- tools::file_path_sans_ext(list.files("./nda/redcap"))
+    qualtrics_list <<- tools::file_path_sans_ext(list.files("./nda/qualtrics"))
+    mongo_list <<- tools::file_path_sans_ext(list.files("./nda/mongo"))
     
     # Return the data_list invisibly instead of stopping execution
     return(invisible(data_list))
@@ -378,20 +384,30 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
   
   # Compile data list and validate measures
   data_list <- list(...)
-
-    #this is so the function doesn't break if user enters a variable storing a character vector 
-  #or a list of strings 
-  #in other words it let's you do this:
-  #vars_i_want <- c('demo','sps','sips_p')
-  #dataRequest(vars_i_want)
-  if (length(data_list) == 1){
+  
+  # This is so the function doesn't break if user enters a variable storing a character vector
+  # or a list of strings
+  # in other words it let's you do this:
+  # vars_i_want <- c('demo','sps','sips_p')
+  # dataRequest(vars_i_want)
+  if (length(data_list) == 1) {
     data_list = data_list[[1]]
   }
+  
+  # Validate measures and potentially create new scripts
   validateMeasures(data_list)
   
   # Process each measure using processNda function
   for (measure in data_list) {
-    api <- ifelse(measure %in% redcap_list, "redcap", ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
+    # Check if this is a newly created script with a known API
+    if (measure %in% names(new_script_apis)) {
+      api <- new_script_apis[[measure]]
+    } else {
+      # Otherwise determine the API from updated lists
+      api <- ifelse(measure %in% redcap_list, "redcap", 
+                    ifelse(measure %in% qualtrics_list, "qualtrics", "mongo"))
+    }
+    
     processNda(measure, api, csv, rdata, spss, identifier, start_time, limited_dataset)
   }
   
