@@ -140,6 +140,7 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
   gitignore_file <- file.path(path, ".gitignore")
   tmp_pattern <- "tmp/*"
   secrets_pattern <- "secrets.R"
+  pem_patern <- "*.pem"
   
   if (file.exists(gitignore_file)) {
     gitignore_content <- readLines(gitignore_file)
@@ -159,13 +160,20 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
       message("Added tmp/* to .gitignore")
     }
     
+    # Check for *.pem pattern
+    if (!any(grepl(pem_patern, gitignore_content, fixed = TRUE))) {
+      gitignore_content <- c(gitignore_content, pem_patern)
+      need_to_update <- TRUE
+      message("Added *.pem to .gitignore")
+    }
+    
     if (need_to_update) {
       writeLines(gitignore_content, gitignore_file)
     }
   } else {
     # Create new .gitignore with both patterns
     writeLines(c(secrets_pattern, tmp_pattern), gitignore_file)
-    message("Created .gitignore with secrets.R and tmp/* patterns")
+    message("Created .gitignore with secrets.R, *.pem, and tmp/* patterns")
   }
   
   # Ensure .gitkeep exists in tmp directory but is tracked
@@ -187,9 +195,9 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
     "  qualtrics:",
     "    survey_ids:",
     "      Institution1:",
-    "        bdi: \"SV_9ae8FdL1uNLIM5Y\"",
+    "        foo: \"SV_\"",
     "      Institution2:",
-    "        lshsr: \"SV_BVw7mJJIp90Pur0\"",
+    "        bar: \"SV_\"",
     "  redcap:",
     "    superkey: ndar_subject01",
     sep = "\n"
@@ -236,16 +244,15 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
     writeLines(c(
       "# Main analysis script for this wizaRdry project",
       "",
-      "# Load necessary libraries",
-      "# if(!require(wizaRdry)) {install.packages('wizaRdry')};library(wizaRdry)",
+      "# Load wizaRdry library:",
+      "# if(!require(wizaRdry)) {install.packages('wizaRdry')}; library(wizaRdry)",
       "",
-      "# Example data request",
-      "# create cleaning script in clean/",
-      "# dataRequest(\"prl\", csv = TRUE)",
+      "# Check available REDCap forms:",
+      "# redcap.index()",
       "",
-      "# Example NDA request",
-      "# create remediation script in nda/",
-      "# ndaRequest(\"prl01\", csv = TRUE)",
+      "# Example NDA request:",
+      "# Create remediation script in nda/",
+      "# nda(\"cde_dsmcrossad01\")",
       "",
       "# Your analysis code here",
       ""
@@ -257,91 +264,43 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
   
   # Define template files with their content
   clean_templates <- list(
-    bdi = list(
-      path = file.path(path, "clean", "qualtrics", "bdi.R"),
+    collection = list(
+      path = file.path(path, "clean", "mongo", "collection.R"),
       content = paste(
-        "bdi <- wizaRdry::getQualtrics(\"bdi\")",
+        "# get PRL data from MongoDB collection",
+        '# Mongo database is defined in config.yml',
+        "collection <- mongo(\"collection\")",
         "",
         "# cleaning script code...",
         "",
         "# final df must be named like the R script and appended with _clean",
-        "bdi_clean <- bdi",
+        "collection_clean <- collection",
         sep = "\n"
-      )
-    ),
-    lshsr = list(
-      path = file.path(path, "clean", "qualtrics", "lshsr.R"),
-      content = paste(
-        "lshsr <- wizaRdry::getQualtrics(\"lshsr\")",
-        "",
-        "# cleaning script code...",
-        "",
-        "# final df must be named like the R script and appended with _clean",
-        "lshsr_clean <- lshsr",
-        sep = "\n"
-      )
-    ),
-    dsm5 = list(
-      path = file.path(path, "clean", "redcap", "dsm5.R"),
-      content = paste(
-        "dsm5 <- wizaRdry::getRedcap(\"dsm_5\", raw_or_label = \"label\")",
-        "",
-        "# cleaning script code...",
-        "",
-        "# final df must be named like the R script and appended with _clean",
-        "dsm5_clean <- dsm5",
-        sep = "\n"
-      )
-    ),
-    prl = list(
-      path = file.path(path, "clean", "mongo", "prl.R"),
-      content = paste(
-        "prl <- wizaRdry::getMongo(\"prl\")",
-        "",
-        "# cleaning script code...",
-        "",
-        "# final df must be named like the R script and appended with _clean",
-        "prl_clean <- prl",
-        sep = "\n"
+      ),
+      survey = list(
+        path = file.path(path, "clean", "qualtrics", "survey.R"),
+        content = paste(
+          "# get PRL data from MongoDB collection",
+          '# Mongo database is defined in config.yml',
+          "survey <- qualtrics(\"survey\")",
+          "",
+          "# cleaning script code...",
+          "",
+          "# final df must be named like the R script and appended with _clean",
+          "survey_clean <- survey",
+          sep = "\n"
+        )
       )
     )
   )
   
   nda_templates <- list(
-    bdi01 = list(
-      path = file.path(path, "nda", "qualtrics", "bdi01.R"),
-      content = paste(
-        "bdi01 <- wizaRdry::getQualtrics(\"bdi\")",
-        "",
-        "# nda remediation code...",
-        "",
-        sep = "\n"
-      )
-    ),
-    lshsr01 = list(
-      path = file.path(path, "nda", "qualtrics", "lshsr01.R"),
-      content = paste(
-        "lshsr01 <- wizaRdry::getQualtrics(\"lshsr\")",
-        "",
-        "# nda remediation code...",
-        "",
-        sep = "\n"
-      )
-    ),
     cde_dsm5crossad01 = list(
       path = file.path(path, "nda", "redcap", "cde_dsm5crossad01.R"),
       content = paste(
-        "cde_dsm5crossad01 <- wizaRdry::getRedcap(\"dsm_5\")",
-        "",
-        "# nda remediation code...",
-        "",
-        sep = "\n"
-      )
-    ),
-    prl01 = list(
-      path = file.path(path, "nda", "mongo", "prl01.R"),
-      content = paste(
-        "prl01 <- wizaRdry::getMongo(collection_name = \"prl\", db_name = \"test\")",
+        "# get the instrument with name dsm_5 from REDCap",
+        "# variable name must be the NDA data structure short name and be named like the R script",
+        "cde_dsm5crossad01 <- redcap(\"dsm_5\")",
         "",
         "# nda remediation code...",
         "",
