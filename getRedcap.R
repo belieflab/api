@@ -391,31 +391,29 @@ redcap.index <- function() {
 #' @importFrom REDCapR redcap_metadata_read
 #' @export
 redcap.dict <- function(instrument_name) {
-  # Try to capture the input name if it's a non-existent variable
-  inst_name <- tryCatch({
-    # If we can deparse the substitute, we're dealing with a variable name
-    if (!is.character(instrument_name)) {
-      # Get the string representation of the variable name
-      var_name <- deparse(substitute(instrument_name))
-      
-      # If the variable doesn't exist, use its name as a string instead
-      if (!exists(var_name)) {
-        message(sprintf("Object '%s' not found, using as instrument name instead.", var_name))
-        return(var_name)
-      }
-    }
-    # Otherwise, just use what was passed in
-    instrument_name
-  }, error = function(e) {
-    # On any error, return the instrument_name as is
-    instrument_name
-  })
+  # First handle the case of a non-existent variable being passed without quotes
+  var_name <- NULL
   
-  # Continue with the original function logic using inst_name
+  # Only try to get the name if instrument_name is missing
+  if (missing(instrument_name)) {
+    stop("Instrument name is required")
+  }
+  
+  # Capture the actual call
+  call_expr <- substitute(instrument_name)
+  
+  # Check if it's a symbol (variable name) that doesn't exist
+  if (is.symbol(call_expr) && !exists(as.character(call_expr))) {
+    var_name <- as.character(call_expr)
+    message(sprintf("Object '%s' not found, using as instrument name instead.", var_name))
+    instrument_name <- var_name
+  }
+  
+  # Now proceed with normal function logic
   
   # Check if input is a data frame with redcap_instrument attribute
-  if (is.data.frame(inst_name) && !is.null(attr(inst_name, "redcap_instrument"))) {
-    inst <- attr(inst_name, "redcap_instrument")
+  if (is.data.frame(instrument_name) && !is.null(attr(instrument_name, "redcap_instrument"))) {
+    inst <- attr(instrument_name, "redcap_instrument")
     message(sprintf("Retrieving metadata for instrument '%s' from data frame attributes.", inst))
     
     # Fetch metadata using the instrument name
@@ -439,22 +437,22 @@ redcap.dict <- function(instrument_name) {
   }
   
   # Check if input is a regular data frame
-  if (is.data.frame(inst_name)) {
+  if (is.data.frame(instrument_name)) {
     message("Using provided REDCap metadata data frame.")
-    return(inst_name)
+    return(instrument_name)
   }
   
-  # Input is a string (either originally or after substitution)
-  if (is.character(inst_name)) {
+  # Input is a string
+  if (is.character(instrument_name)) {
     # Check if it's a variable name in the global environment
-    if (exists(inst_name)) {
-      var_data <- base::get(inst_name)
+    if (exists(instrument_name)) {
+      var_data <- base::get(instrument_name)
       
       # Check if the variable is a data frame with instrument attribute
       if (is.data.frame(var_data) && !is.null(attr(var_data, "redcap_instrument"))) {
         inst <- attr(var_data, "redcap_instrument")
         message(sprintf("Retrieving metadata for instrument '%s' from variable '%s'.", 
-                        inst, inst_name))
+                        inst, instrument_name))
         
         # Fetch metadata using the instrument name
         if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
@@ -478,13 +476,13 @@ redcap.dict <- function(instrument_name) {
       
       # Check if the variable is just a data frame
       if (is.data.frame(var_data)) {
-        message(sprintf("Using existing metadata data frame '%s' from environment.", inst_name))
+        message(sprintf("Using existing metadata data frame '%s' from environment.", instrument_name))
         return(var_data)
       }
     }
     
     # Not a variable or not a data frame, treat as instrument name
-    message(sprintf("Fetching metadata for instrument '%s' from REDCap.", inst_name))
+    message(sprintf("Fetching metadata for instrument '%s' from REDCap.", instrument_name))
     if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
     # Validate secrets
     base::source("api/SecretsEnv.R")
@@ -501,16 +499,15 @@ redcap.dict <- function(instrument_name) {
       verbose = FALSE
     )$data
     
-    dictionary <- metadata[metadata$form_name == inst_name, ]
+    dictionary <- metadata[metadata$form_name == instrument_name, ]
     
-    message(sprintf("Retrieved metadata for instrument '%s' from REDCap.", inst_name))
+    message(sprintf("Retrieved metadata for instrument '%s' from REDCap.", instrument_name))
     return(dictionary)
   }
   
   # Invalid input type
   stop("Input must be either a data frame, a string variable name, or an instrument name string.")
 }
-
 
 #' Alias for 'redcap'
 #'
