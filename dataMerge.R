@@ -31,15 +31,15 @@
 #' )
 #' 
 #' # Perform an OUTER JOIN using default keys:
-#' merged1 <- merge(df1, df2, all = TRUE)
+#' merged1 <- meld(df1, df2, all = TRUE)
 #' 
 #' # Perform an INNER JOIN using specified keys:
-#' merged2 <- merge(df1, df2, by = "src_subject_id", all = FALSE)
+#' merged2 <- meld(df1, df2, by = "src_subject_id", all = FALSE)
 #' }
 #' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export
-merge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata = FALSE, spss = FALSE) {
+meld <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata = FALSE, spss = FALSE) {
   
   # Inform about the type of join being performed
   message(ifelse(all, "Performing an OUTER JOIN.", "Performing an INNER JOIN."))
@@ -102,12 +102,12 @@ merge <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdat
 }
 
 
-#' Alias for 'merge'
+#' Alias for 'meld'
 #'
-#' This is a legacy alias for the 'merge' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'meld' function to maintain compatibility with older code.
 #'
-#' @inheritParams merge
-#' @inherit merge return
+#' @inheritParams meld
+#' @inherit meld return
 #' @export
 #' @examples
 #' \dontrun{
