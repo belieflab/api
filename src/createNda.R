@@ -32,11 +32,11 @@
 #'   )
 #'   
 #'   # Create the NDA template
-#'   createNda("eefrt01")
+#'   to.nda("eefrt01")
 #' }
 #'
 #' @export
-createNda <- function(df) {
+to.nda <- function(df) {
   # Create directory structure if it doesn't exist
   if (!dir.exists("nda")) {
     dir.create("nda")
@@ -77,15 +77,15 @@ createNda <- function(df) {
   message(sprintf("\nSubmission Template created at: %s \n", path))
 }
 
-#' Alias for 'createNda'
+#' Alias for 'to.nda'
 #'
-#' This is a legacy alias for the 'createNda' function to maintain compatibility with older code.
+#' This is a legacy alias for the 'to.nda' function to maintain compatibility with older code.
 #'
 #' @inheritParams createNda
-#' @inherit createNda return
+#' @inherit to.nda return
 #' @export
 #' @examples
 #' \dontrun{
-#' to.nda(prl01)
+#' createNda(prl01)
 #' }
-to.nda <- createNda
+createNda <- to.nda
