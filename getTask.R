@@ -258,6 +258,9 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
   base::source("api/ConfigEnv.R")
   cfg <- validate_config("mongo")
   
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  connectionString <- get_secret("connectionString")
+  
   if (is.null(db_name)) {
     db_name <- cfg$mongo$collection
   }
@@ -448,6 +451,9 @@ ConnectMongo <- function(collection_name, db_name) {
   
   base::source("api/ConfigEnv.R")
   config <- validate_config("mongo")
+  
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  connectionString <- get_secret("connectionString")
   
   if (is.null(db_name)) {
     db_name = config$mongo$collection
@@ -670,6 +676,9 @@ mongo.index <- function(db_name = NULL) {
   
   base::source("api/ConfigEnv.R")
   config <- validate_config("mongo")
+  
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  connectionString <- get_secret("connectionString")
   
   if (is.null(db_name)) {
     db_name = config$mongo$collection

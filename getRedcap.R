@@ -101,6 +101,10 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   base::source("api/ConfigEnv.R")
   config <- validate_config("redcap")
   
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  uri <- get_secret("uri")
+  token <- get_secret("token")
+  
   # Input validation
   if (is.null(instrument_name)) {
     forms_data <- REDCapR::redcap_instruments(redcap_uri = uri, token = token, verbose = FALSE)$data
@@ -346,6 +350,11 @@ redcap.index <- function() {
   tryCatch({
     base::source("api/SecretsEnv.R")
     validate_secrets("redcap")
+    
+    # Get secrets using get_secret() to keep it secret, keep it safe
+    uri <- get_secret("uri")
+    token <- get_secret("token")
+    
   }, error = function(e) {
     message("Error loading or validating REDCap secrets: ", e$message)
     return(NULL)
@@ -394,6 +403,10 @@ redcap.dict <- function(instrument_name) {
     base::source("api/SecretsEnv.R")
     validate_secrets("redcap")
     
+    # Get secrets using get_secret() to keep it secret, keep it safe
+    uri <- get_secret("uri")
+    token <- get_secret("token")
+    
     metadata <- REDCapR::redcap_metadata_read(
       redcap_uri = uri, 
       token = token,
@@ -428,6 +441,10 @@ redcap.dict <- function(instrument_name) {
         base::source("api/SecretsEnv.R")
         validate_secrets("redcap")
         
+        # Get secrets using get_secret() to keep it secret, keep it safe
+        uri <- get_secret("uri")
+        token <- get_secret("token")
+        
         metadata <- REDCapR::redcap_metadata_read(
           redcap_uri = uri, 
           token = token,
@@ -450,6 +467,10 @@ redcap.dict <- function(instrument_name) {
     # Validate secrets
     base::source("api/SecretsEnv.R")
     validate_secrets("redcap")
+    
+    # Get secrets using get_secret() to keep it secret, keep it safe
+    uri <- get_secret("uri")
+    token <- get_secret("token")
     
     # Fetch metadata from REDCap
     metadata <- REDCapR::redcap_metadata_read(

@@ -19,6 +19,10 @@ qualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
   base::source("api/ConfigEnv.R")
   cfg <- validate_config("qualtrics")
   
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  baseUrls <- get_secret("baseUrls")
+  apiKeys <- get_secret("apiKeys")
+  
   # Get survey ID
   survey_id <- NULL
   
@@ -99,6 +103,11 @@ connectQualtrics <- function() {
   # Validate secrets
   base::source("api/SecretsEnv.R")
   validate_secrets("qualtrics")
+  
+  # Get secrets using get_secret() to keep it secret, keep it safe
+  baseUrls <- get_secret("baseUrls")
+  apiKeys <- get_secret("apiKeys")
+  
   
   if (!exists("apiKeys") || !exists("baseUrls")) {
     stop("apiKeys and/or baseUrls arrays not found in secrets.R")
@@ -200,6 +209,10 @@ qualtrics.index <- function(institution = NULL) {
     # Load required secrets and configuration
     base::source("api/SecretsEnv.R")
     validate_secrets("qualtrics")
+    
+    # Get secrets using get_secret() to keep it secret, keep it safe
+    baseUrls <- get_secret("baseUrls")
+    apiKeys <- get_secret("apiKeys")
     
     base::source("api/ConfigEnv.R")
     cfg <- validate_config("qualtrics")
