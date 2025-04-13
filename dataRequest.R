@@ -65,11 +65,153 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
     }
     
     # Validate measures against predefined lists
-    invalid_list <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, mongo_list), data_list)
+    invalid_script <- Filter(function(measure) !measure %in% c(redcap_list, qualtrics_list, mongo_list), data_list)
     
-    if (length(invalid_list) > 0) {
-      stop(paste(invalid_list, collapse = ", "), " does not have a cleaning script, please create one in clean/.\n")
+    if (length(invalid_script) > 0) {
+      message(paste(invalid_script, collapse = ", "), " does not have a cleaning script, please create one in clean/.\n")
+      
+      response <- readline(prompt = sprintf("Would you like to create a cleaning script for %s now? y/n ", 
+                                            paste(invalid_script, collapse = ", ")))
+      
+      while (!tolower(response) %in% c("y", "n")) {
+        response <- readline(prompt = "Please enter either y or n: ")
+      }
+      
+      if (tolower(response) == "n") {
+        stop("Script creation cancelled.")
+      }
+      
+      # user names the script
+      script_name <- readline(prompt = "What would you like to name the cleaning script?")
+      
+      # If response is "y", allow user to select api:
+      api_selection <- function() {
+        options <- c("mongo", "qualtrics", "redcap")
+        selections <- rep(FALSE, 3)
+        names(selections) <- options
+        
+        cat("Select script type(s):\n")
+        
+        while(TRUE) {
+          # Show current status
+          for (i in 1:length(options)) {
+            status <- ifelse(selections[i], "[x]", "[ ]")
+            cat(i, ":", status, options[i], "\n")
+          }
+          cat(length(options) + 1, ": Done\n")
+          
+          # Get user choice
+          choice <- as.numeric(readline("Enter number to toggle selection: "))
+          
+          if (is.na(choice)) {
+            cat("Please enter a valid number\n")
+          } else if (choice == length(options) + 1) {
+            break
+          } else if (choice >= 1 && choice <= length(options)) {
+            selections[choice] <- !selections[choice]
+          } else {
+            cat("Invalid choice\n")
+          }
+          cat("\n")
+        }
+        
+        return(options[selections])
+      }
+      
+      # Use the function
+      selected_api <- api_selection()
+      
+      # Define base path
+      path <- "." # Or whatever directory you're working from
+      
+      clean_templates <- list(
+        mongo = list(
+          path = sprintf(file.path(path, "clean", "mongo", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# clean/mongo/%s.R", script_name),
+            "#",
+            '# config:  database name is defined in config.yml',
+            '# secrets: connectionString is defined in secrets.R',
+            '# encrypt: the *.pem file must be placed in the root of this repository',
+            "#",
+            "# return a list of the instrument_name(s) from MongoDB",
+            "mongo.index()",
+            "#",
+            "# get collection from MongoDB",
+            "# IMPORTANT: both variable name and script filename must match",
+            sprintf("%s <- mongo(\"%s\")", script_name, script_name),
+            "",
+            "# cleaning script code...",
+            "",
+            "# final df must be named like the R script and appended with _clean",
+            sprintf("%s_clean <- %s"), script_name, script_name),
+            sep = "\n"
+          )
+        ),
+        qualtrics = list(
+          path = sprintf(file.path(path, "clean", "qualtrics", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# clean/qualtrics/%s.R", script_name),
+            "#",
+            "# get survey from Qualtrics database",
+            "# config:  surveys are defined in config.yml as key-value pairs",
+            "# secrets: baseUrls and apiKeys are defined in secrets.R",
+            "#",
+            "# return a list of the instrument_name(s) from MongoDB",
+            "qualtrics.index()",
+            "#",
+            "# get collection from Qualtrics",
+            "# IMPORTANT: both variable name and script filename must match",
+            sprintf("%s <- qualtrics(\"%s\")", script_name, script_name),
+            "",
+            "# cleaning script code...",
+            "",
+            "# IMPORTANT: final df must be appended with _clean",
+            sprintf("%s_clean <- %s"), script_name, script_name),
+            sep = "\n"
+          )
+        ),
+        redcap = list(
+          path = sprintf(file.path(path, "clean", "redcap", "%s"), script_name),
+          content = paste(
+            "#",
+            sprintf("# clean/redcap/%s.R", script_name),
+            "#",
+            "# config:  superkey instrument is defined in config.yml",
+            "# secrets: uri and token are defined in secrets.R",
+            "#",
+            "# return a list of the instrument_name(s) from REDCap",
+            "redcap.index()",
+            "#",
+            "# get the instrument_name from REDCap",
+            "# IMPORTANT: both variable name and script filename must match",
+            sprintf("%s <- redcap(\"%s\")", script_name, script_name),
+            "",
+            "# cleaning script code...",
+            "",
+            "# IMPORTANT: final df must be appended with _clean",
+            sprintf("%s_clean <- %s"), script_name, script_name),
+            sep = "\n"
+          )
+        )
+      )
+      
+      # Initialize array to track created files
+      created <- character(0)
+      
+      template <- clean_templates[[selected_api]]
+      if (!file.exists(template$path)) {
+        writeLines(template$content, template$path)
+        created <- c(created, template$path)
+      } else {
+        created <- c(created, paste0(template$path, " (skipped, already exists)"))
+      }
+      
     }
+    # kill rest of script execution since script is not complete
+    stop()
   }
   
   # Compile data list and validate measures
