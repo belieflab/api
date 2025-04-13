@@ -128,34 +128,40 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                                   if (api_type == "redcap" && "uri" %in% correct_type_vars) {
                                     uri_value <- base::get("uri")
                                     
-                                    # Check if URI doesn't end with "api/"
-                                    if (!grepl("api/$", uri_value)) {
-                                      # If it ends with just "api", add the trailing slash
-                                      if (grepl("api$", uri_value)) {
-                                        fixed_uri <- paste0(uri_value, "/")
+                                    # Check if it ends with "api/" (correct format)
+                                    if (grepl("api/$", uri_value)) {
+                                      # Format is correct, do nothing
+                                    } 
+                                    # Check if it ends with "api" (missing trailing slash)
+                                    else if (grepl("api$", uri_value)) {
+                                      # Add trailing slash
+                                      fixed_uri <- paste0(uri_value, "/")
+                                      
+                                      # Update the variable in memory
+                                      assign("uri", fixed_uri, envir = .wizaRdry_env)
+                                      
+                                      # Update the secrets.R file
+                                      if (file.exists(self$secrets_file)) {
+                                        # Read and update file content
+                                        file_content <- readLines(self$secrets_file)
+                                        uri_pattern <- "^\\s*uri\\s*<-\\s*[\"\'](.*)[\"\']\\s*$"
+                                        uri_line_index <- grep(uri_pattern, file_content)
                                         
-                                        # Update variable in memory
-                                        assign("uri", fixed_uri, envir = .wizaRdry_env)
-                                        
-                                        # Update file if it exists
-                                        if (file.exists(self$secrets_file)) {
-                                          file_content <- readLines(self$secrets_file)
-                                          uri_pattern <- "^\\s*uri\\s*<-\\s*[\"\'](.*)[\"\']\\s*$"
-                                          uri_line_index <- grep(uri_pattern, file_content)
-                                          
-                                          if (length(uri_line_index) > 0) {
-                                            file_content[uri_line_index] <- gsub(uri_pattern,
-                                                                                 paste0("uri <- \"", fixed_uri, "\""),
-                                                                                 file_content[uri_line_index])
-                                            writeLines(file_content, self$secrets_file)
-                                            message("Note: Added trailing slash to uri (", uri_value, " -> ", fixed_uri, ")")
-                                          } else {
-                                            message("Note: Added trailing slash to uri in memory, but couldn't update file.")
-                                          }
+                                        if (length(uri_line_index) > 0) {
+                                          file_content[uri_line_index] <- gsub(uri_pattern,
+                                                                               paste0("uri <- \"", fixed_uri, "\""),
+                                                                               file_content[uri_line_index])
+                                          writeLines(file_content, self$secrets_file)
+                                          message("Note: Added trailing slash to uri in ", self$secrets_file,
+                                            " (", uri_value, " -> ", fixed_uri, ")")
+                                        } else {
+                                          message("Note: Added trailing slash to uri in memory, but couldn't update ",
+                                                  self$secrets_file, " automatically.")
                                         }
                                       }
+                                    } 
                                     # Not ending with "api" at all
-                                    } else {
+                                    else {
                                       # Don't add a slash, add an error instead
                                       all_errors <- c(all_errors, paste("URI format error:",
                                                                         "uri must end with 'api/' for REDCap API access.",
