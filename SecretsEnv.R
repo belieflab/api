@@ -42,7 +42,10 @@ SecretsEnv <- R6::R6Class("SecretsEnv",
                               load_secrets(secrets_file)
                               
                               # Validate configuration
-                              validate_config_result <- self$validate_config("redcap")
+                              self$validate_config("mongo")
+                              self$validate_config("qualtrics")
+                              self$validate_config("redcap")
+                              
                               # Add additional validations as needed
                             },
                             
