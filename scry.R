@@ -1,4 +1,4 @@
-#' Scry: Prepare a Magical wizaRdry Workspace
+#' Initialize the wizaRdry directory structure
 #'
 #' Creates the standard directory structure required for the wizaRdry package to function properly.
 #' This includes folders for data cleaning scripts, NDA submission templates, and temporary outputs.
