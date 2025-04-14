@@ -339,9 +339,10 @@ qualtrics.index <- function(institution = NULL) {
 #' or a survey alias string.
 #'
 #' @param survey_alias Can either be an existing dataframe, variable name as string, or survey alias string
+#' @param exclude_embedded Only select QIDs
 #' @return A list containing the mappings of column names to survey questions.
 #' @export
-qualtrics.dict <- function(survey_alias) {
+qualtrics.dict <- function(survey_alias, exclude_embedded = TRUE) {
   # First handle the case of a non-existent variable being passed without quotes
   var_name <- NULL
   
@@ -365,10 +366,21 @@ qualtrics.dict <- function(survey_alias) {
   # Check if input is a data frame
   if (is.data.frame(survey_alias)) {
     # Input is already a data frame, use it directly
-    return(qualtRics::extract_colmap(respdata = survey_alias))
+    colmap <- qualtRics::extract_colmap(respdata = survey_alias)
+    
+    # Filter to include only QID fields
+    if (exclude_embedded && !is.null(colmap)) {
+      if ("ImportId" %in% names(colmap)) {
+        colmap <- colmap[!is.na(colmap$ImportId) & grepl("^QID", colmap$ImportId), ]
+      } else if ("qid" %in% names(colmap)) {
+        colmap <- colmap[!is.na(colmap$qid) & grepl("^QID", colmap$qid), ]
+      }
+    }
+    
+    return(colmap)
   }
   
-  # Input is a string (either originally or after substitution)
+  # Input is a string
   if (is.character(survey_alias)) {
     # First, check if it's a variable name in the global environment
     if (exists(survey_alias)) {
@@ -377,49 +389,44 @@ qualtrics.dict <- function(survey_alias) {
       # Check if the variable is a data frame
       if (is.data.frame(var_data)) {
         message(sprintf("Using existing data frame '%s' from environment.", survey_alias))
-        return(qualtRics::extract_colmap(respdata = var_data))
+        colmap <- qualtRics::extract_colmap(respdata = var_data)
+        
+        # Filter to include only QID fields
+        if (exclude_embedded && !is.null(colmap)) {
+          if ("ImportId" %in% names(colmap)) {
+            colmap <- colmap[!is.na(colmap$ImportId) & grepl("^QID", colmap$ImportId), ]
+          } else if ("qid" %in% names(colmap)) {
+            colmap <- colmap[!is.na(colmap$qid) & grepl("^QID", colmap$qid), ]
+          }
+        }
+        
+        return(colmap)
       }
     }
     
     # Not a variable or not a data frame, treat as survey alias
-    message(sprintf("Fetching survey data for alias '%s' from Qualtrics.", survey_alias))
+    message(sprintf("Fetching dictionary for alias '%s' from Qualtrics.", survey_alias))
     
-    # Use wizaRdry::qualtrics with no progress bar - directly set options
-    # Disable progress bars globally before calling anything
+    # Temporarily suppress warnings and disable progress bars
+    old_warn <- options("warn")
     old_opt <- options(qualtRics.progress = FALSE)
-    on.exit(options(old_opt), add = TRUE)
+    on.exit({options(old_warn); options(old_opt)}, add = TRUE)
+    options(warn = -1)
     
-    # Modify wizaRdry::qualtrics call to suppress output temporarily
-    old_sink <- NULL
-    sink_file <- NULL
+    # Get survey data with suppressed output
+    survey_data <- suppressMessages(wizaRdry::qualtrics(survey_alias))
+    colmap <- qualtRics::extract_colmap(respdata = survey_data)
     
-    # Try to redirect output to suppress progress messages
-    tryCatch({
-      sink_file <- tempfile()
-      old_sink <- sink(sink_file)
-      
-      # Call wizaRdry::qualtrics
-      survey_data <- wizaRdry::qualtrics(survey_alias)
-      
-      # Restore output
-      sink(NULL)
-      if (!is.null(sink_file) && file.exists(sink_file)) {
-        file.remove(sink_file)
+    # Filter to include only QID fields
+    if (exclude_embedded && !is.null(colmap)) {
+      if ("ImportId" %in% names(colmap)) {
+        colmap <- colmap[!is.na(colmap$ImportId) & grepl("^QID", colmap$ImportId), ]
+      } else if ("qid" %in% names(colmap)) {
+        colmap <- colmap[!is.na(colmap$qid) & grepl("^QID", colmap$qid), ]
       }
-      
-      return(qualtRics::extract_colmap(respdata = survey_data))
-    }, error = function(e) {
-      # Restore output in case of error
-      if (!is.null(old_sink)) {
-        sink(NULL)
-      }
-      if (!is.null(sink_file) && file.exists(sink_file)) {
-        file.remove(sink_file)
-      }
-      
-      # If we're here, something went wrong; rethrow the error
-      stop(e$message)
-    })
+    }
+    
+    return(colmap)
   }
   
   # Invalid input type
