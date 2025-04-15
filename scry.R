@@ -50,8 +50,25 @@
 #' }
 #'
 #' @export
-scry <- function(study_alias = FALSE, path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
+scry <- function(study_alias = NULL, path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
                  create_project = FALSE, examples = FALSE) {
+  
+  # If study_alias is NULL (not provided), try to detect from .Rproj file
+  if (is.null(study_alias)) {
+    # Look for .Rproj files in the specified path
+    rproj_files <- list.files(path, pattern = "\\.Rproj$", full.names = FALSE)
+    
+    if (length(rproj_files) > 0) {
+      # Extract project name from the first .Rproj file found
+      project_name <- sub("\\.Rproj$", "", rproj_files[1])
+      study_alias <- project_name
+      message(paste0("Using project name as study alias: ", study_alias))
+    } else {
+      # Default to FALSE if no .Rproj file found
+      study_alias <- FALSE
+    }
+  }
+  
   # Define directory structure
   expected_dirs <- c(
     file.path(path, "clean"),
@@ -195,7 +212,7 @@ scry <- function(study_alias = FALSE, path = ".", overwrite = FALSE, repair = FA
   config_file <- file.path(path, "config.yml")
   config_template <- paste(
     "default:",
-    paste0("  study_alias: ", ifelse(!study_alias, "test", tolower(study_alias))),
+    paste0("  study_alias: ", ifelse(isFALSE(study_alias), "test", tolower(study_alias))),
     "  identifier: src_subject_id",
     "  mongo:",
     "    collection: ${study_alias}",
