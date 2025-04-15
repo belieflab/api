@@ -370,6 +370,8 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
         } else {
           message(sprintf("File already exists: %s (skipped)", template$path))
         }
+        # open script for editing
+        rstudioapi::navigateToFile(sprintf("%s",template$path))
       }
     }
     

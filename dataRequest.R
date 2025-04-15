@@ -207,6 +207,8 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE) {
         } else {
           message(sprintf("File already exists: %s (skipped)", template$path))
         }
+        # open script for editing
+        rstudioapi::navigateToFile(sprintf("%s",template$path))
       }
     }
     
