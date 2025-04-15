@@ -4,6 +4,7 @@
 #' This includes folders for data cleaning scripts, NDA submission templates, and temporary outputs.
 #' It can detect and repair incomplete directory structures, and optionally create an R project.
 #'
+#' @param study_alias Character string specifying the short name for the study e.g. impact, capr, sing
 #' @param path Character string specifying the directory path where the structure should be created.
 #'        Defaults to the current working directory.
 #' @param overwrite Logical. If TRUE, will overwrite existing files. If FALSE (default),
@@ -49,7 +50,7 @@
 #' }
 #'
 #' @export
-scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
+scry <- function(study_alias = FALSE, path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
                  create_project = FALSE, examples = FALSE) {
   # Define directory structure
   expected_dirs <- c(
@@ -194,7 +195,7 @@ scry <- function(path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL
   config_file <- file.path(path, "config.yml")
   config_template <- paste(
     "default:",
-    "  study_alias: test",
+    paste0("  study_alias: ", ifelse(!study_alias, "test", tolower(study_alias))),
     "  identifier: src_subject_id",
     "  mongo:",
     "    collection: ${study_alias}",
