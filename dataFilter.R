@@ -1,14 +1,10 @@
+#' Filters a data frame based on specified superkey parameters and well as row and column
+#'
+#' @param df Dataframe to be filtered and trimmed based on the provided parameters.
 #' @param rows Optional; either a single row name or a vector of row names to be retained in the final output. 
 #'        If NULL or empty, all rows in the dataframe are retained.
 #' @param columns Optional; either a single column name or a vector of column names to be retained in the final output. 
 #'        If NULL or empty, all columns in the dataframe are retained.#' Data Filter
-#'
-#' Filters a dataframe based on specified 'visit', 'week', and 'state' parameters and 
-#' selects columns based on 'columns_of_interest'. If 'columns_of_interest' is not provided,
-#' retains all columns by default. Filters by 'visit' and 'week' if these columns exist
-#' and values for them are provided.
-#'
-#' @param df Dataframe to be filtered and trimmed based on the provided parameters.
 #' @param record_id Optional; either a single record_id or a vector of record_ids to filter the dataframe by
 #' @param src_subject_id Optional; either a single subject ID or a vector of subject IDs to filter the dataframe by
 #' @param subjectkey Optional; either a single subjectkey or a vector of subjectkeys to filter the dataframe by
