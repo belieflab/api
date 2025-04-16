@@ -79,6 +79,7 @@ formatDuration <- function(duration) {
 #' @param records Optional vector of specific record IDs
 #' @param fields Optional vector of specific fields
 #' @param exclude_pii Default TRUE remove all fields marked as identifiable
+#' @param date_format Default ymd define date format for interview_date
 #'
 #' @return A data frame containing the requested REDCap data
 #' @export
@@ -89,11 +90,13 @@ formatDuration <- function(duration) {
 #' }
 redcap <- function(instrument_name = NULL, raw_or_label = "raw",
                    redcap_event_name = NULL, batch_size = 1000,
-                   records = NULL, fields = NULL, exclude_pii = TRUE) {
+                   records = NULL, fields = NULL, exclude_pii = TRUE,
+                   date_format = "ymd") {
   start_time <- Sys.time()
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
+  if (!require(lubridate)) install.packages("lubridate"); library(lubridate)
   
   # Define the allowed superkey columns explicitly
   allowed_superkey_cols <- c(
@@ -116,6 +119,11 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     "family_study",
     "sample_taken"
   )
+  
+  # Validate date_format parameter
+  if (!date_format %in% c("mdy", "dmy", "ymd")) {
+    stop("date_format must be one of 'mdy', 'dmy', or 'ymd'")
+  }
   
   # Validate secrets and config
   base::source("api/SecretsEnv.R")
@@ -174,30 +182,44 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   metadata <- NULL
   pii_fields <- c()
   
-  if (exclude_pii) {
-    metadata <- tryCatch({
-      REDCapR::redcap_metadata_read(
-        redcap_uri = uri, 
-        token = token,
-        verbose = FALSE
-      )$data
-    }, error = function(e) {
-      message("Warning: Could not retrieve metadata to identify PII fields.")
-      return(NULL)
-    })
+  # Get the full metadata to identify date fields
+  metadata <- tryCatch({
+    REDCapR::redcap_metadata_read(
+      redcap_uri = uri, 
+      token = token,
+      verbose = FALSE
+    )$data
+  }, error = function(e) {
+    message("Warning: Could not retrieve metadata.")
+    return(NULL)
+  })
+  
+  # Find date fields in the metadata
+  date_fields <- c()
+  if (!is.null(metadata) && "field_name" %in% names(metadata) && "text_validation_type_or_show_slider_number" %in% names(metadata)) {
+    # Identify all date fields
+    date_validation_types <- c("date_mdy", "date_dmy", "date_ymd", "datetime_mdy", "datetime_dmy", "datetime_ymd", "datetime_seconds_mdy", "datetime_seconds_dmy", "datetime_seconds_ymd")
+    date_fields <- metadata$field_name[metadata$text_validation_type_or_show_slider_number %in% date_validation_types]
+    date_fields <- c(date_fields, "interview_date") # Add interview_date explicitly
+    date_fields <- date_fields[!is.na(date_fields)]
     
-    # Extract PII field names if the metadata includes identifier info
-    if (!is.null(metadata) && "field_name" %in% names(metadata) && "identifier" %in% names(metadata)) {
-      pii_fields <- metadata$field_name[metadata$identifier == "y"]
-      
-      # Filter out NA values and print only the non-NA field names
-      pii_fields <- pii_fields[!is.na(pii_fields)]
-      
-      if (length(pii_fields) > 0) {
-        message(sprintf("Found %d PII fields that will be excluded: %s", 
-                        length(pii_fields), 
-                        paste(pii_fields, collapse = ", ")))
-      }
+    if (length(date_fields) > 0) {
+      message(sprintf("Found %d date fields that will be properly formatted: %s", 
+                      length(date_fields), 
+                      paste(date_fields, collapse = ", ")))
+    }
+  }
+  
+  if (exclude_pii && !is.null(metadata) && "field_name" %in% names(metadata) && "identifier" %in% names(metadata)) {
+    pii_fields <- metadata$field_name[metadata$identifier == "y"]
+    
+    # Filter out NA values and print only the non-NA field names
+    pii_fields <- pii_fields[!is.na(pii_fields)]
+    
+    if (length(pii_fields) > 0) {
+      message(sprintf("Found %d PII fields that will be excluded: %s", 
+                      length(pii_fields), 
+                      paste(pii_fields, collapse = ", ")))
     }
   }
   
@@ -274,10 +296,6 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   if (exclude_pii && length(pii_fields) > 0) {
     super_key_cols <- setdiff(super_key_cols, pii_fields)
   }
-  
-  # Message about which superkey columns will be used
-  # message(sprintf("Using the following superkey columns: %s", 
-  #                paste(super_key_cols, collapse = ", ")))
   
   # 3. Process superkey data to ensure it's available for all subjects regardless of event
   # First, create a consolidated superkey dataset with one row per subject
@@ -365,6 +383,87 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
           if (length(non_na_values) > 0) {
             # Propagate the first non-NA value to all events for this subject
             df[subject_rows, key_field] <- non_na_values[1]
+          }
+        }
+      }
+    }
+  }
+  
+  # Fix the date fields - Convert numeric dates to proper date format
+  # Process date fields - this includes interview_date
+  if (length(date_fields) > 0) {
+    message("\nConverting date fields to proper date format...")
+    
+    for (date_field in date_fields) {
+      if (date_field %in% names(df)) {
+        # Only process if the column exists and has some non-NA values
+        if (any(!is.na(df[[date_field]]))) {
+          # Convert to character first to handle both numeric and character inputs
+          dates_char <- as.character(df[[date_field]])
+          
+          # Check if dates are numeric (SPSS/SAS format) - typically represented as days since 1960-01-01
+          if (all(grepl("^\\d+(\\.\\d+)?$", dates_char[!is.na(dates_char)]))) {
+            # Convert from numeric to date
+            # For SPSS/SAS dates (days since 1960-01-01)
+            numeric_dates <- as.numeric(dates_char)
+            date_values <- as.Date(numeric_dates, origin = "1960-01-01")
+            
+            # Now format the date according to the requested format
+            if (date_format == "mdy") {
+              df[[date_field]] <- format(date_values, "%m/%d/%Y")
+            } else if (date_format == "dmy") {
+              df[[date_field]] <- format(date_values, "%d/%m/%Y")
+            } else if (date_format == "ymd") {
+              df[[date_field]] <- format(date_values, "%Y-%m-%d")
+            }
+            
+            message(sprintf("  Converted %s from numeric to %s format", date_field, date_format))
+          } 
+          # Check if they are already in a date-like format
+          else if (any(grepl("-|/", dates_char[!is.na(dates_char)]))) {
+            # Try to parse existing dates and reformat them
+            parsed_dates <- tryCatch({
+              # Try different parsing approaches
+              if (all(grepl("/", dates_char[!is.na(dates_char)]))) {
+                # Likely MM/DD/YYYY or DD/MM/YYYY
+                parts <- strsplit(dates_char[!is.na(dates_char)][1], "/")[[1]]
+                if (length(parts) == 3) {
+                  if (as.numeric(parts[1]) > 12) { # DD/MM/YYYY
+                    as.Date(dates_char, format = "%d/%m/%Y")
+                  } else { # Default to MM/DD/YYYY
+                    as.Date(dates_char, format = "%m/%d/%Y")
+                  }
+                }
+              } else if (all(grepl("-", dates_char[!is.na(dates_char)]))) {
+                # Likely YYYY-MM-DD
+                as.Date(dates_char)
+              } else {
+                # Try generic parsing with lubridate
+                if (date_format == "mdy") {
+                  lubridate::mdy(dates_char)
+                } else if (date_format == "dmy") {
+                  lubridate::dmy(dates_char)
+                } else {
+                  lubridate::ymd(dates_char)
+                }
+              }
+            }, error = function(e) {
+              # If parsing fails, return NA
+              message(sprintf("  Warning: Could not parse dates in %s, leaving as is", date_field))
+              return(NULL)
+            })
+            
+            if (!is.null(parsed_dates)) {
+              # Format according to preference
+              if (date_format == "mdy") {
+                df[[date_field]] <- format(parsed_dates, "%m/%d/%Y")
+              } else if (date_format == "dmy") {
+                df[[date_field]] <- format(parsed_dates, "%d/%m/%Y")
+              } else if (date_format == "ymd") {
+                df[[date_field]] <- format(parsed_dates, "%Y-%m-%d")
+              }
+              message(sprintf("  Reformatted %s to %s format", date_field, date_format))
+            }
           }
         }
       }
