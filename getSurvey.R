@@ -3,7 +3,7 @@
 #' @param qualtrics_alias The alias for the Qualtrics survey to be retrieved.
 #' @param institution Optional. The institution name (e.g., "temple" or "nu"). If NULL, all institutions will be searched.
 #' @param label Logical indicating whether to return coded values or their associated labels (default is FALSE).
-#' @return A cleaned and harmonized data frame containing the survey data.
+#' @return A cleaned and harmonized data frame containing the survey data with superkeys first.
 #' @importFrom dplyr %>% select mutate
 #' @export
 #' @examples
@@ -83,6 +83,46 @@ qualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
   
   # Harmonize the data
   clean_df <- qualtricsHarmonization(df, identifier, qualtrics_alias)
+  
+  # List of allowed superkey columns to prioritize
+  allowed_superkey_cols <- c(
+    "record_id",
+    "src_subject_id",
+    "subjectkey",
+    "site",
+    "subsiteid",
+    "sex",
+    "race",
+    "ethnic_group",
+    "phenotype",
+    "phenotype_description",
+    "state",
+    "status",
+    "lost_to_followup",
+    "lost_to_follow-up",
+    "twins_study",
+    "sibling_study",
+    "family_study",
+    "sample_taken"
+  )
+  
+  # Reorder columns to have superkeys first
+  if (is.data.frame(clean_df) && ncol(clean_df) > 0) {
+    # Identify which superkey columns are actually in the data
+    present_superkeys <- intersect(allowed_superkey_cols, names(clean_df))
+    
+    # Get all other columns (non-superkeys)
+    other_cols <- setdiff(names(clean_df), present_superkeys)
+    
+    # If there are matching superkeys, reorder the columns
+    if (length(present_superkeys) > 0) {
+      # Create new column order with superkeys first, then other columns
+      new_order <- c(present_superkeys, other_cols)
+      
+      # Reorder the dataframe
+      clean_df <- clean_df[, new_order, drop = FALSE]
+    }
+  }
   
   return(clean_df)
 }
