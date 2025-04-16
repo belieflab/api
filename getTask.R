@@ -235,7 +235,7 @@ formatDuration <- function(duration) {
 #' @importFrom utils flush.console
 #' @importFrom stats setNames
 #'
-#' @return A data frame containing the MongoDB data
+#' @return A data frame containing the MongoDB data with superkeys first
 #' @export
 #' @examples
 #' \dontrun{
@@ -302,7 +302,7 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
   
   # Display system info
   if (!is.null(mem_info$total)) {
-    message(sprintf("System resources: %.0fGB RAM, %d-core CPU", 
+    message(sprintf("System resources: %.0fGB RAM, %d-core CPU",
                     mem_info$total, num_cores))
   } else {
     message(sprintf("System resources: %d-core CPU.", num_cores))
@@ -331,9 +331,8 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
       chunk_size <- 1000  # Conservative default
     }
   }
-  
-message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)", 
-                params$num_chunks, params$chunk_size, params$workers))
+  message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
+                  params$num_chunks, params$chunk_size, params$workers))
   
   # Setup chunks
   num_chunks <- ceiling(total_records / chunk_size)
@@ -342,18 +341,14 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
   # Setup parallel processing with quiet connections
   plan(future::multisession, workers = workers)
   
-
-  
   # Progress message
   #message("Retrieving data:")
   #message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
-  message(sprintf("\nImporting %s records from %s/%s into dataframe...", 
-                  formatC(total_records, format = "d", big.mark = ","), 
+  message(sprintf("\nImporting %s records from %s/%s into dataframe...",
+                  formatC(total_records, format = "d", big.mark = ","),
                   db_name, collection_name))
-
   # Initialize custom progress bar
   pb <- initializeLoadingAnimation(num_chunks)
-
   
   # Process chunks
   future_results <- vector("list", length(chunks))
@@ -402,11 +397,51 @@ message(sprintf("Processing: %d chunks x %d records in parallel (%d workers)",
   message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
   # "\u2713"
   
+  # List of allowed superkey columns to prioritize
+  allowed_superkey_cols <- c(
+    "record_id",
+    "src_subject_id",
+    "subjectkey",
+    "site",
+    "subsiteid",
+    "sex",
+    "race",
+    "ethnic_group",
+    "phenotype",
+    "phenotype_description",
+    "state",
+    "status",
+    "lost_to_followup",
+    "lost_to_follow-up",
+    "twins_study",
+    "sibling_study",
+    "family_study",
+    "sample_taken"
+  )
+  
+  # Reorder columns to have superkeys first
+  if (is.data.frame(clean_df) && ncol(clean_df) > 0) {
+    # Identify which superkey columns are actually in the data
+    present_superkeys <- intersect(allowed_superkey_cols, names(clean_df))
+    
+    # Get all other columns (non-superkeys)
+    other_cols <- setdiff(names(clean_df), present_superkeys)
+    
+    # If there are matching superkeys, reorder the columns
+    if (length(present_superkeys) > 0) {
+      # Create new column order with superkeys first, then other columns
+      new_order <- c(present_superkeys, other_cols)
+      
+      # Reorder the dataframe
+      clean_df <- clean_df[, new_order, drop = FALSE]
+    }
+  }
+  
   # Report execution time
   end_time <- Sys.time()
   duration <- difftime(end_time, start_time, units = "secs")
   Sys.sleep(0.5)  # Optional: small pause for visual effect
-  message(sprintf("\nData frame '%s' retrieved in %s.", collection_name, formatDuration(duration-1)))# minus 1 to account for sleep
+  message(sprintf("\nData frame '%s' retrieved in %s.", collection_name, formatDuration(duration-1)))  # minus 1 to account for sleep
   
   return(clean_df)
 }
