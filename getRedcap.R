@@ -276,8 +276,8 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   }
   
   # Message about which superkey columns will be used
-  message(sprintf("Using the following superkey columns: %s", 
-                  paste(super_key_cols, collapse = ", ")))
+  # message(sprintf("Using the following superkey columns: %s", 
+  #                paste(super_key_cols, collapse = ", ")))
   
   # 3. Process superkey data to ensure it's available for all subjects regardless of event
   # First, create a consolidated superkey dataset with one row per subject
