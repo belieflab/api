@@ -420,7 +420,7 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
     "interview_date",
     "interview_age",
     "visit",
-    "week",
+    "week"
   )
   
   # Reorder columns to have superkeys first

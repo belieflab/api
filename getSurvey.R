@@ -107,7 +107,7 @@ qualtrics <- function(qualtrics_alias, institution = NULL, label = FALSE) {
     "interview_date",
     "interview_age",
     "visit",
-    "week",
+    "week"
   )
   
   # Reorder columns to have superkeys first

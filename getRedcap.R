@@ -119,7 +119,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     "family_study",
     "sample_taken",
     "visit",
-    "week",
+    "week"
   )
   
   # Validate date_format parameter
