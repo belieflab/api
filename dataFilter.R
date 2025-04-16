@@ -106,6 +106,9 @@ sift <- function(df, rows = NULL, columns = NULL,
   if (!require(dplyr, quietly = TRUE)) {install.packages("dplyr")}; library(dplyr)
   if (!require(lubridate, quietly = TRUE)) {install.packages("lubridate")}; library(lubridate)
   
+  # Create a copy of the original dataframe to preserve original values
+  original_df <- df
+  
   # Advanced date parsing function that handles multiple formats
   parseAnyDate <- function(date_string) {
     if (is.na(date_string) || is.null(date_string)) {
@@ -151,14 +154,16 @@ sift <- function(df, rows = NULL, columns = NULL,
   
   # Handle interview_date filtering
   if ("interview_date" %in% names(df)) {
-    # First convert all date strings in the dataframe to actual Date objects
-    df$interview_date <- sapply(df$interview_date, parseAnyDate)
+    # Create a temporary date column for filtering but don't modify the original
+    df$temp_date <- sapply(df$interview_date, parseAnyDate)
     
     # Handle the interview_date parameter
     if (!is.null(interview_date)) {
       if (is.logical(interview_date) && interview_date == TRUE) {
         # Keep only rows with non-NA interview_date values
-        df <- df[!is.na(df$interview_date), ]
+        rows_to_keep <- !is.na(df$temp_date)
+        df <- df[rows_to_keep, ]
+        original_df <- original_df[rows_to_keep, ]
       } else if (is.character(interview_date) || inherits(interview_date, "Date")) {
         # Filter by specific date
         input_date <- tryCatch({
@@ -175,12 +180,19 @@ sift <- function(df, rows = NULL, columns = NULL,
           stop("Failed to parse interview_date parameter: ", interview_date)
         }
         
-        df <- df[df$interview_date <= input_date, ]
+        rows_to_keep <- df$temp_date <= input_date
+        df <- df[rows_to_keep, ]
+        original_df <- original_df[rows_to_keep, ]
       } else {
         stop("interview_date must be either a date string or TRUE")
       }
     }
+    
+    # Remove the temporary date column
+    df$temp_date <- NULL
   }
+  
+  # Use the filtered dataframe for applying other filters, but keep the original values
   
   # Check for either state or status column and apply filtering
   if (!is.null(status)) {
@@ -192,9 +204,13 @@ sift <- function(df, rows = NULL, columns = NULL,
     }
     
     if ("state" %in% names(df)) {
-      df <- df[df$state %in% status_values, ]
+      rows_to_keep <- df$state %in% status_values
+      df <- df[rows_to_keep, ]
+      original_df <- original_df[rows_to_keep, ]
     } else if ("status" %in% names(df)) {
-      df <- df[df$status %in% status_values, ]
+      rows_to_keep <- df$status %in% status_values
+      df <- df[rows_to_keep, ]
+      original_df <- original_df[rows_to_keep, ]
     } else {
       warning("Neither 'state' nor 'status' column found in the dataframe. Status filtering skipped.")
     }
@@ -207,7 +223,9 @@ sift <- function(df, rows = NULL, columns = NULL,
     } else {
       visit
     }
-    df <- df[df$visit %in% visit_values, ]
+    rows_to_keep <- df$visit %in% visit_values
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
   
   if ("week" %in% names(df) && !is.null(week)) {
@@ -217,24 +235,67 @@ sift <- function(df, rows = NULL, columns = NULL,
     } else {
       week
     }
-    df <- df[df$week %in% week_values, ]
+    rows_to_keep <- df$week %in% week_values
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
   
   if ("arm" %in% names(df) && !is.null(arm)) {
-    df <- df[df$arm %in% arm, ]
+    rows_to_keep <- df$arm %in% arm
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
   
   if ("site" %in% names(df) && !is.null(site)) {
-    df <- df[df$site %in% site, ]
+    rows_to_keep <- df$site %in% site
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
   
   if ("sex" %in% names(df) && !is.null(sex)) {
-    df <- df[df$sex %in% sex, ]
+    rows_to_keep <- df$sex %in% sex
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
   
   if ("phenotype" %in% names(df) && !is.null(phenotype)) {
-    df <- df[df$phenotype %in% phenotype, ]
+    rows_to_keep <- df$phenotype %in% phenotype
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
   }
+  
+  if ("record_id" %in% names(df) && !is.null(record_id)) {
+    rows_to_keep <- df$record_id %in% record_id
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
+  }
+  
+  if ("src_subject_id" %in% names(df) && !is.null(src_subject_id)) {
+    rows_to_keep <- df$src_subject_id %in% src_subject_id
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
+  }
+  
+  if ("subjectkey" %in% names(df) && !is.null(subjectkey)) {
+    rows_to_keep <- df$subjectkey %in% subjectkey
+    df <- df[rows_to_keep, ]
+    original_df <- original_df[rows_to_keep, ]
+  }
+  
+  if (!is.null(lost_to_followup)) {
+    if ("lost_to_followup" %in% names(df)) {
+      rows_to_keep <- df$lost_to_followup == lost_to_followup
+      df <- df[rows_to_keep, ]
+      original_df <- original_df[rows_to_keep, ]
+    } else if ("lost_to_follow-up" %in% names(df)) {
+      rows_to_keep <- df$`lost_to_follow-up` == lost_to_followup
+      df <- df[rows_to_keep, ]
+      original_df <- original_df[rows_to_keep, ]
+    }
+  }
+  
+  # Apply row and column filters to the original_df which has original values
+  result_df <- original_df
   
   if (!is.null(columns)) {
     # Convert single column name to vector if needed
@@ -243,7 +304,7 @@ sift <- function(df, rows = NULL, columns = NULL,
     } else {
       columns
     }
-    df <- df[, col_values, drop = FALSE]
+    result_df <- result_df[, col_values, drop = FALSE]
   } else {
     message("No columns provided; all columns will be included.")
   }
@@ -255,10 +316,10 @@ sift <- function(df, rows = NULL, columns = NULL,
     } else {
       rows
     }
-    df <- df[row_values, , drop = FALSE]
+    result_df <- result_df[row_values, , drop = FALSE]
   }
   
-  return(df)
+  return(result_df)
 }
 
 #' Alias for 'sift'
