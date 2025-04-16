@@ -401,13 +401,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     df <- df[df$redcap_event_name == redcap_event_name, ]
   }
   
-  # Study-specific processing
-  if (config$study_alias == "impact-mh") {
-    if ("dob" %in% colnames(df)) {
-      df <- subset(df, select = -dob)
-    }
-  }
-  
+  # Study-specific processing (legacy - errors should be fixed in redcap...)
   if (config$study_alias == "capr") {
     base::source("api/redcap/capr-logic.R")
     df <- processCaprData(df, instrument_name)
