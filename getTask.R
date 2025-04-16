@@ -654,11 +654,11 @@ taskHarmonization <- function(df, identifier, collection_name) {
   #   df$src_subject_id <- as.numeric(df$src_subject_id)
   # }
   
-  # convert dates (from string ("m/d/Y") to date format)
+  # convert dates (from string ("m/d/Y") to iso date format)
   interview_date_exists <- "interview_date" %in% colnames(df)
   
   if (interview_date_exists) {
-    df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
+    df$interview_date <- as.Date(df$interview_date, "%Y/%m/%d")
   }
   
   # add measure column

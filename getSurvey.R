@@ -222,6 +222,13 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
   # df$interview_date <- as.Date(df$interview_date, "%m/%d/%Y")
   # df$measure <- qualtrics_alias
   
+  # convert dates (from string ("m/d/Y") to iso date format)
+  interview_date_exists <- "interview_date" %in% colnames(df)
+  
+  if (interview_date_exists) {
+    df$interview_date <- as.Date(df$interview_date, "%Y/%m/%d")
+  }
+  
   suppressWarnings(return(df))
 }
 
