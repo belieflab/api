@@ -78,6 +78,7 @@ formatDuration <- function(duration) {
 #' @param batch_size Number of records to retrieve per batch
 #' @param records Optional vector of specific record IDs
 #' @param fields Optional vector of specific fields
+#' @param exclude_pii Default TRUE remove all fields marked as identifiable
 #'
 #' @return A data frame containing the requested REDCap data
 #' @export
@@ -88,11 +89,33 @@ formatDuration <- function(duration) {
 #' }
 redcap <- function(instrument_name = NULL, raw_or_label = "raw",
                    redcap_event_name = NULL, batch_size = 1000,
-                   records = NULL, fields = NULL) {
+                   records = NULL, fields = NULL, exclude_pii = TRUE) {
   start_time <- Sys.time()
   if (!require(config)) install.packages("config"); library(config)
   if (!require(REDCapR)) install.packages("REDCapR"); library(REDCapR)
   if (!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
+  
+  # Define the allowed superkey columns explicitly
+  allowed_superkey_cols <- c(
+    "record_id",
+    "src_subject_id",
+    "subjectkey",
+    "site",
+    "subsiteid",
+    "sex",
+    "race",
+    "ethnic_group",
+    "phenotype",
+    "phenotype_description",
+    "state",
+    "status",
+    "lost_to_followup",
+    "lost_to_follow-up",
+    "twins_study",
+    "sibling_study",
+    "family_study",
+    "sample_taken"
+  )
   
   # Validate secrets and config
   base::source("api/SecretsEnv.R")
@@ -147,21 +170,71 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     }
   })
   
+  # First get metadata to identify PII fields
+  metadata <- NULL
+  pii_fields <- c()
+  
+  if (exclude_pii) {
+    metadata <- tryCatch({
+      REDCapR::redcap_metadata_read(
+        redcap_uri = uri, 
+        token = token,
+        verbose = FALSE
+      )$data
+    }, error = function(e) {
+      message("Warning: Could not retrieve metadata to identify PII fields.")
+      return(NULL)
+    })
+    
+    # Extract PII field names if the metadata includes identifier info
+    if (!is.null(metadata) && "field_name" %in% names(metadata) && "identifier" %in% names(metadata)) {
+      pii_fields <- metadata$field_name[metadata$identifier == "y"]
+      
+      # Filter out NA values and print only the non-NA field names
+      pii_fields <- pii_fields[!is.na(pii_fields)]
+      
+      if (length(pii_fields) > 0) {
+        message(sprintf("Found %d PII fields that will be excluded: %s", 
+                        length(pii_fields), 
+                        paste(pii_fields, collapse = ", ")))
+      }
+    }
+  }
+  
+  # Now decide which fields to request based on the PII exclusion
+  selected_fields <- NULL
+  
+  if (exclude_pii && length(pii_fields) > 0) {
+    # If fields parameter is provided, exclude PII fields from it
+    if (!is.null(fields)) {
+      selected_fields <- setdiff(fields, pii_fields)
+      if (length(selected_fields) == 0) {
+        message("Warning: All requested fields are marked as PII. Results may be empty.")
+      }
+    } else {
+      # If no fields specified, we'll exclude PII fields after retrieving data
+      # This is because we can't know all fields in advance
+      selected_fields <- NULL
+    }
+  } else {
+    # Use the fields parameter as-is if not excluding PII
+    selected_fields <- fields
+  }
+  
   # Progress bar
   pb <- initializeLoadingAnimation(20)
-  message(sprintf("\nImporting records from REDCap form: %s%s",
+  message(sprintf("\nImporting records from REDCap form: %s%s%s",
                   instrument_name,
                   ifelse(!is.null(redcap_event_name),
                          sprintf(" %s", redcap_event_name),
-                         "")))
+                         ""),
+                  ifelse(exclude_pii && length(pii_fields) > 0, " (excluding PII)", "")))
   for (i in 1:20) {
     updateLoadingAnimation(pb, i)
     Sys.sleep(0.1)
   }
   completeLoadingAnimation(pb)
   message("")
-  
-  # MODIFIED APPROACH: Make separate calls for superkey and instrument
   
   # 1. First, get the superkey data (always using "label")
   superkey_response <- REDCapR::redcap_read(
@@ -182,31 +255,14 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     forms = instrument_name,
     batch_size = batch_size,
     records = records,
-    fields = fields,
+    fields = selected_fields,
     raw_or_label = raw_or_label,  # Use user's preference
     raw_or_label_headers = "raw",
     verbose = FALSE
   )
   
-  # Get the superkey metadata to identify which fields to keep
-  super_key_dict <- tryCatch({
-    REDCapR::redcap_metadata_read(
-      redcap_uri = uri, 
-      token = token,
-      forms = config$redcap$superkey,
-      verbose = FALSE
-    )$data
-  }, error = function(e) {
-    return(NULL)
-  })
-  
-  # Extract field names from dictionary
-  if (!is.null(super_key_dict)) {
-    super_key_cols <- super_key_dict$field_name
-  } else {
-    # Fallback if metadata retrieval failed
-    super_key_cols <- c("record_id") # Add known superkey columns here
-  }
+  # Filter superkey columns to only allowed columns
+  super_key_cols <- intersect(names(superkey_response$data), allowed_superkey_cols)
   
   # Add redcap_event_name to super_key_cols if it exists in either dataset
   if ("redcap_event_name" %in% names(superkey_response$data) || 
@@ -214,8 +270,14 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     super_key_cols <- c(super_key_cols, "redcap_event_name")
   }
   
-  # Keep only superkey fields that exist in our dataset
-  super_key_cols <- super_key_cols[super_key_cols %in% names(superkey_response$data)]
+  # If excluding PII, remove PII fields from superkey columns
+  if (exclude_pii && length(pii_fields) > 0) {
+    super_key_cols <- setdiff(super_key_cols, pii_fields)
+  }
+  
+  # Message about which superkey columns will be used
+  message(sprintf("Using the following superkey columns: %s", 
+                  paste(super_key_cols, collapse = ", ")))
   
   # 3. Process superkey data to ensure it's available for all subjects regardless of event
   # First, create a consolidated superkey dataset with one row per subject
@@ -240,17 +302,42 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
       }
     }
   } else {
-    # If no redcap_event_name, just use the superkey data as is
-    consolidated_superkey <- superkey_response$data[, super_key_cols, drop = FALSE]
+    # If no redcap_event_name, just use the superkey data as is, but only the allowed columns
+    consolidated_superkey <- superkey_response$data[, intersect(names(superkey_response$data), super_key_cols), drop = FALSE]
   }
   
-  # Now merge the consolidated superkey with the instrument data
-  df <- merge(
-    consolidated_superkey,
-    instrument_response$data,
-    by = "record_id",
-    all.y = TRUE
-  )
+  # FIXED: Merge the consolidated superkey with the instrument data
+  # We will use a different approach to ensure event names are preserved
+  if ("redcap_event_name" %in% names(instrument_response$data)) {
+    # Keep the original event names from the instrument data
+    df <- instrument_response$data
+    
+    # Merge in the consolidated superkey data (excluding event_name)
+    for (subject_id in unique(df$record_id)) {
+      # Get the superkey data for this subject
+      superkey_data <- consolidated_superkey[consolidated_superkey$record_id == subject_id, 
+                                             !(names(consolidated_superkey) %in% c("redcap_event_name")), drop = FALSE]
+      
+      # Apply the superkey data to all rows for this subject
+      for (col in names(superkey_data)) {
+        if (col != "record_id" && col %in% names(df)) {
+          df[df$record_id == subject_id, col] <- superkey_data[[col]][1]
+        } else if (col != "record_id" && !(col %in% names(df))) {
+          # Add the column if it doesn't exist in the instrument data
+          df[[col]] <- NA
+          df[df$record_id == subject_id, col] <- superkey_data[[col]][1]
+        }
+      }
+    }
+  } else {
+    # Standard merge if there's no event name in the instrument data
+    df <- merge(
+      consolidated_superkey,
+      instrument_response$data,
+      by = "record_id",
+      all.y = TRUE
+    )
+  }
   
   # Continue with the existing propagation logic
   if ("record_id" %in% names(df) && "redcap_event_name" %in% names(df)) {
@@ -258,7 +345,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
     super_key_cols <- super_key_cols[super_key_cols %in% names(df)]
     
     if (length(super_key_cols) > 0) {
-      message("Propagating superkey across all events for each subject...")
+      message("\nPropagating superkey across all events for each subject...")
       
       # For each subject
       for (subject_id in unique(df$record_id)) {
@@ -267,6 +354,11 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
         
         # For each super key field, find a non-NA value across all events
         for (key_field in super_key_cols) {
+          # Skip redcap_event_name to preserve the original values
+          if (key_field == "redcap_event_name") {
+            next
+          }
+          
           key_values <- df[subject_rows, key_field]
           non_na_values <- key_values[!is.na(key_values)]
           
@@ -319,6 +411,37 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
   if (config$study_alias == "capr") {
     base::source("api/redcap/capr-logic.R")
     df <- processCaprData(df, instrument_name)
+  }
+  
+  # Make a final pass to remove any PII fields that might have been included
+  if (exclude_pii && length(pii_fields) > 0) {
+    pii_cols_present <- intersect(names(df), pii_fields)
+    pii_cols_present <- pii_cols_present[!is.na(pii_cols_present)]
+    
+    if (length(pii_cols_present) > 0) {
+      message(sprintf("\nRemoving %d PII fields from final dataset: %s",
+                      length(pii_cols_present),
+                      paste(pii_cols_present, collapse = ", ")))
+      df <- df[, !names(df) %in% pii_fields, drop = FALSE]
+    }
+  }
+  
+  # Reorder columns to put superkey columns first
+  if (ncol(df) > 0) {
+    # Get names of all superkey columns that are in the dataset
+    superkey_cols_in_data <- intersect(
+      c("record_id", "redcap_event_name", super_key_cols), 
+      names(df)
+    )
+    
+    # Get names of all instrument columns
+    instrument_cols <- setdiff(names(df), superkey_cols_in_data)
+    
+    # Create the new column order
+    new_col_order <- c(superkey_cols_in_data, instrument_cols)
+    
+    # Reorder the dataframe
+    df <- df[, new_col_order, drop = FALSE]
   }
   
   # Attach the instrument name as an attribute without an extra parameter
