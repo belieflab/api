@@ -35,7 +35,7 @@
 #'   to.nda("eefrt01")
 #' }
 #'
-#' @export
+#' @noRd
 to.nda <- function(df) {
   
   response <- readline(prompt = sprintf("Would you like to create the NDA submission template for %s now? y/n ",
@@ -51,11 +51,8 @@ to.nda <- function(df) {
   }
   
   # Create directory structure if it doesn't exist
-  if (!dir.exists("nda")) {
-    dir.create("nda")
-  }
-  if (!dir.exists("nda/tmp")) {
-    dir.create("nda/tmp")
+  if (!dir.exists("./tmp")) {
+    dir.create("./tmp")
   }
   
   # Define structure_name explicitly
@@ -96,7 +93,7 @@ to.nda <- function(df) {
 #'
 #' @inheritParams to.nda
 #' @inherit to.nda return
-#' @export
+#' @noRd
 #' @examples
 #' \dontrun{
 #' createNda(prl01)
