@@ -1,4 +1,4 @@
-#' Create CSV File from a DataFrame
+#' Create .csv file from a data frame
 #'
 #' This function exports a given R DataFrame to a CSV file format. 
 #' The resulting file is saved in the "./tmp/" directory. If a filename 

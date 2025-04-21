@@ -1,4 +1,4 @@
-#' Initialize the wizaRdry directory structure
+#' Initialize the wizaRdry directory structure inside an R project
 #'
 #' Creates the standard directory structure required for the wizaRdry package to function properly.
 #' This includes folders for data cleaning scripts, NDA submission templates, and temporary outputs.

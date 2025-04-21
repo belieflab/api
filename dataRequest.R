@@ -1,4 +1,4 @@
-#' Data Request
+#' Call any number of data cleaning scripts
 #'
 #' This function processes requests for clean data sequentially for specified measures.
 #' It makes a request to the appropriate API for the named measure or measures

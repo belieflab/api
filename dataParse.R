@@ -1,4 +1,4 @@
-#' Parse Qualtrics Data into Separate Survey Dataframes
+#' Parse composite Qualtrics survey into component data frames by variable prefix
 #'
 #' This function takes a raw Qualtrics dataframe containing multiple surveys and
 #' separates it into individual dataframes for each survey detected in the data.
@@ -118,8 +118,7 @@ qualtrics.rune <- function(qualtrics_alias, label = FALSE, lower = TRUE){
   return(list2env(output, globalenv()))
 }
 
-
-#' Parse Qualtrics Data into Separate Survey Dataframes
+#' Parse composite MongoDB collection into component data frames by variable prefix
 #'
 #' This function takes a raw Qualtrics dataframe containing multiple surveys and
 #' separates it into individual dataframes for each survey detected in the data.
@@ -238,7 +237,7 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
   return(list2env(output, globalenv()))
 }
 
-#' Parse Qualtrics Data into Separate Survey Dataframes
+#' Parse composite data frame into component data frames by variable prefix
 #'
 #' This function takes a raw Qualtrics dataframe containing multiple surveys and
 #' separates it into individual dataframes for each survey detected in the data.

@@ -1,4 +1,4 @@
-#' Create SPSS file from a DataFrame
+#' Create .sav SPSS file from a data frame
 #'
 #' This function takes a R DataFrame and writes it to an SPSS file
 #' using the Haven package. The resulting file will be stored in the

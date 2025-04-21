@@ -67,7 +67,7 @@ formatDuration <- function(duration) {
   }
 }
 
-#' Get Data from REDCap
+#' Fetch data from REDCap to be stored in a data frame
 #'
 #' Retrieves data from a REDCap instrument and ensures subject identifiers
 #' are propagated across all events
@@ -551,7 +551,7 @@ redcap <- function(instrument_name = NULL, raw_or_label = "raw",
 }
 
 
-#' Get Available REDCap Forms
+#' Display table of available REDCap instruments and their labels 
 #' 
 #' Retrieves a list of all available REDCap forms as a formatted table
 #' 
@@ -597,7 +597,7 @@ redcap.index <- function() {
   })
 }
 
-#' Extract Dictionary from REDCap Data
+#' Fetch REDCap data dictionary to be stored in data frame
 #'
 #' This function extracts metadata/dictionary information from REDCap. It can accept
 #' either an instrument name to fetch new data, an existing data frame with instrument

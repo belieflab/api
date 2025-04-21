@@ -1,4 +1,4 @@
-#' Data Merge
+#' Merge two or more data frames magically according to their candidate key
 #'
 #' This function simplifies the process of merging multiple cleaned data frames by automatically determining 
 #' common merge keys or utilizing user-specified keys. Supports both inner and outer join methods, 

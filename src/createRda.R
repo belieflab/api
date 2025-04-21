@@ -1,4 +1,4 @@
-#' Create RDS File from a DataFrame
+#' Create .rds file from a data frame
 #'
 #' This function exports a given R DataFrame to an RDS file format.
 #' The resulting file is saved in the "./tmp/" directory. If a filename
@@ -48,7 +48,7 @@ to.rds <- function(df, df_name = NULL) {
   if (!dir.exists("tmp")) {
     dir.create("tmp")
   }
-  path <- paste0("./tmp/", filename, '.Rds')
+  path <- paste0("./tmp/", filename, '.rds')
   
   saveRDS(df, file = path)
   
