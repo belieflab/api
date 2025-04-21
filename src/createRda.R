@@ -54,3 +54,17 @@ to.rds <- function(df, df_name = NULL) {
   
   message(paste0("Extract created at ", path, "\n"))
 }
+
+#' Alias for 'to.rds'
+#'
+#' This is a legacy alias for the 'to.rds' function to maintain compatibility with older code.
+#'
+#' @inheritParams to.rds
+#' @inherit to.rds return
+#' @export
+#' @examples
+#' \dontrun{
+#' createRds(prl01)
+#' }
+createRds <- to.rds
+
