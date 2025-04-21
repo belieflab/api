@@ -26,6 +26,18 @@
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 to.sav <- function(df, df_name = NULL) {
   
+  response <- readline(prompt = sprintf("Would you like to create the SPSS data file for %s now? y/n ",
+                                        paste(deparse(substitute(df)), collapse = ", ")))
+  
+  while (!tolower(response) %in% c("y", "n")) {
+    response <- readline(prompt = "Please enter either y or n: ")
+  }
+  
+  if (tolower(response) == "n") {
+    # Instead of stopping with an error, return invisibly
+    return(invisible(NULL))
+  }
+  
   if(!require(haven)) {install.packages("haven")}; library(haven);
   
   # Use df_name if provided, otherwise derive from df variable name

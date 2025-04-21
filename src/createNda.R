@@ -37,6 +37,19 @@
 #'
 #' @export
 to.nda <- function(df) {
+  
+  response <- readline(prompt = sprintf("Would you like to create the NDA submission template for %s now? y/n ",
+                                        paste(deparse(substitute(df)), collapse = ", ")))
+  
+  while (!tolower(response) %in% c("y", "n")) {
+    response <- readline(prompt = "Please enter either y or n: ")
+  }
+  
+  if (tolower(response) == "n") {
+    # Instead of stopping with an error, return invisibly
+    return(invisible(NULL))
+  }
+  
   # Create directory structure if it doesn't exist
   if (!dir.exists("nda")) {
     dir.create("nda")

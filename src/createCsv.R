@@ -23,6 +23,19 @@
 #' @export
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 to.csv <- function(df, df_name = NULL) {
+  
+  response <- readline(prompt = sprintf("Would you like to create the csv for %s now? y/n ",
+                                        paste(deparse(substitute(df)), collapse = ", ")))
+  
+  while (!tolower(response) %in% c("y", "n")) {
+    response <- readline(prompt = "Please enter either y or n: ")
+  }
+  
+  if (tolower(response) == "n") {
+    # Instead of stopping with an error, return invisibly
+    return(invisible(NULL))
+  }
+  
   # Use df_name if provided, otherwise derive from df variable name
   filename <- if (!is.null(df_name)) {
     df_name

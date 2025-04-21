@@ -8,7 +8,7 @@
 #' @param df DataFrame to be exported to RDS format.
 #' @param df_name Optional; a custom file name for the saved RDS file.
 #'   If not provided, the name of the DataFrame variable is used.
-#'   The function adds the ".Rda" extension automatically.
+#'   The function adds the ".rds" extension automatically.
 #' @return The function writes an RDS file to the specified path and prints a message
 #'   indicating the file's location. This function does not return a value.
 #' @examples
@@ -18,11 +18,24 @@
 #'   id = 1:3,
 #'   name = c("Alice", "Bob", "Charlie")
 #' )
-#' to.rda(sample_df)
+#' to.rds(sample_df)
 #' }
 #' @export
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
-to.rda <- function(df, df_name = NULL) {
+to.rds <- function(df, df_name = NULL) {
+  
+  response <- readline(prompt = sprintf("Would you like to create the R data file for %s now? y/n ",
+                                        paste(deparse(substitute(df)), collapse = ", ")))
+  
+  while (!tolower(response) %in% c("y", "n")) {
+    response <- readline(prompt = "Please enter either y or n: ")
+  }
+  
+  if (tolower(response) == "n") {
+    # Instead of stopping with an error, return invisibly
+    return(invisible(NULL))
+  }
+  
   if(is.null(df) || nrow(df) == 0) {
     stop("DataFrame is empty or NULL. Cannot save to RDS.")
   }
@@ -41,17 +54,3 @@ to.rda <- function(df, df_name = NULL) {
   
   message(paste0("Extract created at ", path, "\n"))
 }
-
-#' Alias for 'to.rda'
-#'
-#' This is a legacy alias for the 'to.rda' function to maintain compatibility with older code.
-#'
-#' @inheritParams to.rda
-#' @inherit to.rda return
-#' @export
-#' @examples
-#' \dontrun{
-#' createRda(prl01)
-#' }
-createRda <- to.rda
-

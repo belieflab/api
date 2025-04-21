@@ -53,6 +53,17 @@
 scry <- function(study_alias = NULL, path = ".", overwrite = FALSE, repair = FALSE, show_tree = NULL,
                  create_project = FALSE, examples = FALSE) {
   
+  response <- readline(prompt = "Would you like to create the wizaRdry project structure? y/n ")
+  
+  while (!tolower(response) %in% c("y", "n")) {
+    response <- readline(prompt = "Please enter either y or n: ")
+  }
+  
+  if (tolower(response) == "n") {
+    # Instead of stopping with an error, return invisibly
+    return(invisible(NULL))
+  }
+  
   # If study_alias is NULL (not provided), try to detect from .Rproj file
   if (is.null(study_alias)) {
     # Look for .Rproj files in the specified path
