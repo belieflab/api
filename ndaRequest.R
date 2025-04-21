@@ -1,4 +1,4 @@
-#' NDA Request
+#' Generate validated NDA submission templates created in the ./nda directory
 #'
 #' This function processes requests for clean data sequentially for specified measures.
 #' It makes a request to the NIH NDA API for the named data structures
