@@ -9,7 +9,7 @@
 #' @param df The dataframe to be exported.
 #' @param df_name The base name for the output file(s) without extension.
 #' @param csv Logical; if TRUE, a CSV file is created using the `createCsv` function.
-#' @param rdata Logical; if TRUE, an RDS file is created using the `createRda` function.
+#' @param rdata Logical; if TRUE, an RDS file is created using the `createRds` function.
 #' @param spss Logical; if TRUE, an SPSS file is created using the `createSpss` function.
 #' @examples
 #' createExtract(mtcars, "mtcars_export", csv = TRUE, rds = TRUE, spss = FALSE)
@@ -19,14 +19,14 @@
 createExtract <- function(df, df_name, csv=NULL, rdata=NULL, spss=NULL) {
   
   source("api/src/createCsv.R")
-  source("api/src/createRda.R")
+  source("api/src/createRds.R")
   source("api/src/createSpss.R")
   
   if (!is.null(csv) && csv) {
     createCsv(df, df_name)
   }
   if (!is.null(rdata) && rdata) {
-    createRda(df, df_name)
+    createRds(df, df_name)
   }
   if (!is.null(spss) && spss) {
     createSpss(df, df_name)

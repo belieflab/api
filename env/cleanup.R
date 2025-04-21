@@ -9,11 +9,11 @@
 nda_merge_vars <- c("src_subject_id", "subjectkey", "phenotype", "visit", "sex", "site")
 
 # List of objects you want to explicitly keep, including contents of nda_merge_vars
-# explicit_keep <- c("createCsv", "createSpss", "createRda", "getRedcap", "getTask", "getSurvey",
+# explicit_keep <- c("createCsv", "createSpss", "createRds", "getRedcap", "getTask", "getSurvey",
 #                    "dataRequest", "processMeasure", "performCleanup", "dataFilter", "dataMerge",
 #                    "getDictionary", "testSuite", "ndaRequest", "dataRequest", nda_merge_vars)
 
-explicit_keep <- c("createCsv", "createSpss", "createRda", "getRedcap", "getTask", "getSurvey",
+explicit_keep <- c("createCsv", "createSpss", "createRds", "getRedcap", "getTask", "getSurvey",
                    "dataRequest", "performCleanup", "dataFilter", "dataMerge",
                    "getDictionary", "ndaRequest", "dataRequest", nda_merge_vars)
 

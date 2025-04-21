@@ -94,7 +94,7 @@ meld <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata
   
   # Export merged data if requested
   if (csv) { createCsv(dfs, "merged_dfs.csv") }
-  if (rdata) { createRda(dfs, "merged_dfs") }
+  if (rdata) { createRds(dfs, "merged_dfs") }
   if (spss) { createSpss(dfs, "merged_dfs.sav") }
   
   
