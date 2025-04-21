@@ -1,7 +1,7 @@
 #' Parse composite Qualtrics survey into component data frames by variable prefix
 #'
-#' This function takes a raw Qualtrics dataframe containing multiple surveys and
-#' separates it into individual dataframes for each survey detected in the data.
+#' This function fetches a Qualtrics data frame containing multiple surveys and
+#' separates it into individual data frames for each survey detected in the data.
 #' It identifies the appropriate identifier column (e.g., participantId, workerId)
 #' and splits the data based on column name prefixes.
 #'
@@ -120,8 +120,8 @@ qualtrics.rune <- function(qualtrics_alias, label = FALSE, lower = TRUE){
 
 #' Parse composite MongoDB collection into component data frames by variable prefix
 #'
-#' This function takes a raw Qualtrics dataframe containing multiple surveys and
-#' separates it into individual dataframes for each survey detected in the data.
+#' This function fetches a MongoDB collection containing multiple collections and
+#' separates it into individual data frames for each collection detected in the data.
 #' It identifies the appropriate identifier column (e.g., participantId, workerId)
 #' and splits the data based on column name prefixes.
 #'
@@ -239,8 +239,8 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
 
 #' Parse composite data frame into component data frames by variable prefix
 #'
-#' This function takes a raw Qualtrics dataframe containing multiple surveys and
-#' separates it into individual dataframes for each survey detected in the data.
+#' This function takes a data frame containing multiple measures and
+#' separates it into individual data frames for each measure detected in the data.
 #' It identifies the appropriate identifier column (e.g., participantId, workerId)
 #' and splits the data based on column name prefixes.
 #'
