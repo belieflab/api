@@ -49,7 +49,7 @@
 #'   state = c("complete", "completed baseline", "in progress", NA),
 #'   status = c(NA, NA, NA, "complete"),
 #'   lost_to_followup = c(FALSE, FALSE, TRUE, NA),
-#'   interview_date = c("2023-01-15", "2023/02/20", NA, "2023-03-10"),
+#'   interview_date = c("2023-01-15", "2023/02/20", NA, "2023-03-10")
 #' )
 #' 
 #' # Set row names for demonstration
