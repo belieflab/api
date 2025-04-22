@@ -27,6 +27,9 @@
 nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset = FALSE, skip_prompt = FALSE) {
   start_time <- Sys.time()
   
+  # Define base path
+  path <- "."
+  
   base::source("api/getRedcap.R")
   base::source("api/getSurvey.R")
   base::source("api/getTask.R")
@@ -317,9 +320,6 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
         
         # Store the selected API for this script in our mapping
         new_script_apis[[script_name]] <<- selected_api
-        
-        # Define base path
-        path <- "."
         
         clean_templates <- list(
           mongo = list(

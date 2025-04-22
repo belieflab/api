@@ -26,6 +26,9 @@
 clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, skip_prompt = FALSE) {
   base::source("api/testSuite.R")
   
+  # Define base path
+  path <- "." # Or whatever directory you're working from
+  
   # Required Libraries Setup
   if (!require("tidyverse")) {install.packages("tidyverse")}; library(tidyverse)
   if (!require("dplyr")) {install.packages("dplyr")}; library(dplyr)
@@ -147,9 +150,6 @@ clean <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, skip_prompt = F
       
       # Use the function - select API once for all scripts
       selected_api <- api_selection()
-      
-      # Define base path
-      path <- "." # Or whatever directory you're working from
       
       # Process each invalid script
       for (script_name in invalid_scripts) {
