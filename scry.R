@@ -238,7 +238,7 @@ scry <- function(study_alias = NULL, path = ".", overwrite = FALSE, repair = FAL
   } else {
     # Create new .gitignore with all patterns
     writeLines(c(secrets_pattern, tmp_pattern, pem_pattern, prefs_pattern), gitignore_file)
-    message("Created .gitignore with secrets.R, *.pem, and tmp/* patterns")
+    message("Created .gitignore with secrets.R, *.pem, tmp/*, and .wizaRdry_prefs patterns")
   }
   
   # Ensure .gitkeep exists in tmp directory but is tracked
