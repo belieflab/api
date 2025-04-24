@@ -51,8 +51,8 @@ qualtrics.rune <- function(qualtrics_alias, label = FALSE, lower = TRUE){
   }
   
   # Print existing identifiers for debugging
-  print("Existing identifiers:")
-  print(existing_keys)
+  #print("Existing identifiers:")
+  #print(existing_keys)
   
   # Find the first identifier with non-NA values
   identifier <- NA
@@ -60,7 +60,7 @@ qualtrics.rune <- function(qualtrics_alias, label = FALSE, lower = TRUE){
     non_na_count <- sum(!is.na(df[[key]]))
     
     # Debug print to check how many non-NA values exist in each column
-    print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
+    #print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
     
     if (non_na_count > 0) {  # As long as there's at least 1 non-NA value
       identifier <- key
@@ -74,7 +74,7 @@ qualtrics.rune <- function(qualtrics_alias, label = FALSE, lower = TRUE){
   }
   
   # Print the detected identifier for debugging
-  print(paste("Detected identifier:", identifier))
+  message(paste("Detected identifier:", identifier))
   
   # Define common columns to include if they exist
   common_columns <- c(
@@ -182,8 +182,8 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
   }
   
   # Print existing identifiers for debugging
-  print("Existing identifiers:")
-  print(existing_keys)
+  #print("Existing identifiers:")
+  #print(existing_keys)
   
   # Find the first identifier with non-NA values
   identifier <- NA
@@ -191,7 +191,7 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
     non_na_count <- sum(!is.na(df[[key]]))
     
     # Debug print to check how many non-NA values exist in each column
-    print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
+    #print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
     
     if (non_na_count > 0) {  # As long as there's at least 1 non-NA value
       identifier <- key
@@ -205,7 +205,7 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
   }
   
   # Print the detected identifier for debugging
-  print(paste("Detected identifier:", identifier))
+  message(paste("Detected identifier:", identifier))
   
   # Define common columns to include if they exist
   common_columns <- c(
@@ -322,8 +322,8 @@ rune <- function(df, lower = TRUE){
   }
   
   # Print existing identifiers for debugging
-  print("Existing identifiers:")
-  print(existing_keys)
+  #print("Existing identifiers:")
+  #print(existing_keys)
   
   # Find the first identifier with non-NA values
   identifier <- NA
@@ -331,7 +331,7 @@ rune <- function(df, lower = TRUE){
     non_na_count <- sum(!is.na(df[[key]]))
     
     # Debug print to check how many non-NA values exist in each column
-    print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
+    #print(paste("Checking identifier:", key, "with", non_na_count, "non-NA values"))
     
     if (non_na_count > 0) {  # As long as there's at least 1 non-NA value
       identifier <- key
@@ -345,7 +345,7 @@ rune <- function(df, lower = TRUE){
   }
   
   # Print the detected identifier for debugging
-  print(paste("Detected identifier:", identifier))
+  message(paste("Detected identifier:", identifier))
   
   # Define common columns to include if they exist
   common_columns <- c(
