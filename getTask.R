@@ -226,6 +226,9 @@ formatDuration <- function(duration) {
 #' @param identifier Field to use as identifier (optional)
 #' @param chunk_size Number of records per chunk (optional)
 #' @param verbose Logical; if TRUE, displays detailed progress messages. Default is FALSE.
+#' @param interview_date Optional; can be either:
+#'        - A date string in various formats (ISO, US, etc.) to filter data up to that date
+#'        - A boolean TRUE to return only rows with non-NA interview_date values
 #' @importFrom mongolite mongo ssl_options
 #' @importFrom parallel detectCores
 #' @importFrom future plan multisession
@@ -242,7 +245,7 @@ formatDuration <- function(duration) {
 #' # Get data from MongoDB collection
 #' data <- mongo("collection_name")
 #' }
-mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE) {
+mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size = NULL, verbose = FALSE, interview_date = NULL) {
   start_time <- Sys.time()
   Mongo <- NULL  # Initialize to NULL for cleanup in on.exit
   
@@ -341,14 +344,11 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
   # Setup parallel processing with quiet connections
   plan(future::multisession, workers = workers)
   
-  # Progress message
-  #message("Retrieving data:")
-  #message(sprintf("Found %d records in %s/%s", total_records, db_name, collection_name))
+  # Initialize custom progress bar
+  pb <- initializeLoadingAnimation(num_chunks)
   message(sprintf("\nImporting %s records from %s/%s into dataframe...",
                   formatC(total_records, format = "d", big.mark = ","),
                   db_name, collection_name))
-  # Initialize custom progress bar
-  pb <- initializeLoadingAnimation(num_chunks)
   
   # Process chunks
   future_results <- vector("list", length(chunks))
@@ -379,23 +379,118 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
         NULL
       })
     })
+    
+    # Update progress bar *after* submitting the future
     updateLoadingAnimation(pb, i)
+    
+    # Add a small delay to allow the progress bar to be displayed
+    Sys.sleep(0.01)
   }
   
-  # Collect results
-  results <- lapply(future_results, future::value)
-  
+  # Collect results - this is where we need to show progress!
+  message("\nProcessing data chunks...")
+  results <- vector("list", length(future_results))
+  for (i in seq_along(future_results)) {
+    results[[i]] <- future::value(future_results[[i]])
+    Sys.sleep(0.01) # Small delay to ensure progress bar updates
+  }
+
   # Combine results
-  # message("\nCombining data chunks...")
   df <- dplyr::bind_rows(results)
-  completeLoadingAnimation(pb)
+
+  # Create a copy of the original dataframe to preserve original values
+  original_df <- df
+  
+  # Advanced date parsing function that handles multiple formats
+  parseAnyDate <- function(date_string) {
+    if (is.na(date_string) || is.null(date_string)) {
+      return(NA)
+    }
+    
+    # Try multiple date formats sequentially
+    date <- NULL
+    
+    # Try ISO format (YYYY-MM-DD)
+    if (grepl("^\\d{4}-\\d{1,2}-\\d{1,2}$", date_string)) {
+      date <- tryCatch(ymd(date_string), error = function(e) NULL)
+    } 
+    # Try US format (MM/DD/YYYY)
+    else if (grepl("^\\d{1,2}/\\d{1,2}/\\d{4}$", date_string)) {
+      date <- tryCatch(mdy(date_string), error = function(e) NULL)
+    } 
+    # Try European format (DD.MM.YYYY)
+    else if (grepl("^\\d{1,2}\\.\\d{1,2}\\.\\d{4}$", date_string)) {
+      date <- tryCatch(dmy(date_string), error = function(e) NULL)
+    }
+    # Try Canadian format (YYYY/MM/DD)
+    else if (grepl("^\\d{4}/\\d{1,2}/\\d{1,2}$", date_string)) {
+      date <- tryCatch(ymd(date_string), error = function(e) NULL)
+    }
+    # Try other format (DD-MM-YYYY)
+    else if (grepl("^\\d{1,2}-\\d{1,2}-\\d{4}$", date_string)) {
+      date <- tryCatch(dmy(date_string), error = function(e) NULL)
+    }
+    # Try abbreviated month name (15-Jan-2023 or Jan 15, 2023)
+    else if (grepl("[A-Za-z]", date_string)) {
+      date <- tryCatch(parse_date_time(date_string, c("dmy", "mdy")), error = function(e) NULL)
+    }
+    
+    # If all attempts fail, return NA
+    if (is.null(date) || all(is.na(date))) {
+      warning("Failed to parse date: ", date_string, ". Treating as NA.")
+      return(NA)
+    }
+    
+    return(as.Date(date))
+  }
+  
+  # Handle interview_date filtering
+  if ("interview_date" %in% names(df)) {
+    # Create a temporary date column for filtering but don't modify the original
+    df$temp_date <- sapply(df$interview_date, parseAnyDate)
+    
+    # Handle the interview_date parameter
+    if (!is.null(interview_date)) {
+      if (is.logical(interview_date) && interview_date == TRUE) {
+        # Keep only rows with non-NA interview_date values
+        rows_to_keep <- !is.na(df$temp_date)
+        df <- df[rows_to_keep, ]
+        original_df <- original_df[rows_to_keep, ]
+      } else if (is.character(interview_date) || inherits(interview_date, "Date")) {
+        # Filter by specific date
+        input_date <- tryCatch({
+          if (inherits(interview_date, "Date")) {
+            interview_date
+          } else {
+            parseAnyDate(interview_date)
+          }
+        }, error = function(e) {
+          stop("Failed to parse interview_date parameter: ", interview_date)
+        })
+        
+        if (is.na(input_date)) {
+          stop("Failed to parse interview_date parameter: ", interview_date)
+        }
+        
+        rows_to_keep <- df$temp_date <= input_date
+        df <- df[rows_to_keep, ]
+        original_df <- original_df[rows_to_keep, ]
+      } else {
+        stop("interview_date must be either a date string or TRUE")
+      }
+    }
+    
+    # Remove the temporary date column
+    df$temp_date <- NULL
+  }
   
   # Harmonize data
   message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)  # Prevents line feed
-  clean_df <- taskHarmonization(df, identifier, collection_name)
   Sys.sleep(0.5)  # Optional: small pause for visual effect
   message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
   # "\u2713"
+  clean_df <- taskHarmonization(df, identifier, collection_name)
+  
   
   # List of allowed superkey columns to prioritize
   allowed_superkey_cols <- c(
