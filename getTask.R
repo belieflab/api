@@ -392,11 +392,14 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
   
   # Handle interview_date filtering if needed
   if (!is.null(interview_date) && "interview_date" %in% names(df)) {
-    message("Filtering by interview date...")
+    message("Filtering by interview date...", appendLF = FALSE)
     
     # Convert dates only once for the whole dataframe - much more efficient
     if (!inherits(df$interview_date, "Date")) {
       df$interview_date <- parse_dates_to_iso(df$interview_date, "interview_date")
+      # The parse_dates_to_iso function already outputs a message with success percentage
+    } else {
+      message(" using existing Date format.")
     }
     
     # Apply the filter based on the parameter type
@@ -421,8 +424,9 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
   }
   
   # Harmonize data
-  message(sprintf("Harmonizing data on %s...", identifier))
+  message(sprintf("Harmonizing data on %s...", identifier), appendLF = FALSE)  # Prevents line feed
   clean_df <- taskHarmonization(df, identifier, collection_name)
+  message(sprintf("\rHarmonizing data on %s...done.", identifier))  # Overwrites the line with 'done'
   
   # List of allowed superkey columns to prioritize
   allowed_superkey_cols <- c(
