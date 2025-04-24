@@ -307,7 +307,7 @@ mongo.rune <- function(collection, db_name = NULL, lower = TRUE ){
 #'
 #' @importFrom dplyr filter select
 #' @export
-runex <- function(df, lower = TRUE){
+rune <- function(df, lower = TRUE){
   if (!require("dplyr")) {install.packages("dplyr"); library(dplyr)}
   
   # Define potential identifiers
