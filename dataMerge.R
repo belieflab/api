@@ -14,7 +14,6 @@
 #' @param spss Logical; if TRUE, the merged data frame is exported as an SPSS file.
 #'
 #' @examples
-#' \dontrun{
 #' # Create sample dataframes for demonstration
 #' df1 <- data.frame(
 #'   src_subject_id = c("S001", "S002", "S003"),
@@ -35,7 +34,6 @@
 #' 
 #' # Perform an INNER JOIN using specified keys:
 #' merged2 <- meld(df1, df2, by = "src_subject_id", all = FALSE)
-#' }
 #' @return A merged data frame based on the specified or common candidate keys.
 #' @author Joshua Kenney <joshua.kenney@yale.edu>
 #' @export
@@ -110,7 +108,24 @@ meld <- function(..., by = NULL, all = TRUE, no.dups = FALSE, csv = FALSE, rdata
 #' @inherit meld return
 #' @export
 #' @examples
-#' \dontrun{
-#' merged <- dataMerge(df1_clean, df2_clean)
-#' }
+#' # Create sample dataframes for demonstration
+#' df1 <- data.frame(
+#'   src_subject_id = c("S001", "S002", "S003"),
+#'   visit = c(1, 2, 1),
+#'   measure1 = c(10, 15, 12),
+#'   stringsAsFactors = FALSE
+#' )
+#' 
+#' df2 <- data.frame(
+#'   src_subject_id = c("S001", "S002", "S004"),
+#'   visit = c(1, 2, 2),
+#'   measure2 = c(85, 92, 78),
+#'   stringsAsFactors = FALSE
+#' )
+#' 
+#' # Perform an OUTER JOIN using default keys:
+#' merged1 <- dataMerge(df1, df2, all = TRUE)
+#' 
+#' # Perform an INNER JOIN using specified keys:
+#' merged2 <- dataMerge(df1, df2, by = "src_subject_id", all = FALSE)
 dataMerge <- meld
