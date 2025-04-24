@@ -906,8 +906,9 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
         
         # Determine which environment contains the original dataframe
         env_to_use <- NULL
-        if(exists(measure_name, envir = globalenv())) {
-          env_to_use <- globalenv()
+        calling_env <- parent.frame(2) # The environment that called this function
+        if(exists(measure_name, envir = calling_env)) {
+          env_to_use <- calling_env
         } else if(exists(".wizaRdry_env") && exists(measure_name, envir = .wizaRdry_env)) {
           env_to_use <- .wizaRdry_env
         }
@@ -1051,8 +1052,9 @@ validate_structure <- function(df, elements, measure_name, api, verbose = FALSE,
             
             # Update in environment
             env_to_use <- NULL
-            if(exists(measure_name, envir = globalenv())) {
-              env_to_use <- globalenv()
+            calling_env <- parent.frame(2) # The environment that called this function
+            if(exists(measure_name, envir = calling_env)) {
+              env_to_use <- calling_env
             } else if(exists(".wizaRdry_env") && exists(measure_name, envir = .wizaRdry_env)) {
               env_to_use <- .wizaRdry_env
             }
@@ -1465,7 +1467,7 @@ ndaValidator <- function(measure_name,
     all_columns_to_drop <- character(0)
     
     if (!exists(".wizaRdry_env")) {
-      .wizaRdry_env <- new.env(parent = globalenv())
+      .wizaRdry_env <- new.env(parent = parent.frame())
     }
     
     # Get the dataframe from the environment
