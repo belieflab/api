@@ -99,14 +99,7 @@ to.sav <- function(df, df_name = NULL, path = ".", skip_prompt = FALSE) {
     }
   }
   
-  # Check if haven is installed, and install if needed
-  if(!requireNamespace("haven", quietly = TRUE)) {
-    message("Installing haven package...")
-    install.packages("haven")
-  }
-  
-  # Load haven
-  library(haven)
+  if (!require("haven")) {install.packages("haven")}; library(haven)
   
   # Use df_name if provided, otherwise derive from df variable name
   filename <- if (!is.null(df_name)) {
