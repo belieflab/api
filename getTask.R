@@ -387,8 +387,13 @@ mongo <- function(collection_name, db_name = NULL, identifier = NULL, chunk_size
     Sys.sleep(0.01)
   }
   
-  # Collect results
-  results <- lapply(future_results, future::value)
+  # Collect results - this is where we need to show progress!
+  message("\nProcessing data chunks...")
+  results <- vector("list", length(future_results))
+  for (i in seq_along(future_results)) {
+    results[[i]] <- future::value(future_results[[i]])
+    Sys.sleep(0.01) # Small delay to ensure progress bar updates
+  }
 
   # Combine results
   df <- dplyr::bind_rows(results)
