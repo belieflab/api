@@ -787,8 +787,7 @@ getCollectionsFromConnection <- function(mongo_connection) {
 mongo.index <- function(db_name = NULL) {
   # Temporarily suppress warnings
   old_warn <- options("warn")
-  options(warn = -1)
-  
+
   # Function to suppress specific warnings by pattern
   suppressSpecificWarning <- function(expr, pattern) {
     withCallingHandlers(

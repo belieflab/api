@@ -338,8 +338,7 @@ qualtricsHarmonization <- function(df, identifier, qualtrics_alias) {
 qualtrics.index <- function(institution = NULL) {
   # Temporarily suppress warnings
   old_warn <- options("warn")
-  options(warn = -1)
-  
+
   tryCatch({
     # Load necessary source files for helper functions
     lapply(list.files("api/src", pattern = "\\.R$", full.names = TRUE), base::source)
@@ -549,8 +548,7 @@ qualtrics.dict <- function(survey_alias, exclude_embedded = TRUE) {
     old_warn <- options("warn")
     old_opt <- options(qualtRics.progress = FALSE)
     on.exit({options(old_warn); options(old_opt)}, add = TRUE)
-    options(warn = -1)
-    
+
     # Get survey data with suppressed output
     survey_data <- suppressMessages(wizaRdry::qualtrics(survey_alias))
     colmap <- qualtRics::extract_colmap(respdata = survey_data)
