@@ -38,6 +38,9 @@
 #' @examples
 #' \dontrun{
 #' # Initialize in current directory
+#' scry()
+#' 
+#' # Repair structure in current directory
 #' scry(repair = TRUE)
 #' 
 #' # Initialize in a specific directory with an R project
