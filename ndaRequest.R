@@ -103,7 +103,7 @@ nda <- function(..., csv = FALSE, rdata = FALSE, spss = FALSE, limited_dataset =
       # If skip_prompt is TRUE or user has previously set auto_nda to TRUE, bypass the prompt
       if (!skip_prompt && !user_prefs$auto_nda) {
         
-        template_word <- ifelse(length(invalid_scripts) > 1, "templates", "template")
+        template_word <- ifelse(length(invalid_structures) > 1, "templates", "template")
         response <- readline(prompt = sprintf("Would you like to create NDA submission %s for %s now? y/n ",
                                               template_word,
                                               paste(invalid_structures, collapse = ", ")))
